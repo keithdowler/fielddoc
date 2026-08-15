@@ -1,0 +1,17 @@
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import { resolvePublicProductName } from "@fielddoc/config";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: resolvePublicProductName(process.env.NEXT_PUBLIC_PRODUCT_NAME),
+  description: "Field documentation and proof packet workspace.",
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
