@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultReportSectionConfigs } from "@fielddoc/domain";
 
 import { createNodeSqliteDatabase } from "./node-sqlite-database.test-helper";
 import { createLocalRepositories } from "./repositories";
@@ -24,8 +25,28 @@ describe("SQLite local repositories", () => {
       const row = await database.getFirst<{ version: number }>(
         "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1",
       );
+      const indexRow = await database.getFirst<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_media_assets_evidence'",
+      );
+      const captionColumn = await database.getFirst<{ name: string }>(
+        "SELECT name FROM pragma_table_info('media_assets') WHERE name = 'caption'",
+      );
+      const sectionsColumn = await database.getFirst<{ name: string }>(
+        "SELECT name FROM pragma_table_info('report_drafts') WHERE name = 'sections_json'",
+      );
+      const generatedPdfColumn = await database.getFirst<{ name: string }>(
+        "SELECT name FROM pragma_table_info('report_drafts') WHERE name = 'generated_pdf_uri'",
+      );
+      const reportDraftIndex = await database.getFirst<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_report_drafts_project_updated'",
+      );
 
       expect(row?.version).toBe(localDatabaseVersion);
+      expect(indexRow?.name).toBe("idx_media_assets_evidence");
+      expect(captionColumn?.name).toBe("caption");
+      expect(sectionsColumn?.name).toBe("sections_json");
+      expect(generatedPdfColumn?.name).toBe("generated_pdf_uri");
+      expect(reportDraftIndex?.name).toBe("idx_report_drafts_project_updated");
     });
   });
 
@@ -96,6 +117,302 @@ describe("SQLite local repositories", () => {
         afterCount: 1,
         missingCaptionCount: 1,
       });
+    });
+  });
+
+  it("stores local media assets and summarizes attached originals", async () => {
+    await withRepositories(async ({ projects, evidence, media, mutations }) => {
+      const project = await projects.create({ name: "Media project" });
+      const item = await evidence.create({
+        projectId: project.id,
+        category: "BEFORE",
+        title: "Front elevation",
+        caption: "Before work started",
+      });
+      const mediaAsset = await media.create({
+        evidenceItemId: item.id,
+        localUri: "file:///fielddoc/evidence-originals/original.jpg",
+        mediaType: "IMAGE",
+        mimeType: "image/jpeg",
+        sizeBytes: 2048,
+        sha256:
+          "3a6eb0790f39ac87c94f3856b2dd2c5d110e6811602261a9a923d3bb23adc8b7",
+        width: 1200,
+        height: 800,
+        captureTimestamp: "2026-08-15T12:00:00.000Z",
+        sourceType: "CAMERA_PHOTO",
+      });
+
+      expect(await media.listByEvidenceItem(item.id)).toEqual([mediaAsset]);
+      expect(await media.listByProject(project.id)).toEqual([mediaAsset]);
+      expect(await media.listByEvidenceIds([item.id])).toEqual([mediaAsset]);
+      expect(await media.countByEvidenceIds([item.id])).toEqual({
+        [item.id]: 1,
+      });
+      expect(await evidence.summarizeProject(project.id)).toMatchObject({
+        beforeCount: 1,
+        mediaAssetCount: 1,
+        missingCaptionCount: 0,
+      });
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.entityType),
+      ).toEqual(["Project", "EvidenceItem", "MediaAsset"]);
+    });
+  });
+
+  it("soft deletes media assets without deleting evidence metadata", async () => {
+    await withRepositories(async ({ projects, evidence, media, mutations }) => {
+      const project = await projects.create({ name: "Delete media project" });
+      const item = await evidence.create({
+        projectId: project.id,
+        category: "WORK",
+      });
+      const mediaAsset = await media.create({
+        evidenceItemId: item.id,
+        localUri: "file:///fielddoc/evidence-originals/original.pdf",
+        mediaType: "DOCUMENT",
+        mimeType: "application/pdf",
+        sizeBytes: 4096,
+        sha256:
+          "11507a0e2f5e69d5c15a8e65b7ef464041602a06120573cd9f8021c3d1f2f4e7",
+        sourceType: "FILE_IMPORT",
+      });
+
+      await media.delete(mediaAsset.id);
+
+      expect(await media.listByEvidenceItem(item.id)).toEqual([]);
+      expect(await media.listByEvidenceIds([item.id])).toEqual([]);
+      expect((await evidence.listByProject(project.id))[0]?.id).toBe(item.id);
+      expect(await evidence.summarizeProject(project.id)).toMatchObject({
+        workCount: 1,
+        mediaAssetCount: 0,
+      });
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.operation),
+      ).toEqual(["CREATE", "CREATE", "CREATE", "DELETE"]);
+    });
+  });
+
+  it("updates and restores media asset captions without changing original metadata", async () => {
+    await withRepositories(async ({ projects, evidence, media, mutations }) => {
+      const project = await projects.create({ name: "Caption media project" });
+      const item = await evidence.create({
+        projectId: project.id,
+        category: "AFTER",
+      });
+      const mediaAsset = await media.create({
+        evidenceItemId: item.id,
+        localUri: "file:///fielddoc/evidence-originals/original.jpg",
+        mediaType: "IMAGE",
+        mimeType: "image/jpeg",
+        sizeBytes: 1024,
+        sha256:
+          "98ea6e4f216f6b40ff97e8c9f869121554d2fe7d3a3b0a2f3ea5b785a003d77d",
+        sourceType: "PHOTO_LIBRARY",
+      });
+
+      const updated = await media.updateMetadata(mediaAsset.id, {
+        caption: "Finished trim",
+        notes: "Shows caulk line after punch list.",
+      });
+      await media.delete(mediaAsset.id);
+      const restored = await media.restore(mediaAsset.id);
+
+      expect(updated).toMatchObject({
+        id: mediaAsset.id,
+        localUri: mediaAsset.localUri,
+        sha256: mediaAsset.sha256,
+        caption: "Finished trim",
+        notes: "Shows caulk line after punch list.",
+      });
+      expect(restored.deletedAt).toBeNull();
+      expect(restored.caption).toBe("Finished trim");
+      expect(await media.listByEvidenceItem(item.id)).toHaveLength(1);
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.operation),
+      ).toEqual(["CREATE", "CREATE", "CREATE", "UPDATE", "DELETE", "UPDATE"]);
+    });
+  });
+
+  it("stores and restores non-destructive annotations", async () => {
+    await withRepositories(
+      async ({ projects, evidence, media, annotations, mutations }) => {
+        const project = await projects.create({ name: "Annotation project" });
+        const item = await evidence.create({
+          projectId: project.id,
+          category: "BEFORE",
+        });
+        const mediaAsset = await media.create({
+          evidenceItemId: item.id,
+          localUri: "file:///fielddoc/evidence-originals/original.jpg",
+          mediaType: "IMAGE",
+          mimeType: "image/jpeg",
+          sizeBytes: 1024,
+          sha256:
+            "b94d27b9934d3e08a52e52d7da7dabfadee09a0f399175a67d90b4d85b9a827a",
+          sourceType: "CAMERA_PHOTO",
+        });
+        const annotation = await annotations.create({
+          evidenceItemId: item.id,
+          mediaAssetId: mediaAsset.id,
+          body: "Existing damage visible at lower hinge.",
+        });
+
+        await annotations.delete(annotation.id);
+        expect(await annotations.listByEvidenceItem(item.id)).toEqual([]);
+        expect(
+          await annotations.listByEvidenceItem(item.id, {
+            includeDeleted: true,
+          }),
+        ).toHaveLength(1);
+
+        const restored = await annotations.restore(annotation.id);
+
+        expect(restored.deletedAt).toBeNull();
+        expect(await annotations.listByEvidenceIds([item.id])).toMatchObject([
+          {
+            body: "Existing damage visible at lower hinge.",
+            mediaAssetId: mediaAsset.id,
+          },
+        ]);
+        expect(await annotations.listByEvidenceItem(item.id)).toMatchObject([
+          {
+            body: "Existing damage visible at lower hinge.",
+            mediaAssetId: mediaAsset.id,
+          },
+        ]);
+        expect(
+          (await mutations.listPending()).map(
+            (mutation) => mutation.entityType,
+          ),
+        ).toEqual([
+          "Project",
+          "EvidenceItem",
+          "MediaAsset",
+          "Annotation",
+          "Annotation",
+          "Annotation",
+        ]);
+      },
+    );
+  });
+
+  it("saves and updates local report draft composition", async () => {
+    await withRepositories(async ({ projects, reportDrafts, mutations }) => {
+      const project = await projects.create({ name: "Report project" });
+      const draft = await reportDrafts.save({
+        projectId: project.id,
+        title: "  Unit 12 closeout  ",
+        notes: "  Internal QA note  ",
+        sections: [
+          {
+            category: "AFTER",
+            label: "Completion",
+            included: true,
+            sortOrder: 0,
+          },
+          {
+            category: "BEFORE",
+            label: "Existing conditions",
+            included: true,
+            sortOrder: 1,
+          },
+        ],
+      });
+
+      expect(draft).toMatchObject({
+        projectId: project.id,
+        title: "Unit 12 closeout",
+        notes: "Internal QA note",
+        status: "draft",
+        generatedPdfUri: null,
+        generatedAt: null,
+        syncState: "PENDING",
+      });
+      expect(JSON.parse(draft.sectionsJson).slice(0, 2)).toMatchObject([
+        { category: "AFTER", label: "Completion", included: true },
+        { category: "BEFORE", label: "Existing conditions", included: true },
+      ]);
+
+      const updated = await reportDrafts.save({
+        id: draft.id,
+        projectId: project.id,
+        title: "Final proof packet",
+        notes: "",
+        sections: defaultReportSectionConfigs.map((section) =>
+          section.category === "OTHER"
+            ? { ...section, included: true, sortOrder: 0 }
+            : { ...section, sortOrder: section.sortOrder + 1 },
+        ),
+      });
+
+      expect(updated.id).toBe(draft.id);
+      expect(updated.notes).toBeNull();
+      expect(updated.status).toBe("draft");
+      expect(updated.generatedPdfUri).toBeNull();
+      expect(await reportDrafts.listByProject(project.id)).toHaveLength(1);
+      expect((await reportDrafts.getLatestByProject(project.id))?.title).toBe(
+        "Final proof packet",
+      );
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.operation),
+      ).toEqual(["CREATE", "CREATE", "UPDATE"]);
+    });
+  });
+
+  it("marks report drafts with a generated local PDF and invalidates stale output on save", async () => {
+    await withRepositories(async ({ projects, reportDrafts, mutations }) => {
+      const project = await projects.create({ name: "Generated report" });
+      const draft = await reportDrafts.save({
+        projectId: project.id,
+        sections: defaultReportSectionConfigs,
+      });
+      const generated = await reportDrafts.markGeneratedPdf(draft.id, {
+        localUri: "file:///fielddoc/proof-packets/generated-report.pdf",
+        generatedAt: "2026-08-15T15:00:00.000Z",
+      });
+
+      expect(generated).toMatchObject({
+        id: draft.id,
+        status: "ready",
+        generatedPdfUri: "file:///fielddoc/proof-packets/generated-report.pdf",
+        generatedAt: "2026-08-15T15:00:00.000Z",
+      });
+
+      const edited = await reportDrafts.save({
+        id: draft.id,
+        projectId: project.id,
+        title: "Edited report",
+        sections: defaultReportSectionConfigs,
+      });
+
+      expect(edited.status).toBe("draft");
+      expect(edited.generatedPdfUri).toBeNull();
+      expect(edited.generatedAt).toBeNull();
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.operation),
+      ).toEqual(["CREATE", "CREATE", "UPDATE", "UPDATE"]);
+    });
+  });
+
+  it("soft deletes report drafts and generates a durable mutation", async () => {
+    await withRepositories(async ({ projects, reportDrafts, mutations }) => {
+      const project = await projects.create({ name: "Delete report draft" });
+      const draft = await reportDrafts.save({
+        projectId: project.id,
+        sections: defaultReportSectionConfigs,
+      });
+
+      await reportDrafts.delete(draft.id);
+
+      expect(await reportDrafts.getLatestByProject(project.id)).toBeNull();
+      expect(await reportDrafts.listByProject(project.id)).toEqual([]);
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.entityType),
+      ).toEqual(["Project", "ReportDraft", "ReportDraft"]);
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.operation),
+      ).toEqual(["CREATE", "CREATE", "DELETE"]);
     });
   });
 

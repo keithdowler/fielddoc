@@ -1,12 +1,15 @@
 import {
+  type Annotation,
   evidenceCategories,
   type EvidenceCategory,
   type EvidenceItem,
+  type MediaAsset,
+  type MediaSourceType,
   type Project,
 } from "@fielddoc/domain";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/app-button";
 import { AppScreen } from "@/components/app-screen";
@@ -17,6 +20,12 @@ import { FormField } from "@/components/form-field";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBanner } from "@/components/status-banner";
 import { spacing } from "@/design/tokens";
+import {
+  captureCameraPhoto,
+  importLocalFile,
+  pickPhotoLibraryMedia,
+  type PreparedLocalMediaAsset,
+} from "@/infrastructure/media/local-media";
 import { getLocalRepositories } from "@/infrastructure/local-store/repositories";
 
 const categoryLabels: Record<EvidenceCategory, string> = {
@@ -25,6 +34,13 @@ const categoryLabels: Record<EvidenceCategory, string> = {
   AFTER: "After",
   DOCUMENT: "Document",
   OTHER: "Other",
+};
+
+const sourceLabels: Record<MediaSourceType, string> = {
+  CAMERA_PHOTO: "camera photo",
+  PHOTO_LIBRARY: "photo library item",
+  DOCUMENT_SCAN: "document scan",
+  FILE_IMPORT: "file import",
 };
 
 export default function CaptureScreen() {
@@ -38,9 +54,22 @@ export default function CaptureScreen() {
     string | undefined
   >();
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
+  const [mediaCounts, setMediaCounts] = useState<Record<string, number>>({});
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string>();
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
+  const [editingMediaId, setEditingMediaId] = useState<string>();
+  const [mediaCaption, setMediaCaption] = useState("");
+  const [mediaNotes, setMediaNotes] = useState("");
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [annotationBody, setAnnotationBody] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [busySource, setBusySource] = useState<MediaSourceType | "metadata">();
   const selectedProject = projects.find((project) => project.id === projectId);
+  const selectedEvidence = evidenceItems.find(
+    (item) => item.id === selectedEvidenceId,
+  );
+  const editingMedia = mediaAssets.find((item) => item.id === editingMediaId);
 
   const refresh = useCallback(() => {
     let mounted = true;
@@ -58,11 +87,27 @@ export default function CaptureScreen() {
       setProjectId(nextProjectId);
 
       if (nextProjectId) {
-        setEvidenceItems(
-          await repositories.evidence.listByProject(nextProjectId),
+        const nextEvidenceItems =
+          await repositories.evidence.listByProject(nextProjectId);
+        setEvidenceItems(nextEvidenceItems);
+        setMediaCounts(
+          await repositories.media.countByEvidenceIds(
+            nextEvidenceItems.map((item) => item.id),
+          ),
         );
+        if (selectedEvidenceId) {
+          if (
+            nextEvidenceItems.some((item) => item.id === selectedEvidenceId)
+          ) {
+            await reloadEvidenceDetail(selectedEvidenceId);
+          } else {
+            clearEvidenceDetail();
+          }
+        }
       } else {
         setEvidenceItems([]);
+        setMediaCounts({});
+        clearEvidenceDetail();
       }
     }
 
@@ -77,7 +122,7 @@ export default function CaptureScreen() {
     return () => {
       mounted = false;
     };
-  }, [projectId]);
+  }, [projectId, selectedEvidenceId]);
 
   useFocusEffect(refresh);
 
@@ -87,42 +132,241 @@ export default function CaptureScreen() {
       return;
     }
 
-    const repositories = await getLocalRepositories();
-    const evidence = editingEvidenceId
-      ? await repositories.evidence.update(editingEvidenceId, {
-          projectId,
-          category,
-          title,
-          caption,
-          notes,
-        })
-      : await repositories.evidence.create({
-          projectId,
-          category,
-          title,
-          caption,
-          notes,
-          captureTimestamp: new Date().toISOString(),
-        });
+    try {
+      setBusySource("metadata");
+      const repositories = await getLocalRepositories();
+      const evidence = editingEvidenceId
+        ? await repositories.evidence.update(editingEvidenceId, {
+            projectId,
+            category,
+            title,
+            caption,
+            notes,
+          })
+        : await repositories.evidence.create({
+            projectId,
+            category,
+            title,
+            caption,
+            notes,
+            captureTimestamp: new Date().toISOString(),
+          });
 
-    setStatusMessage(
-      `${categoryLabels[evidence.category]} evidence metadata saved locally.`,
-    );
-    setEvidenceItems(await repositories.evidence.listByProject(projectId));
-    setEditingEvidenceId(undefined);
-    setTitle("");
-    setCaption("");
-    setNotes("");
-    setErrorMessage(undefined);
+      setStatusMessage(
+        `${categoryLabels[evidence.category]} evidence metadata saved locally.`,
+      );
+      await reloadEvidence(projectId);
+      resetEvidenceForm();
+      setErrorMessage(undefined);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Evidence metadata failed.",
+      );
+    } finally {
+      setBusySource(undefined);
+    }
+  }
+
+  async function addMediaEvidence(
+    sourceType: Exclude<MediaSourceType, "DOCUMENT_SCAN">,
+  ) {
+    if (!projectId) {
+      setErrorMessage("Create a project before attaching evidence media.");
+      return;
+    }
+
+    try {
+      setBusySource(sourceType);
+      const preparedMedia = await pickMedia(sourceType);
+      if (!preparedMedia) {
+        setStatusMessage("Media selection canceled.");
+        setErrorMessage(undefined);
+        return;
+      }
+
+      const repositories = await getLocalRepositories();
+      const evidence = await repositories.evidence.create({
+        projectId,
+        category,
+        title: title || preparedMedia.displayName,
+        caption,
+        notes,
+        captureTimestamp: preparedMedia.captureTimestamp,
+      });
+      const mediaAsset = await repositories.media.create({
+        evidenceItemId: evidence.id,
+        ...preparedMedia,
+        caption,
+        notes,
+      });
+
+      setStatusMessage(
+        `${categoryLabels[evidence.category]} evidence saved from ${sourceLabels[sourceType]} (${Math.round(
+          mediaAsset.sizeBytes / 1024,
+        )} KB).`,
+      );
+      await reloadEvidence(projectId);
+      setSelectedEvidenceId(evidence.id);
+      await reloadEvidenceDetail(evidence.id, mediaAsset.id);
+      resetEvidenceForm();
+      setErrorMessage(undefined);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Evidence media could not be saved locally.",
+      );
+    } finally {
+      setBusySource(undefined);
+    }
   }
 
   async function deleteEvidenceMetadata(id: string) {
     const repositories = await getLocalRepositories();
     await repositories.evidence.delete(id);
     if (projectId) {
-      setEvidenceItems(await repositories.evidence.listByProject(projectId));
+      await reloadEvidence(projectId);
+    }
+    if (selectedEvidenceId === id) {
+      clearEvidenceDetail();
     }
     setStatusMessage("Evidence metadata deleted locally.");
+  }
+
+  async function reloadEvidence(nextProjectId: string) {
+    const repositories = await getLocalRepositories();
+    const nextEvidenceItems =
+      await repositories.evidence.listByProject(nextProjectId);
+    setEvidenceItems(nextEvidenceItems);
+    setMediaCounts(
+      await repositories.media.countByEvidenceIds(
+        nextEvidenceItems.map((item) => item.id),
+      ),
+    );
+  }
+
+  async function reloadMedia(evidenceId: string, preferredMediaId?: string) {
+    const repositories = await getLocalRepositories();
+    const rows = await repositories.media.listByEvidenceItem(evidenceId, {
+      includeDeleted: true,
+    });
+    setMediaAssets(rows);
+
+    const nextEditingMedia =
+      rows.find((item) => item.id === (preferredMediaId ?? editingMediaId)) ??
+      rows.find((item) => !item.deletedAt);
+
+    if (nextEditingMedia) {
+      setEditingMediaId(nextEditingMedia.id);
+      setMediaCaption(nextEditingMedia.caption ?? "");
+      setMediaNotes(nextEditingMedia.notes ?? "");
+    } else {
+      resetMediaForm();
+    }
+  }
+
+  async function reloadAnnotations(evidenceId: string) {
+    const repositories = await getLocalRepositories();
+    setAnnotations(
+      await repositories.annotations.listByEvidenceItem(evidenceId, {
+        includeDeleted: true,
+      }),
+    );
+  }
+
+  async function reloadEvidenceDetail(
+    evidenceId: string,
+    preferredMediaId?: string,
+  ) {
+    await Promise.all([
+      reloadMedia(evidenceId, preferredMediaId),
+      reloadAnnotations(evidenceId),
+    ]);
+  }
+
+  async function openEvidenceDetail(evidence: EvidenceItem) {
+    setSelectedEvidenceId(evidence.id);
+    resetMediaForm();
+    await reloadEvidenceDetail(evidence.id);
+  }
+
+  async function saveMediaMetadata() {
+    if (!editingMediaId || !selectedEvidenceId || !projectId) return;
+
+    try {
+      const repositories = await getLocalRepositories();
+      await repositories.media.updateMetadata(editingMediaId, {
+        caption: mediaCaption,
+        notes: mediaNotes,
+      });
+      await reloadEvidenceDetail(selectedEvidenceId, editingMediaId);
+      await reloadEvidence(projectId);
+      setStatusMessage("Media caption saved locally.");
+      setErrorMessage(undefined);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Media caption was not saved.",
+      );
+    }
+  }
+
+  async function deleteMediaAsset(id: string) {
+    if (!selectedEvidenceId || !projectId) return;
+
+    const repositories = await getLocalRepositories();
+    await repositories.media.delete(id);
+    await reloadEvidenceDetail(selectedEvidenceId);
+    await reloadEvidence(projectId);
+    setStatusMessage("Media asset removed from the active gallery.");
+  }
+
+  async function restoreMediaAsset(id: string) {
+    if (!selectedEvidenceId || !projectId) return;
+
+    const repositories = await getLocalRepositories();
+    await repositories.media.restore(id);
+    await reloadEvidenceDetail(selectedEvidenceId, id);
+    await reloadEvidence(projectId);
+    setStatusMessage("Media asset restored locally.");
+  }
+
+  async function saveAnnotation() {
+    if (!selectedEvidenceId) return;
+
+    try {
+      const repositories = await getLocalRepositories();
+      await repositories.annotations.create({
+        evidenceItemId: selectedEvidenceId,
+        mediaAssetId: editingMediaId ?? null,
+        body: annotationBody,
+      });
+      await reloadAnnotations(selectedEvidenceId);
+      setAnnotationBody("");
+      setStatusMessage("Annotation saved locally.");
+      setErrorMessage(undefined);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Annotation was not saved.",
+      );
+    }
+  }
+
+  async function deleteAnnotation(id: string) {
+    if (!selectedEvidenceId) return;
+
+    const repositories = await getLocalRepositories();
+    await repositories.annotations.delete(id);
+    await reloadAnnotations(selectedEvidenceId);
+    setStatusMessage("Annotation hidden locally.");
+  }
+
+  async function restoreAnnotation(id: string) {
+    if (!selectedEvidenceId) return;
+
+    const repositories = await getLocalRepositories();
+    await repositories.annotations.restore(id);
+    await reloadAnnotations(selectedEvidenceId);
+    setStatusMessage("Annotation restored locally.");
   }
 
   function resetEvidenceForm() {
@@ -130,6 +374,20 @@ export default function CaptureScreen() {
     setTitle("");
     setCaption("");
     setNotes("");
+  }
+
+  function resetMediaForm() {
+    setEditingMediaId(undefined);
+    setMediaCaption("");
+    setMediaNotes("");
+  }
+
+  function clearEvidenceDetail() {
+    setSelectedEvidenceId(undefined);
+    setMediaAssets([]);
+    setAnnotations([]);
+    setAnnotationBody("");
+    resetMediaForm();
   }
 
   function startEditingEvidence(evidence: EvidenceItem) {
@@ -141,13 +399,26 @@ export default function CaptureScreen() {
     setNotes(evidence.notes ?? "");
   }
 
+  function pickMedia(
+    sourceType: Exclude<MediaSourceType, "DOCUMENT_SCAN">,
+  ): Promise<PreparedLocalMediaAsset | null> {
+    if (sourceType === "CAMERA_PHOTO") return captureCameraPhoto();
+    if (sourceType === "PHOTO_LIBRARY") return pickPhotoLibraryMedia();
+    return importLocalFile();
+  }
+
+  function startEditingMedia(mediaAsset: MediaAsset) {
+    setEditingMediaId(mediaAsset.id);
+    setMediaCaption(mediaAsset.caption ?? "");
+    setMediaNotes(mediaAsset.notes ?? "");
+  }
+
   return (
     <AppScreen>
       <View>
         <AppText variant="hero">Capture</AppText>
         <AppText muted>
-          Store evidence metadata offline now. Camera, scanner, and media files
-          arrive later.
+          Capture photos or import files into local immutable evidence storage.
         </AppText>
       </View>
 
@@ -206,7 +477,7 @@ export default function CaptureScreen() {
           detail={
             editingEvidenceId
               ? "Edit evidence metadata stored in SQLite."
-              : "No media capture yet; metadata persists in SQLite."
+              : "Save metadata alone or attach an original media file."
           }
         />
         <View style={styles.inlineActions}>
@@ -247,6 +518,7 @@ export default function CaptureScreen() {
             }
             icon="tray.and.arrow.down.fill"
             onPress={saveEvidenceMetadata}
+            loading={busySource === "metadata"}
             accessibilityLabel="Save evidence metadata locally"
           />
           {editingEvidenceId ? (
@@ -257,6 +529,46 @@ export default function CaptureScreen() {
             />
           ) : null}
         </View>
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="Attach Original"
+          detail="Original media is copied into app storage and recorded with SHA-256 metadata."
+        />
+        <View style={styles.inlineActions}>
+          <AppButton
+            label="Take Photo"
+            icon="camera.fill"
+            onPress={() => addMediaEvidence("CAMERA_PHOTO")}
+            loading={busySource === "CAMERA_PHOTO"}
+            disabled={Boolean(editingEvidenceId)}
+            accessibilityLabel="Capture a camera photo as evidence"
+          />
+          <AppButton
+            label="Choose Photo"
+            icon="photo.on.rectangle"
+            variant="secondary"
+            onPress={() => addMediaEvidence("PHOTO_LIBRARY")}
+            loading={busySource === "PHOTO_LIBRARY"}
+            disabled={Boolean(editingEvidenceId)}
+            accessibilityLabel="Choose a photo from the library as evidence"
+          />
+          <AppButton
+            label="Import File"
+            icon="doc.badge.plus"
+            variant="secondary"
+            onPress={() => addMediaEvidence("FILE_IMPORT")}
+            loading={busySource === "FILE_IMPORT"}
+            disabled={Boolean(editingEvidenceId)}
+            accessibilityLabel="Import a local file as evidence"
+          />
+        </View>
+        {editingEvidenceId ? (
+          <AppText variant="small" muted>
+            Finish or cancel the edit before attaching a new original.
+          </AppText>
+        ) : null}
       </Card>
 
       <Card>
@@ -273,10 +585,22 @@ export default function CaptureScreen() {
                   {item.title ?? "Untitled evidence"}
                 </AppText>
                 <AppText variant="small" muted>
-                  {item.caption ?? "Missing caption"}
+                  {[
+                    item.caption ?? "Missing caption",
+                    `${mediaCounts[item.id] ?? 0} original file${
+                      (mediaCounts[item.id] ?? 0) === 1 ? "" : "s"
+                    }`,
+                  ].join(" / ")}
                 </AppText>
               </View>
               <View style={styles.inlineActions}>
+                <AppButton
+                  label="Details"
+                  variant={
+                    item.id === selectedEvidenceId ? "primary" : "secondary"
+                  }
+                  onPress={() => openEvidenceDetail(item)}
+                />
                 <AppButton
                   label="Edit"
                   variant="secondary"
@@ -299,10 +623,215 @@ export default function CaptureScreen() {
         )}
       </Card>
 
+      <Card>
+        <SectionHeader
+          title="Evidence Detail"
+          detail={
+            selectedEvidence
+              ? `${categoryLabels[selectedEvidence.category]} / ${
+                  selectedEvidence.title ?? "Untitled evidence"
+                }`
+              : "Select Details on an evidence item."
+          }
+        />
+        {selectedEvidence ? (
+          <View style={styles.detailStack}>
+            <AppText muted>
+              {selectedEvidence.caption ?? "Evidence caption is missing."}
+            </AppText>
+            {mediaAssets.length ? (
+              mediaAssets.map((mediaAsset) => (
+                <View
+                  key={mediaAsset.id}
+                  style={[
+                    styles.mediaRow,
+                    mediaAsset.deletedAt ? styles.deletedMediaRow : null,
+                  ]}
+                >
+                  {mediaAsset.mediaType === "IMAGE" && !mediaAsset.deletedAt ? (
+                    <Image
+                      source={{ uri: mediaAsset.localUri }}
+                      style={styles.mediaPreview}
+                      accessibilityLabel={
+                        mediaAsset.caption ?? "Evidence image preview"
+                      }
+                    />
+                  ) : (
+                    <View style={styles.mediaPlaceholder}>
+                      <AppText variant="label">{mediaAsset.mediaType}</AppText>
+                    </View>
+                  )}
+                  <View style={styles.mediaCopy}>
+                    <AppText variant="label">
+                      {mediaAsset.caption ??
+                        (mediaAsset.deletedAt
+                          ? "Deleted original"
+                          : "Missing media caption")}
+                    </AppText>
+                    <AppText variant="small" muted>
+                      {[
+                        mediaAsset.mimeType,
+                        `${Math.round(mediaAsset.sizeBytes / 1024)} KB`,
+                        `SHA ${mediaAsset.sha256.slice(0, 10)}`,
+                      ].join(" / ")}
+                    </AppText>
+                    {mediaAsset.notes ? (
+                      <AppText variant="small" muted>
+                        {mediaAsset.notes}
+                      </AppText>
+                    ) : null}
+                    <View style={styles.inlineActions}>
+                      <AppButton
+                        label="Edit Caption"
+                        variant={
+                          mediaAsset.id === editingMediaId
+                            ? "primary"
+                            : "secondary"
+                        }
+                        onPress={() => startEditingMedia(mediaAsset)}
+                      />
+                      {mediaAsset.deletedAt ? (
+                        <AppButton
+                          label="Restore"
+                          variant="secondary"
+                          onPress={() => restoreMediaAsset(mediaAsset.id)}
+                        />
+                      ) : (
+                        <AppButton
+                          label="Remove"
+                          variant="danger"
+                          onPress={() => deleteMediaAsset(mediaAsset.id)}
+                        />
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <EmptyState
+                title="No original files"
+                message="Attach a photo or file to build this evidence gallery."
+                icon="photo.on.rectangle"
+              />
+            )}
+
+            {editingMedia ? (
+              <View style={styles.mediaEditor}>
+                <SectionHeader
+                  title="Media Caption"
+                  detail="Stored as editable metadata; original file bytes remain unchanged."
+                />
+                <FormField
+                  label="Caption"
+                  value={mediaCaption}
+                  onChangeText={setMediaCaption}
+                  placeholder="North wall before repair"
+                />
+                <FormField
+                  label="Notes"
+                  value={mediaNotes}
+                  onChangeText={setMediaNotes}
+                  placeholder="Optional media-specific notes"
+                  multiline
+                />
+                <View style={styles.inlineActions}>
+                  <AppButton
+                    label="Save Media Caption"
+                    icon="tray.and.arrow.down.fill"
+                    onPress={saveMediaMetadata}
+                  />
+                  <AppButton
+                    label="Cancel"
+                    variant="secondary"
+                    onPress={resetMediaForm}
+                  />
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.mediaEditor}>
+              <SectionHeader
+                title="Annotations"
+                detail={
+                  editingMedia
+                    ? "Annotation will reference the selected original."
+                    : "Annotation will reference the evidence item."
+                }
+              />
+              {annotations.length ? (
+                annotations.map((annotation) => {
+                  const linkedMedia = mediaAssets.find(
+                    (mediaAsset) => mediaAsset.id === annotation.mediaAssetId,
+                  );
+
+                  return (
+                    <View
+                      key={annotation.id}
+                      style={[
+                        styles.annotationRow,
+                        annotation.deletedAt ? styles.deletedMediaRow : null,
+                      ]}
+                    >
+                      <View style={styles.mediaCopy}>
+                        <AppText variant="label">{annotation.body}</AppText>
+                        <AppText variant="small" muted>
+                          {linkedMedia
+                            ? `Linked to ${
+                                linkedMedia.caption ?? linkedMedia.mediaType
+                              }`
+                            : "Linked to evidence item"}
+                        </AppText>
+                      </View>
+                      {annotation.deletedAt ? (
+                        <AppButton
+                          label="Restore"
+                          variant="secondary"
+                          onPress={() => restoreAnnotation(annotation.id)}
+                        />
+                      ) : (
+                        <AppButton
+                          label="Remove"
+                          variant="danger"
+                          onPress={() => deleteAnnotation(annotation.id)}
+                        />
+                      )}
+                    </View>
+                  );
+                })
+              ) : (
+                <EmptyState
+                  title="No annotations"
+                  message="Add context without changing original files."
+                  icon="pencil.and.outline"
+                />
+              )}
+              <FormField
+                label="New annotation"
+                value={annotationBody}
+                onChangeText={setAnnotationBody}
+                placeholder="Door jamb damage visible before work"
+                multiline
+              />
+              <AppButton
+                label="Save Annotation"
+                icon="pencil.and.outline"
+                onPress={saveAnnotation}
+              />
+            </View>
+          </View>
+        ) : (
+          <EmptyState
+            title="No evidence selected"
+            message="Open an evidence item to review originals and captions."
+            icon="doc.text.magnifyingglass"
+          />
+        )}
+      </Card>
+
       <StatusBanner
         tone="info"
-        title="Scanner not built yet"
-        message="Sprint 2 stores project and evidence metadata only; original media files remain out of scope."
+        title="Document scanner not built yet"
+        message="Sprint 3 supports camera photos, photo-library import, and file import only. Cloud upload and document scanning remain out of scope."
       />
     </AppScreen>
   );
@@ -319,5 +848,41 @@ const styles = StyleSheet.create({
   },
   evidenceCopy: {
     gap: spacing.xs,
+  },
+  detailStack: {
+    gap: spacing.lg,
+  },
+  mediaRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  deletedMediaRow: {
+    opacity: 0.62,
+  },
+  mediaPreview: {
+    borderRadius: 6,
+    height: 88,
+    width: 88,
+  },
+  mediaPlaceholder: {
+    alignItems: "center",
+    borderRadius: 6,
+    height: 88,
+    justifyContent: "center",
+    width: 88,
+  },
+  mediaCopy: {
+    flex: 1,
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  mediaEditor: {
+    gap: spacing.md,
+  },
+  annotationRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.md,
   },
 });

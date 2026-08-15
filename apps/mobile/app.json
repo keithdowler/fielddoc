@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.fielddoc.mobile",
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Proof Packet uses the camera to capture job-site evidence photos.",
+        "NSPhotoLibraryUsageDescription": "Proof Packet lets you attach existing photos as job-site evidence."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +36,15 @@
           "launchMode": "most-recent"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Proof Packet uses the camera to capture job-site evidence photos.",
+          "photosPermission": "Proof Packet lets you attach existing photos as job-site evidence."
+        }
+      ],
+      "expo-document-picker"
     ],
     "experiments": {
       "typedRoutes": true

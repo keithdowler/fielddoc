@@ -129,6 +129,8 @@ export type MediaAsset = {
   sha256: string;
   width: number | null;
   height: number | null;
+  caption: string | null;
+  notes: string | null;
   captureTimestamp: string;
   sourceType: MediaSourceType;
   originalAssetId: string | null;
@@ -166,7 +168,11 @@ export type ReportDraft = {
   id: string;
   projectId: string;
   title: string;
+  notes: string | null;
+  sectionsJson: string;
   status: ProofPacketStatus;
+  generatedPdfUri: string | null;
+  generatedAt: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -332,8 +338,186 @@ export type ProjectEvidenceSummary = {
   afterCount: number;
   documentCount: number;
   otherCount?: number;
+  mediaAssetCount?: number;
   missingCaptionCount: number;
 };
+
+export type ReportSectionConfig = {
+  category: EvidenceCategory;
+  label: string;
+  included: boolean;
+  sortOrder: number;
+};
+
+export type ReportDraftCompositionInput = {
+  projectId: string;
+  title?: string;
+  notes?: string;
+  sections: ReportSectionConfig[];
+};
+
+export type ProofPacketEvidenceEntry = {
+  evidence: EvidenceItem;
+  mediaAssets: MediaAsset[];
+  annotations: Annotation[];
+  caption: string | null;
+  capturedAt: string;
+  mediaCount: number;
+  annotationCount: number;
+  missingCaption: boolean;
+};
+
+export type ProofPacketSectionPreview = {
+  category: EvidenceCategory;
+  label: string;
+  sortOrder: number;
+  evidenceItems: ProofPacketEvidenceEntry[];
+  evidenceCount: number;
+  mediaCount: number;
+  annotationCount: number;
+};
+
+export type ProofPacketPreview = {
+  project: Project;
+  draft: ReportDraft;
+  title: string;
+  notes: string | null;
+  sections: ProofPacketSectionPreview[];
+  totals: {
+    sections: number;
+    evidenceItems: number;
+    mediaAssets: number;
+    annotations: number;
+    missingCaptions: number;
+  };
+  ready: boolean;
+  missing: string[];
+};
+
+export type ProofPacketPreviewInput = {
+  project: Project;
+  draft: ReportDraft;
+  evidenceItems: EvidenceItem[];
+  mediaAssetsByEvidenceId: Record<string, MediaAsset[]>;
+  annotationsByEvidenceId: Record<string, Annotation[]>;
+};
+
+export type ProofPacketHtmlOptions = {
+  generatedAt: string;
+  productName?: string;
+};
+
+export type GeneratedProofPacket = {
+  draftId: string;
+  projectId: string;
+  localUri: string;
+  fileName: string;
+  generatedAt: string;
+  sizeBytes: number;
+  pageCount: number | null;
+};
+
+export type ProofPacketRenderOptions = {
+  generatedAt?: string;
+};
+
+export const defaultReportSectionConfigs: ReportSectionConfig[] = [
+  { category: "BEFORE", label: "Before", included: true, sortOrder: 0 },
+  { category: "WORK", label: "Work", included: true, sortOrder: 1 },
+  { category: "AFTER", label: "After", included: true, sortOrder: 2 },
+  { category: "DOCUMENT", label: "Documents", included: true, sortOrder: 3 },
+  { category: "OTHER", label: "Other", included: false, sortOrder: 4 },
+];
+
+export function normalizeReportSections(
+  sections: ReportSectionConfig[],
+): ReportSectionConfig[] {
+  const byCategory = new Map(
+    sections.map((section) => [section.category, section]),
+  );
+
+  return defaultReportSectionConfigs
+    .map((fallback) => {
+      const section = byCategory.get(fallback.category);
+      const sortOrder =
+        section && Number.isFinite(section.sortOrder)
+          ? section.sortOrder
+          : fallback.sortOrder;
+
+      return {
+        category: fallback.category,
+        label: section?.label?.trim() || fallback.label,
+        included: section?.included ?? fallback.included,
+        sortOrder,
+      };
+    })
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+    .map((section, index) => ({ ...section, sortOrder: index }));
+}
+
+export function getIncludedReportSections(
+  sections: ReportSectionConfig[],
+): ReportSectionConfig[] {
+  return normalizeReportSections(sections).filter(
+    (section) => section.included,
+  );
+}
+
+export function getReportSectionEvidenceCount(
+  summary: ProjectEvidenceSummary,
+  category: EvidenceCategory,
+): number {
+  if (category === "BEFORE") return summary.beforeCount;
+  if (category === "WORK") return summary.workCount;
+  if (category === "AFTER") return summary.afterCount;
+  if (category === "DOCUMENT") return summary.documentCount;
+  return summary.otherCount ?? 0;
+}
+
+export function getReportDraftReadiness(
+  summary: ProjectEvidenceSummary,
+  sections: ReportSectionConfig[],
+): {
+  ready: boolean;
+  missing: string[];
+} {
+  const includedSections = getIncludedReportSections(sections);
+  const includedCategories = new Set(
+    includedSections.map((section) => section.category),
+  );
+  const missing: string[] = [];
+
+  if (!includedSections.length) {
+    missing.push("Report sections");
+  }
+
+  if (includedCategories.has("BEFORE") && summary.beforeCount === 0) {
+    missing.push("Before evidence");
+  }
+
+  if (includedCategories.has("AFTER") && summary.afterCount === 0) {
+    missing.push("After evidence");
+  }
+
+  if (summary.missingCaptionCount > 0) {
+    missing.push("Captions");
+  }
+
+  const includedMediaCount = includedSections.reduce(
+    (count, section) =>
+      count + getReportSectionEvidenceCount(summary, section.category),
+    0,
+  );
+
+  if (includedMediaCount === 0) {
+    missing.push("Included evidence");
+  }
+
+  return {
+    ready: missing.length === 0,
+    missing,
+  };
+}
 
 export function getReportReadiness(summary: ProjectEvidenceSummary): {
   ready: boolean;
@@ -351,6 +535,329 @@ export function getReportReadiness(summary: ProjectEvidenceSummary): {
   };
 }
 
+export function assembleProofPacketPreview(
+  input: ProofPacketPreviewInput,
+): ProofPacketPreview {
+  const sections = parseReportDraftSections(input.draft.sectionsJson);
+  const sectionPreviews = getIncludedReportSections(sections).map((section) => {
+    const evidenceItems = input.evidenceItems
+      .filter((evidence) => evidence.category === section.category)
+      .sort(compareEvidenceForPacket)
+      .map((evidence): ProofPacketEvidenceEntry => {
+        const mediaAssets = (
+          input.mediaAssetsByEvidenceId[evidence.id] ?? []
+        ).sort(compareMediaForPacket);
+        const annotations = (
+          input.annotationsByEvidenceId[evidence.id] ?? []
+        ).sort(compareAnnotationsForPacket);
+        const caption = evidence.caption ?? mediaAssets[0]?.caption ?? null;
+
+        return {
+          evidence,
+          mediaAssets,
+          annotations,
+          caption,
+          capturedAt: evidence.captureTimestamp,
+          mediaCount: mediaAssets.length,
+          annotationCount: annotations.length,
+          missingCaption: !caption?.trim(),
+        };
+      });
+
+    return {
+      category: section.category,
+      label: section.label,
+      sortOrder: section.sortOrder,
+      evidenceItems,
+      evidenceCount: evidenceItems.length,
+      mediaCount: evidenceItems.reduce(
+        (count, evidence) => count + evidence.mediaCount,
+        0,
+      ),
+      annotationCount: evidenceItems.reduce(
+        (count, evidence) => count + evidence.annotationCount,
+        0,
+      ),
+    };
+  });
+  const summary = summarizeProofPacketSections(sectionPreviews);
+  const readiness = getReportDraftReadiness(summary, sections);
+
+  return {
+    project: input.project,
+    draft: input.draft,
+    title: input.draft.title,
+    notes: input.draft.notes,
+    sections: sectionPreviews,
+    totals: {
+      sections: sectionPreviews.length,
+      evidenceItems: sectionPreviews.reduce(
+        (count, section) => count + section.evidenceCount,
+        0,
+      ),
+      mediaAssets: sectionPreviews.reduce(
+        (count, section) => count + section.mediaCount,
+        0,
+      ),
+      annotations: sectionPreviews.reduce(
+        (count, section) => count + section.annotationCount,
+        0,
+      ),
+      missingCaptions: summary.missingCaptionCount,
+    },
+    ready: readiness.ready,
+    missing: readiness.missing,
+  };
+}
+
+export function parseReportDraftSections(
+  sectionsJson: string,
+): ReportSectionConfig[] {
+  try {
+    const parsed = JSON.parse(sectionsJson) as ReportSectionConfig[];
+    return normalizeReportSections(parsed);
+  } catch {
+    return defaultReportSectionConfigs;
+  }
+}
+
+export function renderProofPacketHtml(
+  preview: ProofPacketPreview,
+  options: ProofPacketHtmlOptions,
+): string {
+  const productName = escapeHtml(options.productName ?? "Proof Packet");
+  const generatedAt = escapeHtml(formatPacketTimestamp(options.generatedAt));
+  const project = preview.project;
+  const projectRows = [
+    ["Project", project.name],
+    ["Customer", project.customerCompany],
+    ["Site", project.siteAddress],
+    ["Work order", project.workOrderReference],
+    ["Scheduled", project.scheduledDate],
+  ]
+    .filter(([, value]) => value)
+    .map(
+      ([label, value]) =>
+        `<tr><th>${escapeHtml(label ?? "")}</th><td>${escapeHtml(value ?? "")}</td></tr>`,
+    )
+    .join("");
+  const sectionHtml = preview.sections
+    .map(
+      (section, sectionIndex) => `
+        <section class="packet-section">
+          <h2>${sectionIndex + 1}. ${escapeHtml(section.label)}</h2>
+          <p class="section-meta">${section.evidenceCount} evidence items, ${section.mediaCount} media files, ${section.annotationCount} notes</p>
+          ${
+            section.evidenceItems.length
+              ? section.evidenceItems
+                  .map((entry, entryIndex) =>
+                    renderEvidenceEntryHtml(entry, sectionIndex, entryIndex),
+                  )
+                  .join("")
+              : '<p class="empty">No evidence in this section.</p>'
+          }
+        </section>
+      `,
+    )
+    .join("");
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(preview.title)}</title>
+    <style>
+      @page { margin: 36px; }
+      * { box-sizing: border-box; }
+      body {
+        color: #11181c;
+        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.45;
+        margin: 0;
+      }
+      header {
+        border-bottom: 2px solid #0f5b78;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+      }
+      .eyebrow {
+        color: #52636b;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        font-size: 28px;
+        line-height: 1.1;
+        margin: 4px 0 8px;
+      }
+      h2 {
+        border-bottom: 1px solid #cbd3d3;
+        font-size: 18px;
+        margin: 24px 0 4px;
+        padding-bottom: 6px;
+      }
+      h3 {
+        font-size: 14px;
+        margin: 0 0 4px;
+      }
+      table {
+        border-collapse: collapse;
+        margin: 14px 0;
+        width: 100%;
+      }
+      th, td {
+        border-bottom: 1px solid #e8ecec;
+        padding: 6px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: #52636b;
+        font-size: 10px;
+        text-transform: uppercase;
+        width: 120px;
+      }
+      .summary-grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(4, 1fr);
+        margin: 14px 0;
+      }
+      .summary-box {
+        border: 1px solid #cbd3d3;
+        border-radius: 6px;
+        padding: 8px;
+      }
+      .summary-box strong {
+        display: block;
+        font-size: 18px;
+      }
+      .section-meta,
+      .muted {
+        color: #52636b;
+      }
+      .entry {
+        break-inside: avoid;
+        border: 1px solid #cbd3d3;
+        border-radius: 6px;
+        margin-top: 10px;
+        padding: 10px;
+      }
+      .caption-needed {
+        color: #8a5b00;
+        font-weight: 800;
+      }
+      .media-list,
+      .annotation-list {
+        margin: 8px 0 0 18px;
+        padding: 0;
+      }
+      footer {
+        border-top: 1px solid #cbd3d3;
+        color: #52636b;
+        font-size: 10px;
+        margin-top: 28px;
+        padding-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="eyebrow">${productName}</div>
+      <h1>${escapeHtml(preview.title)}</h1>
+      <div class="muted">Generated locally ${generatedAt}</div>
+      ${preview.notes ? `<p>${escapeHtml(preview.notes)}</p>` : ""}
+    </header>
+    <table aria-label="Project metadata">
+      <tbody>${projectRows}</tbody>
+    </table>
+    <div class="summary-grid">
+      <div class="summary-box"><strong>${preview.totals.sections}</strong>Sections</div>
+      <div class="summary-box"><strong>${preview.totals.evidenceItems}</strong>Evidence</div>
+      <div class="summary-box"><strong>${preview.totals.mediaAssets}</strong>Media</div>
+      <div class="summary-box"><strong>${preview.totals.missingCaptions}</strong>Missing captions</div>
+    </div>
+    ${sectionHtml}
+    <footer>
+      Generated from local offline metadata. Original evidence remains immutable; report media references are metadata-only in this sprint.
+    </footer>
+  </body>
+</html>`;
+}
+
+export interface ProofPacketRenderer {
+  render(
+    preview: ProofPacketPreview,
+    options?: ProofPacketRenderOptions,
+  ): Promise<GeneratedProofPacket>;
+}
+
+function summarizeProofPacketSections(
+  sections: ProofPacketSectionPreview[],
+): ProjectEvidenceSummary {
+  return {
+    beforeCount: getSectionEvidenceCount(sections, "BEFORE"),
+    workCount: getSectionEvidenceCount(sections, "WORK"),
+    afterCount: getSectionEvidenceCount(sections, "AFTER"),
+    documentCount: getSectionEvidenceCount(sections, "DOCUMENT"),
+    otherCount: getSectionEvidenceCount(sections, "OTHER"),
+    mediaAssetCount: sections.reduce(
+      (count, section) => count + section.mediaCount,
+      0,
+    ),
+    missingCaptionCount: sections.reduce(
+      (count, section) =>
+        count +
+        section.evidenceItems.filter((evidence) => evidence.missingCaption)
+          .length,
+      0,
+    ),
+  };
+}
+
+function getSectionEvidenceCount(
+  sections: ProofPacketSectionPreview[],
+  category: EvidenceCategory,
+): number {
+  return (
+    sections.find((section) => section.category === category)?.evidenceCount ??
+    0
+  );
+}
+
+function compareEvidenceForPacket(
+  first: EvidenceItem,
+  second: EvidenceItem,
+): number {
+  return (
+    first.captureTimestamp.localeCompare(second.captureTimestamp) ||
+    first.sortOrder - second.sortOrder ||
+    first.createdAt.localeCompare(second.createdAt) ||
+    first.id.localeCompare(second.id)
+  );
+}
+
+function compareMediaForPacket(first: MediaAsset, second: MediaAsset): number {
+  return (
+    first.captureTimestamp.localeCompare(second.captureTimestamp) ||
+    first.createdAt.localeCompare(second.createdAt) ||
+    first.id.localeCompare(second.id)
+  );
+}
+
+function compareAnnotationsForPacket(
+  first: Annotation,
+  second: Annotation,
+): number {
+  return (
+    first.createdAt.localeCompare(second.createdAt) ||
+    first.id.localeCompare(second.id)
+  );
+}
+
 export type CreateEvidenceInput = {
   projectId: string;
   category: EvidenceCategory;
@@ -358,6 +865,44 @@ export type CreateEvidenceInput = {
   caption?: string;
   notes?: string;
   captureTimestamp?: string;
+};
+
+export type CreateMediaAssetInput = {
+  evidenceItemId: string;
+  localUri: string;
+  mediaType: MediaType;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  width?: number | null;
+  height?: number | null;
+  caption?: string;
+  notes?: string;
+  captureTimestamp?: string;
+  sourceType: MediaSourceType;
+  originalAssetId?: string | null;
+  derivativeType?: string | null;
+};
+
+export type UpdateMediaAssetMetadataInput = {
+  caption?: string;
+  notes?: string;
+};
+
+export type CreateAnnotationInput = {
+  evidenceItemId: string;
+  mediaAssetId?: string | null;
+  body: string;
+};
+
+export type SaveReportDraftInput = ReportDraftCompositionInput & {
+  id?: string;
+  status?: ProofPacketStatus;
+};
+
+export type MarkReportDraftGeneratedInput = {
+  localUri: string;
+  generatedAt: string;
 };
 
 export type LocalMutationInput = {
@@ -389,6 +934,108 @@ export interface EvidenceRepository {
   delete(id: string): Promise<void>;
   listByProject(projectId: string): Promise<EvidenceItem[]>;
   summarizeProject(projectId: string): Promise<ProjectEvidenceSummary>;
+}
+
+export interface MediaAssetRepository {
+  create(input: CreateMediaAssetInput): Promise<MediaAsset>;
+  updateMetadata(
+    id: string,
+    input: UpdateMediaAssetMetadataInput,
+  ): Promise<MediaAsset>;
+  listByEvidenceItem(
+    evidenceItemId: string,
+    options?: { includeDeleted?: boolean },
+  ): Promise<MediaAsset[]>;
+  listByProject(projectId: string): Promise<MediaAsset[]>;
+  listByEvidenceIds(evidenceItemIds: string[]): Promise<MediaAsset[]>;
+  countByEvidenceIds(
+    evidenceItemIds: string[],
+  ): Promise<Record<string, number>>;
+  delete(id: string): Promise<void>;
+  restore(id: string): Promise<MediaAsset>;
+}
+
+export interface AnnotationRepository {
+  create(input: CreateAnnotationInput): Promise<Annotation>;
+  listByEvidenceItem(
+    evidenceItemId: string,
+    options?: { includeDeleted?: boolean },
+  ): Promise<Annotation[]>;
+  listByEvidenceIds(evidenceItemIds: string[]): Promise<Annotation[]>;
+  delete(id: string): Promise<void>;
+  restore(id: string): Promise<Annotation>;
+}
+
+export interface ReportDraftRepository {
+  save(input: SaveReportDraftInput): Promise<ReportDraft>;
+  markGeneratedPdf(
+    id: string,
+    input: MarkReportDraftGeneratedInput,
+  ): Promise<ReportDraft>;
+  getLatestByProject(projectId: string): Promise<ReportDraft | null>;
+  listByProject(projectId: string): Promise<ReportDraft[]>;
+  delete(id: string): Promise<void>;
+}
+
+function renderEvidenceEntryHtml(
+  entry: ProofPacketEvidenceEntry,
+  sectionIndex: number,
+  entryIndex: number,
+): string {
+  const title = entry.evidence.title ?? "Untitled evidence";
+  const mediaItems = entry.mediaAssets
+    .map(
+      (media) =>
+        `<li>${escapeHtml(media.mediaType)} - ${escapeHtml(media.mimeType)} - ${formatBytes(media.sizeBytes)} - SHA-256 ${escapeHtml(media.sha256.slice(0, 16))}</li>`,
+    )
+    .join("");
+  const annotationItems = entry.annotations
+    .map((annotation) => `<li>${escapeHtml(annotation.body)}</li>`)
+    .join("");
+
+  return `
+    <article class="entry">
+      <h3>${sectionIndex + 1}.${entryIndex + 1} ${escapeHtml(title)}</h3>
+      <div class="muted">${escapeHtml(formatPacketTimestamp(entry.capturedAt))}</div>
+      <p class="${entry.missingCaption ? "caption-needed" : ""}">
+        ${escapeHtml(entry.caption ?? "Caption needed")}
+      </p>
+      ${
+        mediaItems
+          ? `<p class="muted">Media files</p><ul class="media-list">${mediaItems}</ul>`
+          : '<p class="muted">No media files attached.</p>'
+      }
+      ${
+        annotationItems
+          ? `<p class="muted">Notes</p><ul class="annotation-list">${annotationItems}</ul>`
+          : ""
+      }
+    </article>
+  `;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatPacketTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\.\d{3}Z$/, " UTC");
+}
+
+function formatBytes(sizeBytes: number): string {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export interface LocalMutationRepository {

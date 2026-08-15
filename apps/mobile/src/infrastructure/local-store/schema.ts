@@ -1,6 +1,6 @@
 import type { LocalDatabase } from "./database";
 
-export const localDatabaseVersion = 1;
+export const localDatabaseVersion = 5;
 
 export const localMigrations = [
   {
@@ -142,6 +142,43 @@ export const localMigrations = [
         ON evidence_items(project_id, category, sort_order);
       CREATE INDEX IF NOT EXISTS idx_local_mutations_pending
         ON local_mutations(sync_state, created_at);
+    `,
+  },
+  {
+    version: 2,
+    name: "media_asset_indexes",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_media_assets_evidence
+        ON media_assets(evidence_item_id, deleted_at, created_at);
+      CREATE INDEX IF NOT EXISTS idx_media_assets_sha256
+        ON media_assets(sha256);
+    `,
+  },
+  {
+    version: 3,
+    name: "media_asset_captioning",
+    sql: `
+      ALTER TABLE media_assets ADD COLUMN caption TEXT;
+      ALTER TABLE media_assets ADD COLUMN notes TEXT;
+    `,
+  },
+  {
+    version: 4,
+    name: "report_draft_composition",
+    sql: `
+      ALTER TABLE report_drafts ADD COLUMN notes TEXT;
+      ALTER TABLE report_drafts ADD COLUMN sections_json TEXT NOT NULL DEFAULT '[{"category":"BEFORE","label":"Before","included":true,"sortOrder":0},{"category":"WORK","label":"Work","included":true,"sortOrder":1},{"category":"AFTER","label":"After","included":true,"sortOrder":2},{"category":"DOCUMENT","label":"Documents","included":true,"sortOrder":3},{"category":"OTHER","label":"Other","included":false,"sortOrder":4}]';
+
+      CREATE INDEX IF NOT EXISTS idx_report_drafts_project_updated
+        ON report_drafts(project_id, deleted_at, updated_at);
+    `,
+  },
+  {
+    version: 5,
+    name: "report_draft_generated_pdf",
+    sql: `
+      ALTER TABLE report_drafts ADD COLUMN generated_pdf_uri TEXT;
+      ALTER TABLE report_drafts ADD COLUMN generated_at TEXT;
     `,
   },
 ] as const;

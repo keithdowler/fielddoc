@@ -54,6 +54,7 @@ const emptySummary: ProjectEvidenceSummary = {
   afterCount: 0,
   documentCount: 0,
   otherCount: 0,
+  mediaAssetCount: 0,
   missingCaptionCount: 0,
 };
 
@@ -392,6 +393,10 @@ export default function ProjectsScreen() {
         <MetricRow
           label="Report"
           value={`${summary.missingCaptionCount} missing captions`}
+        />
+        <MetricRow
+          label="Original media"
+          value={summary.mediaAssetCount ?? 0}
         />
       </Card>
     </AppScreen>

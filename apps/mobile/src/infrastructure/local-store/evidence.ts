@@ -229,6 +229,18 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
 
   async summarizeProject(projectId: string): Promise<ProjectEvidenceSummary> {
     const items = await this.listByProject(projectId);
+    const mediaRow = await this.database.getFirst<{ media_count: number }>(
+      `
+        SELECT COUNT(media_assets.id) AS media_count
+        FROM media_assets
+        INNER JOIN evidence_items
+          ON evidence_items.id = media_assets.evidence_item_id
+        WHERE evidence_items.project_id = ?
+          AND evidence_items.deleted_at IS NULL
+          AND media_assets.deleted_at IS NULL
+      `,
+      [projectId],
+    );
 
     return {
       beforeCount: items.filter((item) => item.category === "BEFORE").length,
@@ -237,6 +249,7 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
       documentCount: items.filter((item) => item.category === "DOCUMENT")
         .length,
       otherCount: items.filter((item) => item.category === "OTHER").length,
+      mediaAssetCount: mediaRow?.media_count ?? 0,
       missingCaptionCount: items.filter((item) => !item.caption?.trim()).length,
     };
   }

@@ -4,3 +4,7 @@ packages:
 
 allowBuilds:
   unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - expo-file-system@57.0.4
+  - expo-image-picker@57.0.10
