@@ -93,3 +93,31 @@ Sprint 7 adds local PDF output metadata to report drafts:
 - `generated_at`: local generation timestamp.
 
 Editing and saving a report draft invalidates the previous local PDF metadata by returning the draft to `draft` status and clearing generated PDF fields. Generating a local PDF marks the draft `ready` and records an outbox update. The PDF binary is stored in app document storage under `proof-packets/`, not SQLite.
+
+Sprint 8 does not add persistent data. Open/share availability is derived from the current report draft, whether the local PDF file exists, platform sharing support, and whether the draft has unsaved changes.
+
+Sprint 9 adds a derived local report-history model. It is read from existing `report_drafts` rows joined to active projects and returns:
+
+- draft ID and project ID
+- project name
+- report title
+- draft status
+- generated PDF URI when one exists
+- generated, created, and updated timestamps
+- whether a generated PDF is available locally
+- sync state
+
+The derived history model does not add a new migration or duplicate report data. By default it returns generated PDFs only; mobile screens can include drafts for local inspection and regeneration.
+
+## Server Sync Foundation
+
+Sprint 10 adds the first Neon/Postgres schema for future synchronization. Server records use client-generated UUIDs as primary keys so offline-created records can become canonical without ID translation. Every tenant-owned business table carries `organization_id`, server versioning, timestamps, and soft-delete metadata.
+
+The first server migration creates:
+
+- organizations, users, and organization memberships
+- customers, sites, projects, evidence items, media assets, annotations, documents, and report drafts
+- `received_local_mutations` for idempotent mutation ingestion
+- `sync_conflicts` for future non-destructive conflict preservation
+
+Original media bytes still do not belong in Postgres. `media_assets.storage_object_key` is nullable until private object-storage upload exists, and generated report PDFs use a future object key rather than a local mobile URI.

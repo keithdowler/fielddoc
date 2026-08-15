@@ -354,9 +354,71 @@ describe("SQLite local repositories", () => {
       expect((await reportDrafts.getLatestByProject(project.id))?.title).toBe(
         "Final proof packet",
       );
+      expect((await reportDrafts.getById(draft.id))?.title).toBe(
+        "Final proof packet",
+      );
       expect(
         (await mutations.listPending()).map((mutation) => mutation.operation),
       ).toEqual(["CREATE", "CREATE", "UPDATE"]);
+    });
+  });
+
+  it("lists local report history with generated-only defaults and project filters", async () => {
+    await withRepositories(async ({ projects, reportDrafts }) => {
+      const generatedProject = await projects.create({
+        name: "Generated history project",
+      });
+      const draftProject = await projects.create({
+        name: "Draft history project",
+      });
+      const generatedDraft = await reportDrafts.save({
+        projectId: generatedProject.id,
+        title: "Generated closeout",
+        sections: defaultReportSectionConfigs,
+      });
+      const unsentDraft = await reportDrafts.save({
+        projectId: draftProject.id,
+        title: "Draft closeout",
+        sections: defaultReportSectionConfigs,
+      });
+
+      await reportDrafts.markGeneratedPdf(generatedDraft.id, {
+        localUri: "file:///fielddoc/proof-packets/generated-history.pdf",
+        generatedAt: "2026-08-15T15:00:00.000Z",
+      });
+
+      expect(
+        (await reportDrafts.listHistory()).map((item) => item.draftId),
+      ).toEqual([generatedDraft.id]);
+
+      const fullHistory = await reportDrafts.listHistory({
+        includeDrafts: true,
+      });
+
+      expect(fullHistory).toMatchObject([
+        {
+          draftId: generatedDraft.id,
+          projectName: "Generated history project",
+          title: "Generated closeout",
+          hasGeneratedPdf: true,
+          status: "ready",
+        },
+        {
+          draftId: unsentDraft.id,
+          projectName: "Draft history project",
+          title: "Draft closeout",
+          hasGeneratedPdf: false,
+          status: "draft",
+        },
+      ]);
+      expect(
+        (
+          await reportDrafts.listHistory({
+            projectId: draftProject.id,
+            includeDrafts: true,
+          })
+        ).map((item) => item.draftId),
+      ).toEqual([unsentDraft.id]);
     });
   });
 

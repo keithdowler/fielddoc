@@ -10,6 +10,7 @@ import {
   type ProjectEvidenceSummary,
   type GeneratedProofPacket,
   type ProofPacketPreview,
+  type ReportHistoryItem,
   type ReportSectionConfig,
 } from "@fielddoc/domain";
 import { useFocusEffect } from "expo-router";
@@ -28,6 +29,12 @@ import { StatusBanner } from "@/components/status-banner";
 import { spacing } from "@/design/tokens";
 import { useAppTheme } from "@/design/use-app-theme";
 import { getLocalRepositories } from "@/infrastructure/local-store/repositories";
+import {
+  getLocalPdfState,
+  openLocalPdf,
+  shareLocalPdf,
+} from "@/infrastructure/reporting/local-pdf-actions";
+import type { LocalPdfActionState } from "@/infrastructure/reporting/local-pdf-actions-core";
 import { localProofPacketRenderer } from "@/infrastructure/reporting/local-pdf-renderer";
 
 const emptySummary: ProjectEvidenceSummary = {
@@ -47,15 +54,20 @@ export default function ReportsScreen() {
   const [project, setProject] = useState<Project | null>(null);
   const [summary, setSummary] = useState<ProjectEvidenceSummary>(emptySummary);
   const [draft, setDraft] = useState<ReportDraft | null>(null);
+  const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
   const [preview, setPreview] = useState<ProofPacketPreview | null>(null);
   const [generatedPacket, setGeneratedPacket] =
     useState<GeneratedProofPacket | null>(null);
+  const [pdfActionState, setPdfActionState] =
+    useState<LocalPdfActionState | null>(null);
   const [title, setTitle] = useState("Proof Packet Draft");
   const [notes, setNotes] = useState("");
   const [sections, setSections] = useState<ReportSectionConfig[]>(
     defaultReportSectionConfigs,
   );
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [openingPdf, setOpeningPdf] = useState(false);
+  const [sharingPdf, setSharingPdf] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
   const readiness = getReportDraftReadiness(summary, sections);
@@ -70,10 +82,13 @@ export default function ReportsScreen() {
 
     async function load() {
       const repositories = await getLocalRepositories();
-      const rows = await repositories.projects.list({
-        sortBy: "updatedAt",
-        sortDirection: "desc",
-      });
+      const [rows, history] = await Promise.all([
+        repositories.projects.list({
+          sortBy: "updatedAt",
+          sortDirection: "desc",
+        }),
+        repositories.reportDrafts.listHistory({ includeDrafts: true }),
+      ]);
       const selectedProject =
         rows.find((row) => row.id === projectId) ?? rows[0] ?? null;
       const nextProjectId = selectedProject?.id;
@@ -93,12 +108,18 @@ export default function ReportsScreen() {
 
       if (!mounted) return;
       setProjects(rows);
+      setReportHistory(history);
       setProjectId(nextProjectId);
       setProject(selectedProject);
       setSummary(nextSummary);
       setDraft(latestDraft);
       setPreview(nextPreview);
       setGeneratedPacket(null);
+      setPdfActionState(
+        latestDraft
+          ? await getLocalPdfState(latestDraft.generatedPdfUri, false)
+          : null,
+      );
 
       if (latestDraft) {
         setTitle(latestDraft.title);
@@ -136,9 +157,10 @@ export default function ReportsScreen() {
     setGeneratedPacket(null);
 
     const repositories = await getLocalRepositories();
-    const [nextSummary, latestDraft] = await Promise.all([
+    const [nextSummary, latestDraft, history] = await Promise.all([
       repositories.evidence.summarizeProject(nextProject.id),
       repositories.reportDrafts.getLatestByProject(nextProject.id),
+      repositories.reportDrafts.listHistory({ includeDrafts: true }),
     ]);
     const nextPreview = latestDraft
       ? await assembleLocalProofPacketPreview(nextProject, latestDraft)
@@ -146,7 +168,13 @@ export default function ReportsScreen() {
 
     setSummary(nextSummary);
     setDraft(latestDraft);
+    setReportHistory(history);
     setPreview(nextPreview);
+    setPdfActionState(
+      latestDraft
+        ? await getLocalPdfState(latestDraft.generatedPdfUri, false)
+        : null,
+    );
     if (latestDraft) {
       setTitle(latestDraft.title);
       setNotes(latestDraft.notes ?? "");
@@ -180,14 +208,19 @@ export default function ReportsScreen() {
         project,
         savedDraft,
       );
+      const history = await repositories.reportDrafts.listHistory({
+        includeDrafts: true,
+      });
 
       setDraft(savedDraft);
       setSummary(nextSummary);
+      setReportHistory(history);
       setTitle(savedDraft.title);
       setNotes(savedDraft.notes ?? "");
       setSections(parseReportDraftSections(savedDraft.sectionsJson));
       setPreview(nextPreview);
       setGeneratedPacket(null);
+      setPdfActionState(await getLocalPdfState(null, false));
       setStatusMessage("Report draft saved locally.");
       setErrorMessage(undefined);
     } catch (error) {
@@ -225,10 +258,15 @@ export default function ReportsScreen() {
       const nextPreview = project
         ? await assembleLocalProofPacketPreview(project, updatedDraft)
         : preview;
+      const history = await repositories.reportDrafts.listHistory({
+        includeDrafts: true,
+      });
 
       setDraft(updatedDraft);
       setPreview(nextPreview);
+      setReportHistory(history);
       setGeneratedPacket(output);
+      setPdfActionState(await getLocalPdfState(output.localUri, false));
       setStatusMessage(`Local PDF generated: ${output.fileName}`);
     } catch (error) {
       setErrorMessage(
@@ -238,6 +276,124 @@ export default function ReportsScreen() {
       );
     } finally {
       setGeneratingPdf(false);
+    }
+  }
+
+  async function handleOpenLocalPdf() {
+    if (!draft?.generatedPdfUri) {
+      setErrorMessage("Generate a local PDF before opening it.");
+      return;
+    }
+
+    setOpeningPdf(true);
+    setStatusMessage(undefined);
+    setErrorMessage(undefined);
+
+    try {
+      const state = await getLocalPdfState(
+        draft.generatedPdfUri,
+        hasUnsavedDraftChanges,
+      );
+      setPdfActionState(state);
+
+      if (!state.canOpen) {
+        setErrorMessage(state.reason ?? "Local PDF cannot be opened.");
+        return;
+      }
+
+      await openLocalPdf(draft.generatedPdfUri);
+      setStatusMessage("Opened local PDF.");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Local PDF could not be opened.",
+      );
+    } finally {
+      setOpeningPdf(false);
+    }
+  }
+
+  async function handleShareLocalPdf() {
+    if (!draft?.generatedPdfUri) {
+      setErrorMessage("Generate a local PDF before sharing it.");
+      return;
+    }
+
+    setSharingPdf(true);
+    setStatusMessage(undefined);
+    setErrorMessage(undefined);
+
+    try {
+      const state = await getLocalPdfState(
+        draft.generatedPdfUri,
+        hasUnsavedDraftChanges,
+      );
+      setPdfActionState(state);
+
+      if (!state.canShare) {
+        setErrorMessage(state.reason ?? "Local PDF cannot be shared.");
+        return;
+      }
+
+      await shareLocalPdf(draft.generatedPdfUri);
+      setStatusMessage("Share sheet opened for local PDF.");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Local PDF could not be shared.",
+      );
+    } finally {
+      setSharingPdf(false);
+    }
+  }
+
+  async function loadReportHistoryItem(item: ReportHistoryItem) {
+    setStatusMessage(undefined);
+    setErrorMessage(undefined);
+    setGeneratedPacket(null);
+
+    try {
+      const repositories = await getLocalRepositories();
+      const [nextProject, nextDraft] = await Promise.all([
+        repositories.projects.getById(item.projectId),
+        repositories.reportDrafts.getById(item.draftId),
+      ]);
+
+      if (!nextProject || !nextDraft) {
+        setErrorMessage("That local report is no longer available.");
+        return;
+      }
+
+      const [nextSummary, history] = await Promise.all([
+        repositories.evidence.summarizeProject(nextProject.id),
+        repositories.reportDrafts.listHistory({ includeDrafts: true }),
+      ]);
+      const nextPreview = await assembleLocalProofPacketPreview(
+        nextProject,
+        nextDraft,
+      );
+
+      setProjectId(nextProject.id);
+      setProject(nextProject);
+      setSummary(nextSummary);
+      setDraft(nextDraft);
+      setReportHistory(history);
+      setPreview(nextPreview);
+      setTitle(nextDraft.title);
+      setNotes(nextDraft.notes ?? "");
+      setSections(parseReportDraftSections(nextDraft.sectionsJson));
+      setPdfActionState(
+        await getLocalPdfState(nextDraft.generatedPdfUri, false),
+      );
+      setStatusMessage(`Loaded ${nextDraft.title}.`);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Local report history could not be loaded.",
+      );
     }
   }
 
@@ -531,9 +687,36 @@ export default function ReportsScreen() {
                 />
               </>
             ) : null}
+            {pdfActionState?.reason ? (
+              <StatusBanner
+                tone={pdfActionState.canOpen ? "info" : "warning"}
+                title="PDF action"
+                message={pdfActionState.reason}
+              />
+            ) : null}
             <AppText variant="small" muted>
               {draft.generatedPdfUri}
             </AppText>
+            <View style={styles.sectionActions}>
+              <AppButton
+                label="Open PDF"
+                icon="doc.text.magnifyingglass"
+                variant="secondary"
+                loading={openingPdf}
+                disabled={!pdfActionState?.canOpen || hasUnsavedDraftChanges}
+                onPress={handleOpenLocalPdf}
+                accessibilityLabel="Open local PDF"
+              />
+              <AppButton
+                label="Share PDF"
+                icon="square.and.arrow.up"
+                variant="secondary"
+                loading={sharingPdf}
+                disabled={!pdfActionState?.canShare || hasUnsavedDraftChanges}
+                onPress={handleShareLocalPdf}
+                accessibilityLabel="Share local PDF"
+              />
+            </View>
           </View>
         ) : (
           <EmptyState
@@ -547,10 +730,63 @@ export default function ReportsScreen() {
           />
         )}
       </Card>
+      <Card>
+        <SectionHeader
+          title="Report Archive"
+          detail="Local drafts and generated PDFs, newest first."
+        />
+        {reportHistory.length ? (
+          <View style={styles.previewStack}>
+            {reportHistory.slice(0, 10).map((item) => (
+              <View
+                key={item.draftId}
+                style={[styles.previewSection, { borderColor: theme.border }]}
+              >
+                <View style={styles.previewHeader}>
+                  <View style={styles.sectionCopy}>
+                    <AppText variant="label">{item.title}</AppText>
+                    <AppText variant="small" muted>
+                      {item.projectName} |{" "}
+                      {item.hasGeneratedPdf ? "Generated PDF" : "Draft"} |{" "}
+                      {formatDate(item.generatedAt ?? item.updatedAt)}
+                    </AppText>
+                  </View>
+                  <AppText variant="small" muted>
+                    {item.status === "ready" ? "Ready" : "Draft"}
+                  </AppText>
+                </View>
+                <View style={styles.sectionActions}>
+                  <AppButton
+                    label="Load"
+                    variant="secondary"
+                    onPress={() => loadReportHistoryItem(item)}
+                    accessibilityLabel={`Load report ${item.title}`}
+                  />
+                  {item.hasGeneratedPdf ? (
+                    <AppText variant="small" muted>
+                      PDF available locally
+                    </AppText>
+                  ) : (
+                    <AppText variant="small" muted>
+                      Save and generate to create a PDF
+                    </AppText>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <EmptyState
+            title="No report history"
+            message="Save a report draft or generate a local PDF to add it here."
+            icon="clock"
+          />
+        )}
+      </Card>
       <StatusBanner
         tone="info"
-        title="Local PDF only"
-        message="Sprint 7 saves a PDF on this device only. Share links, upload, sync, and Vercel Workflows remain out of scope."
+        title="Local files only"
+        message="Local report history stays on this device. Cloud upload, share links, sync, and Vercel Workflows remain out of scope."
       />
     </AppScreen>
   );

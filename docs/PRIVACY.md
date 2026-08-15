@@ -17,3 +17,9 @@ Sprint 5 report draft titles, notes, and section choices may reveal customer/sit
 Sprint 6 packet previews combine project metadata, captions, annotations, and media metadata into a customer-facing structure. Treat the assembled preview as sensitive even though it is not persisted separately or exported yet.
 
 Sprint 7 generated PDFs are private local files that may contain customer, site, caption, annotation, and evidence metadata. Do not log generated PDF URIs or expose them through analytics. Sharing must remain an explicit later user action.
+
+Sprint 8 introduces explicit user-triggered local sharing. The app must not automatically share, upload, or analyze a PDF. Once a user shares through the native sheet, handling depends on the selected destination app and is outside FieldDoc local storage controls.
+
+Sprint 9 local report history can reveal project names, report titles, generated timestamps, and whether a PDF exists on the device. Treat it as private local business data. It must not be uploaded, logged, or sent to analytics until explicit synchronization and privacy controls exist.
+
+Sprint 10 sync contracts are sensitive because mutation payloads may include the same private project, customer, site, evidence, caption, annotation, document, and report metadata stored locally. Contract tests may use synthetic sample values only. Production implementations must avoid request-body logging and must enforce organization ownership before storing or returning synced records.

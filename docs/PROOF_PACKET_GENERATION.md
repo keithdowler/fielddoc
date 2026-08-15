@@ -20,6 +20,24 @@ Mobile renders a local PDF by passing the assembled packet preview through the s
 
 The current PDF includes structured project metadata, section order, evidence rows, captions, annotations, media counts, MIME types, file sizes, and SHA-256 prefixes. It does not embed local image files yet.
 
+## Current Local Open And Share
+
+Sprint 8 adds native local file actions for generated PDFs:
+
+- verify the generated PDF URI exists on device
+- block open/share when unsaved draft changes make output stale
+- open the local file through the platform when possible
+- fall back to the native share sheet if a direct viewer is unavailable
+- share through the native sheet only after explicit user action
+
+These actions do not upload the file, create a public link, record delivery, or synchronize export state.
+
+## Current Local Report Archive
+
+Sprint 9 adds a local report archive derived from saved report drafts. The Reports tab lists local drafts and generated PDFs across projects, while the Projects tab shows local report history for the selected project.
+
+Loading an archive item restores that draft into the report composer so it can be inspected, opened if a generated PDF still exists, or regenerated through the existing local PDF flow. The archive does not create server export records, preserve every generated PDF version, or upload files.
+
 ## Future PDF Inputs
 
 A richer renderer should consume the same ordered packet model plus renderer-specific assets:
@@ -39,9 +57,9 @@ The renderer must not mutate original files. Any transformed images, thumbnails,
 
 ## Out Of Scope Until A Later Sprint
 
-- share sheets
 - upload or signed URL flows
 - server-side generation
 - workflow orchestration
 - customer delivery tracking
 - legal-admissibility claims
+- immutable server-side export history

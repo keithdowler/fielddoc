@@ -46,3 +46,19 @@ Manual coverage should verify that the Reports tab shows a saved packet preview 
 Sprint 7 adds domain coverage for sanitized Proof Packet HTML output and repository coverage for generated PDF draft metadata. Repository tests cover the v5 migration, marking a draft with a generated local PDF URI, and invalidating stale generated output when a draft is edited.
 
 Native PDF rendering through Expo Print must be manually verified on simulator or device because Vitest does not execute native Expo print modules.
+
+## Sprint 8 Local PDF Action Tests
+
+Sprint 8 adds pure unit tests for local PDF open/share availability rules: missing PDF, stale draft changes, unavailable share sheet, and ready local files. Native `Linking` and Expo Sharing calls must be manually verified on simulator or device because they rely on platform UI.
+
+## Sprint 9 Local Report History Tests
+
+Sprint 9 adds repository tests for report-history retrieval: direct draft lookup, generated-only history defaults, include-drafts history, project-name joins, generated/draft ordering, and project-specific filters.
+
+Manual coverage should verify the Reports tab archive can load a saved local draft, generated PDFs appear as ready archive items, and the Projects tab shows report history for the selected project.
+
+## Sprint 10 Sync Foundation Tests
+
+Sprint 10 adds shared validation tests for sync mutation upload requests/responses, API-client tests for mutation upload requests and typed error handling, config tests for empty documented env placeholders, and route-handler tests for `/api/sync/mutations`.
+
+Route tests verify authorization is required, malformed payloads are rejected, missing Clerk configuration is explicit, and missing Neon configuration is explicit. They do not verify database writes because persistence is intentionally not implemented in Sprint 10.

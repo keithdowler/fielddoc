@@ -179,6 +179,20 @@ export type ReportDraft = {
   syncState: SyncState;
 };
 
+export type ReportHistoryItem = {
+  draftId: string;
+  projectId: string;
+  projectName: string;
+  title: string;
+  status: ProofPacketStatus;
+  generatedPdfUri: string | null;
+  generatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  hasGeneratedPdf: boolean;
+  syncState: SyncState;
+};
+
 export type LocalMutation = {
   mutationId: string;
   entityType: LocalMutationEntityType;
@@ -905,6 +919,11 @@ export type MarkReportDraftGeneratedInput = {
   generatedAt: string;
 };
 
+export type ReportHistoryOptions = {
+  projectId?: string;
+  includeDrafts?: boolean;
+};
+
 export type LocalMutationInput = {
   mutationId?: string;
   entityType: LocalMutationEntityType;
@@ -972,8 +991,10 @@ export interface ReportDraftRepository {
     id: string,
     input: MarkReportDraftGeneratedInput,
   ): Promise<ReportDraft>;
+  getById(id: string): Promise<ReportDraft | null>;
   getLatestByProject(projectId: string): Promise<ReportDraft | null>;
   listByProject(projectId: string): Promise<ReportDraft[]>;
+  listHistory(options?: ReportHistoryOptions): Promise<ReportHistoryItem[]>;
   delete(id: string): Promise<void>;
 }
 

@@ -22,6 +22,12 @@ Sprint 6 packet assembly is read-only over local metadata. It must not create fi
 
 Sprint 7 local PDF generation writes only to app-owned document storage and records local draft metadata. It must not upload, share, sync, or expose generated files without an explicit later authorization and sharing design.
 
+Sprint 8 local PDF opening and sharing must be explicit user actions. The app verifies that the local file exists and blocks stale generated output when draft changes are unsaved. Native share sheet destinations are user-selected and should not be treated as server-authorized delivery records.
+
+Sprint 9 report history is a local derived view over private report drafts and project names. It must not be treated as an audit log, cloud export record, or delivery receipt until a server-authorized export-history model exists.
+
+Sprint 10 adds a sync route boundary, but it does not verify Clerk tokens or write to Neon yet. The route must not acknowledge mutations as accepted until a later sprint adds server-side token verification, organization membership checks, transactional persistence, and idempotent replay handling.
+
 ## Secrets
 
 Secrets belong in Vercel, Expo/EAS, or local uncommitted environment files. `.env.example` contains placeholders only.
@@ -35,3 +41,7 @@ Report draft titles, notes, and section composition are also private business da
 Assembled packet previews combine multiple sensitive fields and should not be logged or sent to analytics.
 
 Generated PDF paths and file contents are sensitive and should not be logged.
+
+Report-history rows include project names, draft titles, generated timestamps, and local file availability. They should not be logged or sent to analytics.
+
+Sync mutation payloads can contain customer names, addresses, captions, notes, hashes, and local file metadata. Do not log request bodies, parsed payloads, bearer tokens, or validation issue values in production logs.

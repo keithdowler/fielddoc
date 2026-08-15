@@ -8,6 +8,7 @@ import {
   type ProjectFormInput,
   type ProjectFormState,
   type ProjectSearchOptions,
+  type ReportHistoryItem,
 } from "@fielddoc/domain";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -72,6 +73,7 @@ export default function ProjectsScreen() {
     useState<ProjectSearchOptions["sortBy"]>("updatedAt");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
+  const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
   const [summary, setSummary] = useState<ProjectEvidenceSummary>(emptySummary);
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
@@ -102,16 +104,22 @@ export default function ProjectsScreen() {
       setSelectedProjectId(nextSelected);
 
       if (nextSelected) {
-        const [items, nextSummary] = await Promise.all([
+        const [items, nextSummary, history] = await Promise.all([
           repositories.evidence.listByProject(nextSelected),
           repositories.evidence.summarizeProject(nextSelected),
+          repositories.reportDrafts.listHistory({
+            projectId: nextSelected,
+            includeDrafts: true,
+          }),
         ]);
         if (!mounted) return;
         setEvidenceItems(items);
         setSummary(nextSummary);
+        setReportHistory(history);
       } else {
         setEvidenceItems([]);
         setSummary(emptySummary);
+        setReportHistory([]);
       }
     }
 
@@ -130,7 +138,7 @@ export default function ProjectsScreen() {
 
   useFocusEffect(refresh);
 
-  async function reload() {
+  async function reload(nextSelectedProjectId = selectedProjectId) {
     const repositories = await getLocalRepositories();
     const rows = await repositories.projects.list({
       query,
@@ -139,13 +147,22 @@ export default function ProjectsScreen() {
       sortDirection: sortBy === "name" ? "asc" : "desc",
     });
     setProjects(rows);
-    if (selectedProjectId) {
-      setEvidenceItems(
-        await repositories.evidence.listByProject(selectedProjectId),
-      );
-      setSummary(
-        await repositories.evidence.summarizeProject(selectedProjectId),
-      );
+    if (nextSelectedProjectId) {
+      const [items, nextSummary, history] = await Promise.all([
+        repositories.evidence.listByProject(nextSelectedProjectId),
+        repositories.evidence.summarizeProject(nextSelectedProjectId),
+        repositories.reportDrafts.listHistory({
+          projectId: nextSelectedProjectId,
+          includeDrafts: true,
+        }),
+      ]);
+      setEvidenceItems(items);
+      setSummary(nextSummary);
+      setReportHistory(history);
+    } else {
+      setEvidenceItems([]);
+      setSummary(emptySummary);
+      setReportHistory([]);
     }
   }
 
@@ -185,7 +202,7 @@ export default function ProjectsScreen() {
         : "Project created locally.",
     );
     setForm({ ...initialProjectFormState, status: "saved" });
-    await reload();
+    await reload(project.id);
   }
 
   async function archiveProject(id: string) {
@@ -200,7 +217,7 @@ export default function ProjectsScreen() {
     await repositories.projects.delete(id);
     setSelectedProjectId(undefined);
     setStatusMessage("Project deleted locally.");
-    await reload();
+    await reload(undefined);
   }
 
   return (
@@ -399,8 +416,46 @@ export default function ProjectsScreen() {
           value={summary.mediaAssetCount ?? 0}
         />
       </Card>
+
+      <Card>
+        <SectionHeader
+          title="Report History"
+          detail={
+            selectedProject
+              ? "Local drafts and generated PDFs for this project."
+              : "Select a project to view local report history."
+          }
+        />
+        {selectedProject && reportHistory.length ? (
+          reportHistory.slice(0, 5).map((item) => (
+            <View key={item.draftId} style={styles.projectRow}>
+              <View style={styles.projectCopy}>
+                <AppText variant="label">{item.title}</AppText>
+                <AppText variant="small" muted>
+                  {item.hasGeneratedPdf ? "Generated PDF" : "Draft"} /{" "}
+                  {formatDate(item.generatedAt ?? item.updatedAt)}
+                </AppText>
+              </View>
+              <MetricRow
+                label="Status"
+                value={item.status === "ready" ? "Ready" : "Draft"}
+              />
+            </View>
+          ))
+        ) : (
+          <EmptyState
+            title="No report history"
+            message="Save a local report draft to see it here."
+            icon="clock"
+          />
+        )}
+      </Card>
     </AppScreen>
   );
+}
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleString();
 }
 
 const styles = StyleSheet.create({

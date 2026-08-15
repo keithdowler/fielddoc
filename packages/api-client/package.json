@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fielddoc/validation": "workspace:*",
     "zod": "^4.1.13"
   },
   "devDependencies": {

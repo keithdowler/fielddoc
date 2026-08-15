@@ -48,6 +48,10 @@ Sprint 6 adds deterministic local Proof Packet assembly for read-only preview. T
 
 Sprint 7 adds offline local PDF rendering on mobile. The domain package owns a sanitized HTML representation of the assembled packet, and mobile adapts it through `expo-print` behind a renderer interface. Generated PDFs are moved into app-owned document storage under `proof-packets/` and linked from the local report draft. The renderer is local-only: it does not share, upload, sync, or call server workflows.
 
+Sprint 8 adds explicit local PDF open/share controls. Mobile verifies that the generated PDF still exists locally and that draft changes have not made it stale, then uses native device capabilities to open the file or present the platform share sheet. This is local file handoff only; there are still no cloud share links, uploads, sync records, or customer delivery tracking.
+
+Sprint 10 adds the server synchronization foundation without activating production sync. The database package now defines the Neon/Postgres Drizzle schema and a source-controlled migration for organizations, users, memberships, canonical business records, received local mutations, and future conflict records. The validation package owns the local-mutation upload request/response contract. The web app exposes a Next.js route-handler boundary at `/api/sync/mutations`, but it refuses to fake persistence: requests require bearer authorization, malformed payloads are rejected, missing Clerk/Neon configuration is reported explicitly, and successful database writes remain out of scope.
+
 Future server synchronization will use:
 
 - Client-generated IDs for every locally-created entity.
@@ -145,3 +149,21 @@ Sprint 6 introduces a shared domain-level Proof Packet preview model before choo
 Status: Accepted
 
 Sprint 7 uses Expo Print as the first local PDF renderer because it is compatible with the current Expo application and lets field workers generate an offline file without adding a server dependency. The renderer consumes sanitized HTML from the shared domain package and stores the output PDF in app-owned local document storage. Local image embedding is intentionally deferred because iOS HTML printing does not reliably support local asset URLs; future image-heavy PDF output should use explicit derivative generation or a server renderer after sync.
+
+### ADR 0015: Native Share Sheet Before Cloud Sharing
+
+Status: Accepted
+
+Sprint 8 uses local native device flows for opening and sharing generated PDFs before building cloud delivery. This lets a field worker hand off a locally generated Proof Packet while preserving the offline-first MVP boundary. The app checks file existence and stale draft state before enabling actions. Cloud share links, upload receipts, delivery audit trails, and synchronized report-export records remain future work.
+
+### ADR 0016: Derived Local Report History
+
+Status: Accepted
+
+Sprint 9 exposes report history as a derived read model over local `report_drafts` joined to local projects. No new history table is introduced yet because local report drafts already contain the draft title, lifecycle status, generated PDF URI, generation timestamp, and sync state needed for an offline archive. The mobile UI can load a historical draft from the archive for inspection or regeneration through the existing report-generation flow. Server export history, immutable generated-output versioning, delivery audit trails, and cloud share links remain future synchronized features.
+
+### ADR 0017: Contract-Only Sync Endpoint Before Persistence
+
+Status: Accepted
+
+Sprint 10 introduces the sync API as a contract-only route before implementing authenticated persistence. This keeps mobile outbox work decoupled from Clerk organization membership resolution, Neon connection management, transaction semantics, and conflict handling. The endpoint validates authorization shape and payloads, then returns explicit not-configured or not-implemented errors instead of acknowledging mutations that were not durably stored. Later sprints must replace this boundary with a repository-backed transaction that writes `received_local_mutations`, applies canonical record changes idempotently, and returns accepted, duplicate, rejected, and conflict results.

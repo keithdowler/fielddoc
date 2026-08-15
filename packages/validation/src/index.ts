@@ -1,7 +1,10 @@
 import {
   evidenceCategories,
+  localMutationEntityTypes,
+  localMutationOperations,
   mediaSourceTypes,
   projectStatuses,
+  syncStates,
 } from "@fielddoc/domain";
 import { z } from "zod";
 
@@ -10,6 +13,9 @@ export const isoDateTimeSchema = z.string().datetime({ offset: true });
 
 export const evidenceCategorySchema = z.enum(evidenceCategories);
 export const projectStatusSchema = z.enum(projectStatuses);
+export const syncStateSchema = z.enum(syncStates);
+export const localMutationEntityTypeSchema = z.enum(localMutationEntityTypes);
+export const localMutationOperationSchema = z.enum(localMutationOperations);
 
 export const projectSummarySchema = z.object({
   id: uuidSchema,
@@ -43,3 +49,46 @@ export const originalEvidenceMetadataSchema = z.object({
     })
     .optional(),
 });
+
+export const syncMutationPayloadSchema = z.record(z.string(), z.unknown());
+
+export const syncMutationEnvelopeSchema = z.object({
+  mutationId: z.string().trim().min(1),
+  entityType: localMutationEntityTypeSchema,
+  entityId: uuidSchema,
+  operation: localMutationOperationSchema,
+  payloadRef: z.string().trim().min(1),
+  payloadJson: syncMutationPayloadSchema,
+  createdAt: isoDateTimeSchema,
+  attemptCount: z.number().int().nonnegative(),
+  syncState: syncStateSchema,
+});
+
+export const syncMutationUploadRequestSchema = z.object({
+  clientId: z.string().trim().min(1),
+  deviceId: z.string().trim().min(1),
+  sentAt: isoDateTimeSchema,
+  mutations: z.array(syncMutationEnvelopeSchema).max(100),
+});
+
+export const syncMutationRejectedSchema = z.object({
+  mutationId: z.string().trim().min(1),
+  code: z.string().trim().min(1),
+  message: z.string().trim().min(1),
+});
+
+export const syncMutationUploadResponseSchema = z.object({
+  serverTime: isoDateTimeSchema,
+  acceptedMutationIds: z.array(z.string().trim().min(1)),
+  duplicateMutationIds: z.array(z.string().trim().min(1)),
+  rejectedMutations: z.array(syncMutationRejectedSchema),
+  pullCursor: z.string().trim().min(1).nullable(),
+});
+
+export type SyncMutationEnvelope = z.infer<typeof syncMutationEnvelopeSchema>;
+export type SyncMutationUploadRequest = z.infer<
+  typeof syncMutationUploadRequestSchema
+>;
+export type SyncMutationUploadResponse = z.infer<
+  typeof syncMutationUploadResponseSchema
+>;

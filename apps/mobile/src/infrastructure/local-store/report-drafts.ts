@@ -1,6 +1,8 @@
 import {
   type ProofPacketStatus,
   type MarkReportDraftGeneratedInput,
+  type ReportHistoryItem,
+  type ReportHistoryOptions,
   type ReportDraft,
   type ReportDraftRepository,
   type SaveReportDraftInput,
@@ -28,6 +30,19 @@ type ReportDraftRow = {
   sync_state: SyncState;
 };
 
+type ReportHistoryRow = {
+  draft_id: string;
+  project_id: string;
+  project_name: string;
+  title: string;
+  status: ProofPacketStatus;
+  generated_pdf_uri: string | null;
+  generated_at: string | null;
+  created_at: string;
+  updated_at: string;
+  sync_state: SyncState;
+};
+
 function mapReportDraft(row: ReportDraftRow): ReportDraft {
   return {
     id: row.id,
@@ -41,6 +56,22 @@ function mapReportDraft(row: ReportDraftRow): ReportDraft {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
+    syncState: row.sync_state,
+  };
+}
+
+function mapReportHistory(row: ReportHistoryRow): ReportHistoryItem {
+  return {
+    draftId: row.draft_id,
+    projectId: row.project_id,
+    projectName: row.project_name,
+    title: row.title,
+    status: row.status,
+    generatedPdfUri: row.generated_pdf_uri,
+    generatedAt: row.generated_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    hasGeneratedPdf: Boolean(row.generated_pdf_uri),
     syncState: row.sync_state,
   };
 }
@@ -214,6 +245,15 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
     return row ? mapReportDraft(row) : null;
   }
 
+  async getById(id: string): Promise<ReportDraft | null> {
+    const row = await this.database.getFirst<ReportDraftRow>(
+      "SELECT * FROM report_drafts WHERE id = ? AND deleted_at IS NULL",
+      [id],
+    );
+
+    return row ? mapReportDraft(row) : null;
+  }
+
   async listByProject(projectId: string): Promise<ReportDraft[]> {
     const rows = await this.database.getAll<ReportDraftRow>(
       `
@@ -225,6 +265,52 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
     );
 
     return rows.map(mapReportDraft);
+  }
+
+  async listHistory(
+    options: ReportHistoryOptions = {},
+  ): Promise<ReportHistoryItem[]> {
+    const where = [
+      "report_drafts.deleted_at IS NULL",
+      "projects.deleted_at IS NULL",
+    ];
+    const params: string[] = [];
+
+    if (options.projectId) {
+      where.push("report_drafts.project_id = ?");
+      params.push(options.projectId);
+    }
+
+    if (!options.includeDrafts) {
+      where.push("report_drafts.generated_pdf_uri IS NOT NULL");
+    }
+
+    const rows = await this.database.getAll<ReportHistoryRow>(
+      `
+        SELECT
+          report_drafts.id AS draft_id,
+          report_drafts.project_id AS project_id,
+          projects.name AS project_name,
+          report_drafts.title AS title,
+          report_drafts.status AS status,
+          report_drafts.generated_pdf_uri AS generated_pdf_uri,
+          report_drafts.generated_at AS generated_at,
+          report_drafts.created_at AS created_at,
+          report_drafts.updated_at AS updated_at,
+          report_drafts.sync_state AS sync_state
+        FROM report_drafts
+        INNER JOIN projects
+          ON projects.id = report_drafts.project_id
+        WHERE ${where.join(" AND ")}
+        ORDER BY
+          report_drafts.generated_at IS NULL ASC,
+          COALESCE(report_drafts.generated_at, report_drafts.updated_at) DESC,
+          report_drafts.updated_at DESC
+      `,
+      params,
+    );
+
+    return rows.map(mapReportHistory);
   }
 
   async delete(id: string): Promise<void> {
