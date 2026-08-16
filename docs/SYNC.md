@@ -55,3 +55,17 @@ Later sprints should:
 4. Mark mobile outbox rows as synchronized only after the server response is reconciled locally.
 
 Original media upload and signed URL issuance remain separate from metadata mutation upload.
+
+## Account Provisioning
+
+Sprint 12 adds:
+
+`POST /api/account/provision`
+
+This route requires a signed-in Clerk user and active Clerk organization. It upserts:
+
+- `organizations.external_auth_id` from Clerk `org_...`
+- `users.external_auth_id` from Clerk `user_...`
+- `organization_members` for the active user/organization
+
+Provisioning makes the later sync receipt route able to resolve membership without manual SQL. It does not upload local mobile mutations by itself.

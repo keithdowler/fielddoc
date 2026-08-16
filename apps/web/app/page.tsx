@@ -17,7 +17,8 @@ export default function Home() {
           product. Product workflows start in later sprints.
         </p>
         <nav className="linkRow" aria-label="Primary">
-          <Link href="/login">Login</Link>
+          <Link href="/sign-in">Sign in</Link>
+          <Link href="/sign-up">Create account</Link>
           <Link href="/app">App</Link>
           <Link href="/app/projects">Projects</Link>
           <Link href="/app/reports">Reports</Link>

@@ -30,6 +30,8 @@ Sprint 10 adds a sync route boundary, but it does not verify Clerk tokens or wri
 
 Sprint 11 adds server-side Clerk verification and Neon mutation receipt. A request must carry a bearer session token, have an active Clerk organization, and resolve to a matching `organization_members` row before any mutation envelope is stored. The endpoint records mutation envelopes only; it does not return tenant data, sign media uploads, or apply canonical entity changes yet.
 
+Sprint 12 protects `/app` and `/api/account/*` with Clerk middleware. Account provisioning writes only the signed-in user's active organization/user bridge rows and does not accept arbitrary organization IDs from the browser.
+
 ## Secrets
 
 Secrets belong in Vercel, Expo/EAS, or local uncommitted environment files. `.env.example` contains placeholders only.

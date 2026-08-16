@@ -26,6 +26,10 @@ export const webServerEnvSchema = z.object({
   CLERK_JWT_KEY: optionalSecret,
   CLERK_AUTHORIZED_PARTIES: optionalSecret,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalSecret,
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: optionalSecret,
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: optionalSecret,
+  NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: optionalSecret,
+  NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: optionalSecret,
   DATABASE_URL: optionalUrl,
   R2_ACCOUNT_ID: optionalSecret,
   R2_ACCESS_KEY_ID: optionalSecret,
@@ -39,6 +43,10 @@ export const webServerEnvSchema = z.object({
 export const publicWebEnvSchema = z.object({
   NEXT_PUBLIC_PRODUCT_NAME: optionalSecret,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalSecret,
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: optionalSecret,
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: optionalSecret,
+  NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: optionalSecret,
+  NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: optionalSecret,
   NEXT_PUBLIC_POSTHOG_KEY: optionalSecret,
   NEXT_PUBLIC_POSTHOG_HOST: optionalUrl,
 });

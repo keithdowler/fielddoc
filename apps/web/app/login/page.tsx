@@ -1,7 +1,5 @@
-import { PlaceholderPage } from "../placeholder-page";
+import { redirect } from "next/navigation";
 
 export default function LoginPage() {
-  return (
-    <PlaceholderPage title="Login" description="Authentication placeholder." />
-  );
+  redirect("/sign-in");
 }

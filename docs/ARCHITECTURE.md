@@ -54,6 +54,8 @@ Sprint 10 adds the server synchronization foundation without activating producti
 
 Sprint 11 turns the sync route into authenticated mutation receipt. The route verifies Clerk session tokens, requires an active Clerk organization, resolves that organization membership against Neon/Postgres, and records uploadable local mutations in `received_local_mutations` through Drizzle. Duplicate `mutation_id` inserts are idempotent and returned as duplicates. Canonical entity application, conflict generation, pull cursors, media upload signing, and mobile outbox reconciliation remain future work.
 
+Sprint 12 adds the first Clerk-backed web session surface. The web app uses ClerkProvider, protected App Router routes, Clerk-hosted sign-in/sign-up components, and a server-side account provisioning route that upserts the active Clerk organization/user into Neon. This replaces manual tenant-bridge SQL for normal setup, but it still does not synchronize mobile outbox rows or apply canonical entity changes.
+
 Future server synchronization will use:
 
 - Client-generated IDs for every locally-created entity.
@@ -175,3 +177,9 @@ Sprint 10 introduces the sync API as a contract-only route before implementing a
 Status: Accepted
 
 Sprint 11 records local mutation envelopes durably before attempting canonical server reconciliation. The sync route verifies Clerk bearer tokens, requires active organization context, resolves server-side organization membership, and writes each uploadable mutation to Neon/Postgres using Drizzle. This gives mobile a real idempotent server receipt boundary without pretending that project, evidence, report, or media records have already been applied. Future sync processors can consume `received_local_mutations`, perform version checks, populate canonical tables, preserve conflicts, and return pull cursors.
+
+### ADR 0019: Clerk Web Session Before Mobile Sync
+
+Status: Accepted
+
+Sprint 12 wires Clerk into the web application before mobile sync reconciliation. This gives the production deployment a real login path, organization switching, and a server-side provisioning endpoint that maps Clerk users and organizations to FieldDoc's internal UUID tenant model. Mobile sync remains separate because the mobile app still needs token acquisition, outbox upload scheduling, retry policy, and local reconciliation semantics.

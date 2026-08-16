@@ -68,3 +68,7 @@ Route tests verify authorization is required, malformed payloads are rejected, m
 Sprint 11 adds route and service tests for authenticated mutation receipt behavior. Tests cover accepted mutation responses, duplicate mutation classification, per-mutation rejection for non-uploadable local states, required active organization context, required server-side organization membership, and continued explicit errors for missing Clerk or Neon configuration.
 
 The Neon adapter is covered through typed build checks and the Drizzle schema boundary. Live database integration tests remain future work because they require provisioned Neon credentials and migration state.
+
+## Sprint 12 Web Auth Tests
+
+Sprint 12 adds unit coverage for account-provisioning normalization and keeps route-level auth behavior behind Clerk's server runtime. Manual production verification should cover sign-in, organization selection, and `POST /api/account/provision` through the web workspace button.

@@ -19,6 +19,10 @@ describe("webServerEnvSchema", () => {
       CLERK_JWT_KEY: "",
       CLERK_AUTHORIZED_PARTIES: "",
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "",
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: "",
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: "",
+      NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: "",
+      NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: "",
       DATABASE_URL: "",
       SENTRY_DSN: "",
     });
@@ -27,6 +31,14 @@ describe("webServerEnvSchema", () => {
     expect(parsed.CLERK_JWT_KEY).toBeUndefined();
     expect(parsed.CLERK_AUTHORIZED_PARTIES).toBeUndefined();
     expect(parsed.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY).toBeUndefined();
+    expect(parsed.NEXT_PUBLIC_CLERK_SIGN_IN_URL).toBeUndefined();
+    expect(parsed.NEXT_PUBLIC_CLERK_SIGN_UP_URL).toBeUndefined();
+    expect(
+      parsed.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL,
+    ).toBeUndefined();
+    expect(
+      parsed.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL,
+    ).toBeUndefined();
     expect(parsed.DATABASE_URL).toBeUndefined();
     expect(parsed.SENTRY_DSN).toBeUndefined();
   });

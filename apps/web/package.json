@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@clerk/backend": "3.14.0",
+    "@clerk/nextjs": "7.6.4",
     "@fielddoc/config": "workspace:*",
     "@fielddoc/database": "workspace:*",
     "@fielddoc/domain": "workspace:*",

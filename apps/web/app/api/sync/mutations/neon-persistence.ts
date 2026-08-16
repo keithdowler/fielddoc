@@ -1,12 +1,13 @@
-import { neon } from "@neondatabase/serverless";
 import {
+  and,
+  createNeonDatabase,
+  eq,
+  isNull,
   organizations,
   organizationMembers,
   receivedLocalMutations,
   users,
 } from "@fielddoc/database";
-import { and, eq, isNull } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-http";
 
 import {
   SyncConfigurationError,
@@ -28,7 +29,7 @@ export function createNeonSyncMutationPersistence(
     );
   }
 
-  const db = drizzle(neon(databaseUrl));
+  const db = createNeonDatabase(databaseUrl);
 
   return {
     async resolveMembership(
