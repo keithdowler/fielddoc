@@ -56,6 +56,8 @@ Sprint 11 turns the sync route into authenticated mutation receipt. The route ve
 
 Sprint 12 adds the first Clerk-backed web session surface. The web app uses ClerkProvider, protected App Router routes, Clerk-hosted sign-in/sign-up components, and a server-side account provisioning route that upserts the active Clerk organization/user into Neon. This replaces manual tenant-bridge SQL for normal setup, but it still does not synchronize mobile outbox rows or apply canonical entity changes.
 
+Sprint 13 adds the mobile outbox upload foundation. Mobile reads uploadable SQLite mutations, uses a stable local device ID, calls the real `/api/sync/mutations` endpoint through the shared API client, and reconciles accepted/duplicate/rejected receipt classifications back into local mutation state. This does not embed a mobile bearer token in public Expo configuration and does not add native Clerk sign-in yet; an auth token provider must be connected before production mobile uploads can run.
+
 Future server synchronization will use:
 
 - Client-generated IDs for every locally-created entity.
@@ -183,3 +185,9 @@ Sprint 11 records local mutation envelopes durably before attempting canonical s
 Status: Accepted
 
 Sprint 12 wires Clerk into the web application before mobile sync reconciliation. This gives the production deployment a real login path, organization switching, and a server-side provisioning endpoint that maps Clerk users and organizations to FieldDoc's internal UUID tenant model. Mobile sync remains separate because the mobile app still needs token acquisition, outbox upload scheduling, retry policy, and local reconciliation semantics.
+
+### ADR 0020: Mobile Outbox Receipt Before Native Auth UI
+
+Status: Accepted
+
+Sprint 13 implements mobile outbox upload and receipt reconciliation behind an explicit token-provider interface before adding native Clerk sign-in. This lets the offline SQLite layer, shared API client, idempotent upload contract, and local mutation state transitions be tested without committing an unsafe public bearer token or forcing an incompatible native auth SDK. Native mobile auth should connect to the same token-provider boundary when the chosen Clerk Expo SDK path is compatible with the app's Expo version.

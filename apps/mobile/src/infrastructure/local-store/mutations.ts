@@ -90,6 +90,20 @@ export class SqliteLocalMutationRepository implements LocalMutationRepository {
     return rows.map(mapMutation);
   }
 
+  async listUploadable(limit = 100): Promise<LocalMutation[]> {
+    const rows = await this.database.getAll<LocalMutationRow>(
+      `
+        SELECT * FROM local_mutations
+        WHERE sync_state IN ('PENDING', 'FAILED')
+        ORDER BY created_at ASC
+        LIMIT ?
+      `,
+      [limit],
+    );
+
+    return rows.map(mapMutation);
+  }
+
   async countPending(): Promise<number> {
     const row = await this.database.getFirst<{ count: number }>(
       `
@@ -100,5 +114,34 @@ export class SqliteLocalMutationRepository implements LocalMutationRepository {
     );
 
     return row?.count ?? 0;
+  }
+
+  async markSynced(mutationIds: string[]): Promise<void> {
+    await this.updateMutationStates(mutationIds, "SYNCED");
+  }
+
+  async markFailed(mutationIds: string[]): Promise<void> {
+    await this.updateMutationStates(mutationIds, "FAILED");
+  }
+
+  private async updateMutationStates(
+    mutationIds: string[],
+    syncState: SyncState,
+  ): Promise<void> {
+    if (mutationIds.length === 0) return;
+
+    await this.database.transaction(async (tx) => {
+      for (const mutationId of new Set(mutationIds)) {
+        await tx.run(
+          `
+            UPDATE local_mutations
+            SET sync_state = ?,
+                attempt_count = attempt_count + 1
+            WHERE mutation_id = ?
+          `,
+          [syncState, mutationId],
+        );
+      }
+    });
   }
 }

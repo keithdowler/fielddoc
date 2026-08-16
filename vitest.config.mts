@@ -4,6 +4,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": new URL("./apps/mobile/src", import.meta.url).pathname,
+      "@fielddoc/api-client": new URL(
+        "./packages/api-client/src/index.ts",
+        import.meta.url,
+      ).pathname,
       "@fielddoc/config": new URL(
         "./packages/config/src/index.ts",
         import.meta.url,

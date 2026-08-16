@@ -40,6 +40,9 @@ describe("SQLite local repositories", () => {
       const reportDraftIndex = await database.getFirst<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_report_drafts_project_updated'",
       );
+      const syncClientStateTable = await database.getFirst<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sync_client_state'",
+      );
 
       expect(row?.version).toBe(localDatabaseVersion);
       expect(indexRow?.name).toBe("idx_media_assets_evidence");
@@ -47,6 +50,7 @@ describe("SQLite local repositories", () => {
       expect(sectionsColumn?.name).toBe("sections_json");
       expect(generatedPdfColumn?.name).toBe("generated_pdf_uri");
       expect(reportDraftIndex?.name).toBe("idx_report_drafts_project_updated");
+      expect(syncClientStateTable?.name).toBe("sync_client_state");
     });
   });
 
@@ -501,6 +505,61 @@ describe("SQLite local repositories", () => {
 
       expect(await mutations.countPending()).toBe(1);
       expect((await mutations.listPending())[0]?.payloadJson).toBe("{}");
+    });
+  });
+
+  it("lists uploadable mutations and reconciles receipt states", async () => {
+    await withRepositories(async ({ mutations }) => {
+      await mutations.enqueue({
+        mutationId: "pending-mutation",
+        entityType: "Project",
+        entityId: "3f205a6f-3f5f-4f85-baba-f1dac348273a",
+        operation: "CREATE",
+        payloadRef: "v1",
+        payloadJson: "{}",
+        createdAt: "2026-08-16T10:00:00.000Z",
+        syncState: "PENDING",
+      });
+      await mutations.enqueue({
+        mutationId: "local-only-mutation",
+        entityType: "Project",
+        entityId: "3f205a6f-3f5f-4f85-baba-f1dac348273a",
+        operation: "UPDATE",
+        payloadRef: "v2",
+        payloadJson: "{}",
+        createdAt: "2026-08-16T10:01:00.000Z",
+        syncState: "LOCAL_ONLY",
+      });
+
+      expect(
+        (await mutations.listUploadable()).map(
+          (mutation) => mutation.mutationId,
+        ),
+      ).toEqual(["pending-mutation"]);
+
+      await mutations.markSynced(["pending-mutation"]);
+      await mutations.markFailed(["local-only-mutation"]);
+
+      const rows = await mutations.listPending();
+      expect(rows).toMatchObject([
+        {
+          mutationId: "local-only-mutation",
+          attemptCount: 1,
+          syncState: "FAILED",
+        },
+      ]);
+    });
+  });
+
+  it("creates a stable local sync device id", async () => {
+    await withRepositories(async ({ syncClientState }) => {
+      const first = await syncClientState.getOrCreateDeviceId();
+      const second = await syncClientState.getOrCreateDeviceId();
+
+      expect(first).toBe(second);
+      expect(first).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
     });
   });
 });

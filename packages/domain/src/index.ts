@@ -1062,5 +1062,8 @@ function formatBytes(sizeBytes: number): string {
 export interface LocalMutationRepository {
   enqueue(input: LocalMutationInput): Promise<LocalMutation>;
   listPending(): Promise<LocalMutation[]>;
+  listUploadable(limit?: number): Promise<LocalMutation[]>;
   countPending(): Promise<number>;
+  markSynced(mutationIds: string[]): Promise<void>;
+  markFailed(mutationIds: string[]): Promise<void>;
 }

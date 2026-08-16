@@ -53,5 +53,6 @@ export const publicWebEnvSchema = z.object({
 
 export const publicMobileEnvSchema = z.object({
   EXPO_PUBLIC_PRODUCT_NAME: optionalSecret,
+  EXPO_PUBLIC_FIELDDOC_API_BASE_URL: optionalUrl,
   EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: optionalSecret,
 });

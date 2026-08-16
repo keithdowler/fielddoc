@@ -26,6 +26,8 @@ The local SQLite model will support project drafts, evidence metadata, captions,
 
 Sprint 2 creates the mobile SQLite schema and local migrations for these records. Deletes are soft deletes using `deleted_at`; future sync can still observe and transmit deletion intent.
 
+New local business records use UUID primary keys so offline-created records can be uploaded to the server sync contract without ID translation. Local mutation IDs and device IDs are separate idempotency/diagnostic identifiers.
+
 Project evidence categories are `BEFORE`, `WORK`, `AFTER`, `DOCUMENT`, and `OTHER`.
 
 Media source types are `CAMERA_PHOTO`, `PHOTO_LIBRARY`, `DOCUMENT_SCAN`, and `FILE_IMPORT`.
@@ -127,3 +129,5 @@ Sprint 11 starts using `received_local_mutations` as a durable server receipt le
 Sprint 11 also introduces `organizations.external_auth_id` so Clerk organization IDs such as `org_...` can map to FieldDoc's internal UUID tenant IDs. Business records keep internal UUID foreign keys; authentication lookups use the external auth ID bridge.
 
 Canonical business tables remain unapplied in Sprint 11. `sync_conflicts` remains reserved for the future processor that compares client payload references and server versions before applying canonical changes.
+
+Sprint 13 adds mobile receipt reconciliation for `received_local_mutations`. Accepted and duplicate server receipts mark local outbox rows `SYNCED`; rejected upload receipts and failed upload attempts leave rows retry-visible as `FAILED`. The server still does not apply canonical business table changes.

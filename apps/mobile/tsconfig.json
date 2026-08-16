@@ -5,8 +5,10 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/assets/*": ["./assets/*"],
+      "@fielddoc/api-client": ["../../packages/api-client/src/index.ts"],
       "@fielddoc/config": ["../../packages/config/src/index.ts"],
-      "@fielddoc/domain": ["../../packages/domain/src/index.ts"]
+      "@fielddoc/domain": ["../../packages/domain/src/index.ts"],
+      "@fielddoc/validation": ["../../packages/validation/src/index.ts"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]

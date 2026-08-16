@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { resolvePublicProductName, webServerEnvSchema } from "./index";
+import {
+  publicMobileEnvSchema,
+  resolvePublicProductName,
+  webServerEnvSchema,
+} from "./index";
 
 describe("resolvePublicProductName", () => {
   it("uses a configurable public product name", () => {
@@ -41,5 +45,17 @@ describe("webServerEnvSchema", () => {
     ).toBeUndefined();
     expect(parsed.DATABASE_URL).toBeUndefined();
     expect(parsed.SENTRY_DSN).toBeUndefined();
+  });
+});
+
+describe("publicMobileEnvSchema", () => {
+  it("validates the public mobile API base URL", () => {
+    const parsed = publicMobileEnvSchema.parse({
+      EXPO_PUBLIC_FIELDDOC_API_BASE_URL: "https://fielddoc-web.vercel.app",
+    });
+
+    expect(parsed.EXPO_PUBLIC_FIELDDOC_API_BASE_URL).toBe(
+      "https://fielddoc-web.vercel.app",
+    );
   });
 });

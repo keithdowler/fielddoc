@@ -69,3 +69,32 @@ This route requires a signed-in Clerk user and active Clerk organization. It ups
 - `organization_members` for the active user/organization
 
 Provisioning makes the later sync receipt route able to resolve membership without manual SQL. It does not upload local mobile mutations by itself.
+
+## Mobile Outbox Upload Foundation
+
+Sprint 13 adds a mobile outbox upload service for local metadata mutations.
+
+The mobile app can now:
+
+- Read uploadable local mutations in durable SQLite order.
+- Persist a stable local device ID in SQLite.
+- Build a validated mutation upload request.
+- Send it through the shared API client to `/api/sync/mutations`.
+- Mark accepted and duplicate mutation receipts as `SYNCED`.
+- Mark server-rejected or failed upload attempts as `FAILED`.
+- Surface sync configuration/auth status in Settings.
+
+The service requires:
+
+- `EXPO_PUBLIC_FIELDDOC_API_BASE_URL` for the web/API deployment.
+- A mobile auth token provider that can return a Clerk bearer token.
+
+The app intentionally does not bundle a bearer token in `EXPO_PUBLIC_*`
+configuration. Expo public variables are shipped in the mobile bundle and are
+not safe for secrets. Until the native Clerk mobile token provider is connected,
+the Settings sync panel reports that cloud sign-in is required instead of
+pretending to sync.
+
+This sprint remains receipt-only. The server still does not apply canonical
+project/evidence/report records, upload media bytes, issue signed media URLs,
+return pull changes, or resolve conflicts.

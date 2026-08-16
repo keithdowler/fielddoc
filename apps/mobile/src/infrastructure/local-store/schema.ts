@@ -1,6 +1,6 @@
 import type { LocalDatabase } from "./database";
 
-export const localDatabaseVersion = 5;
+export const localDatabaseVersion = 6;
 
 export const localMigrations = [
   {
@@ -179,6 +179,17 @@ export const localMigrations = [
     sql: `
       ALTER TABLE report_drafts ADD COLUMN generated_pdf_uri TEXT;
       ALTER TABLE report_drafts ADD COLUMN generated_at TEXT;
+    `,
+  },
+  {
+    version: 6,
+    name: "sync_client_state",
+    sql: `
+      CREATE TABLE IF NOT EXISTS sync_client_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `,
   },
 ] as const;
