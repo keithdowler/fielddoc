@@ -90,11 +90,18 @@ const timestampColumns = {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 };
 
-export const organizations = pgTable("organizations", {
-  id: uuid("id").primaryKey(),
-  name: text("name").notNull(),
-  ...timestampColumns,
-});
+export const organizations = pgTable(
+  "organizations",
+  {
+    id: uuid("id").primaryKey(),
+    externalAuthId: text("external_auth_id").notNull(),
+    name: text("name").notNull(),
+    ...timestampColumns,
+  },
+  (table) => [
+    uniqueIndex("uniq_organizations_external_auth_id").on(table.externalAuthId),
+  ],
+);
 
 export const users = pgTable(
   "users",

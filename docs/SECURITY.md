@@ -28,6 +28,8 @@ Sprint 9 report history is a local derived view over private report drafts and p
 
 Sprint 10 adds a sync route boundary, but it does not verify Clerk tokens or write to Neon yet. The route must not acknowledge mutations as accepted until a later sprint adds server-side token verification, organization membership checks, transactional persistence, and idempotent replay handling.
 
+Sprint 11 adds server-side Clerk verification and Neon mutation receipt. A request must carry a bearer session token, have an active Clerk organization, and resolve to a matching `organization_members` row before any mutation envelope is stored. The endpoint records mutation envelopes only; it does not return tenant data, sign media uploads, or apply canonical entity changes yet.
+
 ## Secrets
 
 Secrets belong in Vercel, Expo/EAS, or local uncommitted environment files. `.env.example` contains placeholders only.
@@ -45,3 +47,5 @@ Generated PDF paths and file contents are sensitive and should not be logged.
 Report-history rows include project names, draft titles, generated timestamps, and local file availability. They should not be logged or sent to analytics.
 
 Sync mutation payloads can contain customer names, addresses, captions, notes, hashes, and local file metadata. Do not log request bodies, parsed payloads, bearer tokens, or validation issue values in production logs.
+
+Rejected and duplicate sync responses should include mutation IDs and stable error codes, not payload contents.

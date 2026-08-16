@@ -23,6 +23,9 @@ export function resolvePublicProductName(value: string | undefined): string {
 
 export const webServerEnvSchema = z.object({
   CLERK_SECRET_KEY: optionalSecret,
+  CLERK_JWT_KEY: optionalSecret,
+  CLERK_AUTHORIZED_PARTIES: optionalSecret,
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalSecret,
   DATABASE_URL: optionalUrl,
   R2_ACCOUNT_ID: optionalSecret,
   R2_ACCESS_KEY_ID: optionalSecret,

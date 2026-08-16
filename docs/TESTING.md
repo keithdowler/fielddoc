@@ -62,3 +62,9 @@ Manual coverage should verify the Reports tab archive can load a saved local dra
 Sprint 10 adds shared validation tests for sync mutation upload requests/responses, API-client tests for mutation upload requests and typed error handling, config tests for empty documented env placeholders, and route-handler tests for `/api/sync/mutations`.
 
 Route tests verify authorization is required, malformed payloads are rejected, missing Clerk configuration is explicit, and missing Neon configuration is explicit. They do not verify database writes because persistence is intentionally not implemented in Sprint 10.
+
+## Sprint 11 Sync Receipt Tests
+
+Sprint 11 adds route and service tests for authenticated mutation receipt behavior. Tests cover accepted mutation responses, duplicate mutation classification, per-mutation rejection for non-uploadable local states, required active organization context, required server-side organization membership, and continued explicit errors for missing Clerk or Neon configuration.
+
+The Neon adapter is covered through typed build checks and the Drizzle schema boundary. Live database integration tests remain future work because they require provisioned Neon credentials and migration state.

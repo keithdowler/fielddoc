@@ -121,3 +121,9 @@ The first server migration creates:
 - `sync_conflicts` for future non-destructive conflict preservation
 
 Original media bytes still do not belong in Postgres. `media_assets.storage_object_key` is nullable until private object-storage upload exists, and generated report PDFs use a future object key rather than a local mobile URI.
+
+Sprint 11 starts using `received_local_mutations` as a durable server receipt ledger. Each row is keyed by client mutation ID, organization, user, device, entity type, entity ID, operation, payload reference, payload JSON, and the client creation timestamp. The endpoint inserts uploadable local mutations with server status `accepted`; duplicate primary-key inserts are classified as duplicate responses and are not treated as failures.
+
+Sprint 11 also introduces `organizations.external_auth_id` so Clerk organization IDs such as `org_...` can map to FieldDoc's internal UUID tenant IDs. Business records keep internal UUID foreign keys; authentication lookups use the external auth ID bridge.
+
+Canonical business tables remain unapplied in Sprint 11. `sync_conflicts` remains reserved for the future processor that compares client payload references and server versions before applying canonical changes.

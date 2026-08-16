@@ -1,6 +1,6 @@
 # Synchronization
 
-Sprint 10 establishes the synchronization foundation. It does not turn on production synchronization.
+Sprint 11 establishes authenticated mutation receipt. It does not turn on full production synchronization or canonical entity application.
 
 ## Current Contract
 
@@ -19,28 +19,39 @@ Each mutation includes the durable local mutation ID, entity type, entity ID, op
 
 ## Current Endpoint Behavior
 
-The endpoint is intentionally contract-only:
+The endpoint now validates and records upload attempts when Clerk and Neon are configured:
 
 - Missing bearer authorization returns `401 UNAUTHORIZED`.
 - Invalid JSON returns `400 INVALID_JSON`.
 - Invalid mutation payloads return `400 INVALID_SYNC_MUTATION_UPLOAD`.
 - Missing Clerk server configuration returns `501 SYNC_AUTH_NOT_CONFIGURED`.
 - Missing Neon configuration returns `503 SYNC_PERSISTENCE_NOT_CONFIGURED`.
-- If both are configured, the route still returns `501 SYNC_PERSISTENCE_NOT_IMPLEMENTED` until a later sprint adds repository-backed writes.
+- Unverified bearer tokens return `401 UNAUTHORIZED`.
+- Authenticated requests without an active organization return `403 ORGANIZATION_REQUIRED`.
+- Authenticated users without server-side membership in the active organization return `403 ORGANIZATION_MEMBERSHIP_REQUIRED`.
+- Uploadable local mutations in `PENDING` or `FAILED` state are inserted into `received_local_mutations`.
+- Replayed mutation IDs are returned as duplicates through the response contract.
+- Non-uploadable local mutation states are rejected per mutation instead of failing the whole upload.
 
-This avoids fake acknowledgements. The server must not mark local outbox mutations as accepted until they are durably stored and applied or safely classified as duplicates, rejects, or conflicts.
+This still avoids fake acknowledgements. The server returns accepted mutation IDs only after the mutation envelope is durably stored in Neon. The endpoint does not yet apply canonical project/evidence/report changes or produce pull results.
 
-## Future Persistence Flow
+## Current Persistence Flow
 
-The future sync processor should:
+The Sprint 11 sync intake:
 
 1. Verify the bearer token with Clerk.
-2. Resolve the user and active organization membership server-side.
-3. Start a Neon/Postgres transaction.
-4. Insert each mutation into `received_local_mutations` by `mutation_id`.
-5. Treat duplicate `mutation_id` inserts as idempotent duplicates.
-6. Apply canonical record changes with server version checks.
-7. Preserve conflicting client payloads in `sync_conflicts`.
-8. Return accepted, duplicate, rejected, and conflict results.
+2. Resolve the Clerk user and active Clerk organization through server-side user and organization bridge records.
+3. Insert each uploadable mutation into `received_local_mutations` by `mutation_id`.
+4. Treat duplicate `mutation_id` inserts as idempotent duplicates.
+5. Return accepted, duplicate, and rejected mutation classifications.
+
+## Future Sync Processor
+
+Later sprints should:
+
+1. Apply canonical record changes with server version checks.
+2. Preserve conflicting client payloads in `sync_conflicts`.
+3. Return pull cursors and server canonical record changes.
+4. Mark mobile outbox rows as synchronized only after the server response is reconciled locally.
 
 Original media upload and signed URL issuance remain separate from metadata mutation upload.

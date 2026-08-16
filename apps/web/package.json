@@ -11,10 +11,13 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@clerk/backend": "3.14.0",
     "@fielddoc/config": "workspace:*",
     "@fielddoc/database": "workspace:*",
     "@fielddoc/domain": "workspace:*",
     "@fielddoc/validation": "workspace:*",
+    "@neondatabase/serverless": "1.1.0",
+    "drizzle-orm": "0.45.2",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"

@@ -52,6 +52,8 @@ Sprint 8 adds explicit local PDF open/share controls. Mobile verifies that the g
 
 Sprint 10 adds the server synchronization foundation without activating production sync. The database package now defines the Neon/Postgres Drizzle schema and a source-controlled migration for organizations, users, memberships, canonical business records, received local mutations, and future conflict records. The validation package owns the local-mutation upload request/response contract. The web app exposes a Next.js route-handler boundary at `/api/sync/mutations`, but it refuses to fake persistence: requests require bearer authorization, malformed payloads are rejected, missing Clerk/Neon configuration is reported explicitly, and successful database writes remain out of scope.
 
+Sprint 11 turns the sync route into authenticated mutation receipt. The route verifies Clerk session tokens, requires an active Clerk organization, resolves that organization membership against Neon/Postgres, and records uploadable local mutations in `received_local_mutations` through Drizzle. Duplicate `mutation_id` inserts are idempotent and returned as duplicates. Canonical entity application, conflict generation, pull cursors, media upload signing, and mobile outbox reconciliation remain future work.
+
 Future server synchronization will use:
 
 - Client-generated IDs for every locally-created entity.
@@ -164,6 +166,12 @@ Sprint 9 exposes report history as a derived read model over local `report_draft
 
 ### ADR 0017: Contract-Only Sync Endpoint Before Persistence
 
-Status: Accepted
+Status: Superseded By ADR 0018
 
 Sprint 10 introduces the sync API as a contract-only route before implementing authenticated persistence. This keeps mobile outbox work decoupled from Clerk organization membership resolution, Neon connection management, transaction semantics, and conflict handling. The endpoint validates authorization shape and payloads, then returns explicit not-configured or not-implemented errors instead of acknowledging mutations that were not durably stored. Later sprints must replace this boundary with a repository-backed transaction that writes `received_local_mutations`, applies canonical record changes idempotently, and returns accepted, duplicate, rejected, and conflict results.
+
+### ADR 0018: Authenticated Mutation Receipt Before Canonical Sync
+
+Status: Accepted
+
+Sprint 11 records local mutation envelopes durably before attempting canonical server reconciliation. The sync route verifies Clerk bearer tokens, requires active organization context, resolves server-side organization membership, and writes each uploadable mutation to Neon/Postgres using Drizzle. This gives mobile a real idempotent server receipt boundary without pretending that project, evidence, report, or media records have already been applied. Future sync processors can consume `received_local_mutations`, perform version checks, populate canonical tables, preserve conflicts, and return pull cursors.

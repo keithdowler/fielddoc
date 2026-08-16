@@ -19,7 +19,11 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["packages/**/*.test.ts", "apps/mobile/src/**/*.test.ts"],
+    include: [
+      "packages/**/*.test.ts",
+      "apps/mobile/src/**/*.test.ts",
+      "apps/web/app/**/*.test.ts",
+    ],
     passWithNoTests: false,
   },
 });

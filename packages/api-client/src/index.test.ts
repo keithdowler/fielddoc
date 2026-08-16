@@ -21,6 +21,8 @@ const validUpload = {
   ],
 };
 
+const validMutationId = validUpload.mutations[0]?.mutationId ?? "";
+
 describe("createFieldDocApiClient", () => {
   it("posts validated local mutations to the sync route", async () => {
     const requests: Request[] = [];
@@ -44,6 +46,38 @@ describe("createFieldDocApiClient", () => {
     expect(requests[0]?.url).toBe("https://example.test/api/sync/mutations");
     expect(requests[0]?.headers.get("authorization")).toBe("Bearer token");
     expect(response.acceptedMutationIds).toEqual(["mutation-1"]);
+  });
+
+  it("parses duplicate and rejected mutation classifications", async () => {
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      fetchImpl: async () =>
+        Response.json({
+          serverTime: "2026-08-15T15:00:01.000Z",
+          acceptedMutationIds: [],
+          duplicateMutationIds: [validMutationId],
+          rejectedMutations: [
+            {
+              mutationId: "mutation-rejected",
+              code: "MUTATION_NOT_UPLOADABLE",
+              message:
+                "Only pending or failed local mutations can be uploaded.",
+            },
+          ],
+          pullCursor: null,
+        }),
+    });
+
+    const response = await client.uploadLocalMutations(validUpload);
+
+    expect(response.duplicateMutationIds).toEqual([validMutationId]);
+    expect(response.rejectedMutations).toEqual([
+      {
+        mutationId: "mutation-rejected",
+        code: "MUTATION_NOT_UPLOADABLE",
+        message: "Only pending or failed local mutations can be uploaded.",
+      },
+    ]);
   });
 
   it("throws typed API errors for rejected sync uploads", async () => {

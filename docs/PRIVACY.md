@@ -23,3 +23,5 @@ Sprint 8 introduces explicit user-triggered local sharing. The app must not auto
 Sprint 9 local report history can reveal project names, report titles, generated timestamps, and whether a PDF exists on the device. Treat it as private local business data. It must not be uploaded, logged, or sent to analytics until explicit synchronization and privacy controls exist.
 
 Sprint 10 sync contracts are sensitive because mutation payloads may include the same private project, customer, site, evidence, caption, annotation, document, and report metadata stored locally. Contract tests may use synthetic sample values only. Production implementations must avoid request-body logging and must enforce organization ownership before storing or returning synced records.
+
+Sprint 11 stores mutation envelopes in Neon only after server-side authentication and organization membership checks. These rows may contain private customer and evidence metadata in `payload_json`; treat them as tenant data subject to the same privacy restrictions as canonical records. Duplicate and rejected responses must avoid echoing payload contents.

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { GET, POST } from "./route";
 
 const originalClerkSecret = process.env.CLERK_SECRET_KEY;
+const originalClerkPublishableKey =
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const originalDatabaseUrl = process.env.DATABASE_URL;
 
 const validUpload = {
@@ -27,6 +29,10 @@ const validUpload = {
 describe("/api/sync/mutations", () => {
   afterEach(() => {
     restoreEnv("CLERK_SECRET_KEY", originalClerkSecret);
+    restoreEnv(
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+      originalClerkPublishableKey,
+    );
     restoreEnv("DATABASE_URL", originalDatabaseUrl);
   });
 
@@ -36,7 +42,7 @@ describe("/api/sync/mutations", () => {
 
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
-      status: "contract-only",
+      status: "mutation-receipt-ready",
       accepts: "POST",
     });
   });
@@ -70,6 +76,7 @@ describe("/api/sync/mutations", () => {
 
   it("does not fake persistence when auth is not configured", async () => {
     process.env.CLERK_SECRET_KEY = "";
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "";
     process.env.DATABASE_URL = "";
 
     const response = await postValidUpload();
@@ -81,6 +88,7 @@ describe("/api/sync/mutations", () => {
 
   it("does not fake persistence when Neon is not configured", async () => {
     process.env.CLERK_SECRET_KEY = "test-secret";
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_placeholder";
     process.env.DATABASE_URL = "";
 
     const response = await postValidUpload();
