@@ -34,6 +34,8 @@ Sprint 12 protects `/app` and `/api/account/*` with Clerk middleware. Account pr
 
 Sprint 13 adds mobile sync transport without storing a bearer token in Expo public configuration. The mobile upload service requires a runtime token provider and returns an explicit auth-required state when no token is available. `EXPO_PUBLIC_FIELDDOC_API_BASE_URL` is public configuration only and must never contain credentials.
 
+Sprint 14 applies canonical metadata only after Clerk token verification and server-side organization membership resolution. Canonical writes use the internal organization ID from membership, not any organization value supplied by the client payload. Unsupported entity types and invalid payloads are rejected per mutation.
+
 ## Secrets
 
 Secrets belong in Vercel, Expo/EAS, or local uncommitted environment files. `.env.example` contains placeholders only.

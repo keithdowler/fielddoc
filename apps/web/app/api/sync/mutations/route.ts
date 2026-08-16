@@ -30,8 +30,15 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(): Promise<Response> {
   return Response.json({
     name: "FieldDoc sync mutation upload",
-    status: "mutation-receipt-ready",
+    status: "canonical-metadata-sync-ready",
     accepts: "POST",
+    applies: [
+      "Project",
+      "EvidenceItem",
+      "MediaAsset",
+      "Annotation",
+      "ReportDraft",
+    ],
     migrationRequired: initialSyncMigrationId,
   });
 }

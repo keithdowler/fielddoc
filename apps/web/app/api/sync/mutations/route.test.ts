@@ -42,9 +42,10 @@ describe("/api/sync/mutations", () => {
 
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
-      status: "mutation-receipt-ready",
+      status: "canonical-metadata-sync-ready",
       accepts: "POST",
     });
+    expect(body.applies).toContain("Project");
   });
 
   it("requires bearer authorization before accepting mutation uploads", async () => {

@@ -17,6 +17,8 @@ import {
   type SyncMembership,
   type SyncMutationPersistence,
 } from "./sync-service";
+import { createNeonCanonicalMutationRepository } from "./neon-canonical-repository";
+import { applyCanonicalMutation } from "./sync-application";
 
 export function createNeonSyncMutationPersistence(
   databaseUrl: string | undefined,
@@ -30,6 +32,7 @@ export function createNeonSyncMutationPersistence(
   }
 
   const db = createNeonDatabase(databaseUrl);
+  const canonicalRepository = createNeonCanonicalMutationRepository(db);
 
   return {
     async resolveMembership(
@@ -86,7 +89,43 @@ export function createNeonSyncMutationPersistence(
 
       return inserted.length === 0
         ? { status: "duplicate" }
-        : { status: "accepted" };
+        : applyCanonicalMutation(input, canonicalRepository).then(
+            async (result) => {
+              if (result.status === "applied") {
+                return { status: "accepted" };
+              }
+
+              await markReceiptRejected(input.mutation.mutationId, result.code);
+
+              return result;
+            },
+            async () => {
+              await markReceiptRejected(
+                input.mutation.mutationId,
+                "CANONICAL_APPLICATION_FAILED",
+              );
+
+              return {
+                status: "rejected",
+                code: "CANONICAL_APPLICATION_FAILED",
+                message:
+                  "Mutation receipt was stored, but canonical sync application failed.",
+              };
+            },
+          );
     },
   };
+
+  async function markReceiptRejected(
+    mutationId: string,
+    rejectionCode: string,
+  ): Promise<void> {
+    await db
+      .update(receivedLocalMutations)
+      .set({
+        status: "rejected",
+        rejectionCode,
+      })
+      .where(eq(receivedLocalMutations.mutationId, mutationId));
+  }
 }

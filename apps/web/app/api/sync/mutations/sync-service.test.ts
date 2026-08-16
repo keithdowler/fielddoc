@@ -118,6 +118,33 @@ describe("createSyncMutationPostHandler", () => {
     ]);
   });
 
+  it("returns canonical application rejections from persistence", async () => {
+    const handler = createTestHandler({
+      persistence: {
+        resolveMembership: async () => membership,
+        recordReceivedMutation: async () => ({
+          status: "rejected",
+          code: "INVALID_CANONICAL_PAYLOAD",
+          message: "Mutation payload cannot be applied.",
+        }),
+      },
+    });
+
+    const response = await handler(createRequest(validUpload));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.acceptedMutationIds).toEqual([]);
+    expect(body.duplicateMutationIds).toEqual([]);
+    expect(body.rejectedMutations).toEqual([
+      {
+        mutationId: validMutation.mutationId,
+        code: "INVALID_CANONICAL_PAYLOAD",
+        message: "Mutation payload cannot be applied.",
+      },
+    ]);
+  });
+
   it("requires active organization context from auth", async () => {
     const handler = createTestHandler({
       auth: {

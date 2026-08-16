@@ -62,7 +62,9 @@ export type RecordReceivedMutationInput = {
 };
 
 export type RecordReceivedMutationResult =
-  { status: "accepted" } | { status: "duplicate" };
+  | { status: "accepted" }
+  | { status: "duplicate" }
+  | { status: "rejected"; code: string; message: string };
 
 export type SyncMutationPersistence = {
   resolveMembership(
@@ -185,6 +187,12 @@ export function createSyncMutationPostHandler(
 
         if (result.status === "duplicate") {
           duplicateMutationIds.push(mutation.mutationId);
+        } else if (result.status === "rejected") {
+          rejectedMutations.push({
+            mutationId: mutation.mutationId,
+            code: result.code,
+            message: result.message,
+          });
         } else {
           acceptedMutationIds.push(mutation.mutationId);
         }

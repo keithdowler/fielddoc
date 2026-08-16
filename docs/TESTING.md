@@ -78,3 +78,9 @@ Sprint 12 adds unit coverage for account-provisioning normalization and keeps ro
 Sprint 13 adds mobile unit coverage for local sync migration, stable device ID creation, uploadable mutation filtering, receipt reconciliation, missing API configuration, missing auth token, accepted upload receipts, and rejected mutation handling.
 
 Manual coverage should verify the Settings Cloud Sync panel reports missing configuration or auth-required state clearly. A later native-auth sprint must add device/manual verification for real Clerk token acquisition and live upload to production `/api/sync/mutations`.
+
+## Sprint 14 Canonical Sync Application Tests
+
+Sprint 14 adds unit coverage for canonical mutation dispatch, Project create application, Project archive state changes, unsupported entity rejection, invalid payload rejection, and sync-service propagation of canonical application rejections.
+
+The Neon/Drizzle adapter is covered by strict TypeScript and production build checks. Live Neon integration testing remains future work because it needs controlled branch credentials, seeded Clerk tenant bridges, and migration lifecycle automation.

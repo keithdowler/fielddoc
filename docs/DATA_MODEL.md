@@ -131,3 +131,7 @@ Sprint 11 also introduces `organizations.external_auth_id` so Clerk organization
 Canonical business tables remain unapplied in Sprint 11. `sync_conflicts` remains reserved for the future processor that compares client payload references and server versions before applying canonical changes.
 
 Sprint 13 adds mobile receipt reconciliation for `received_local_mutations`. Accepted and duplicate server receipts mark local outbox rows `SYNCED`; rejected upload receipts and failed upload attempts leave rows retry-visible as `FAILED`. The server still does not apply canonical business table changes.
+
+Sprint 14 applies supported metadata mutations to canonical server tables. Project, evidence item, media asset, annotation, and report draft create/update mutations are upserted by client-generated UUID. Delete mutations set canonical `deleted_at`/`updated_at` timestamps rather than removing rows. Project archive mutations set `status = 'archived'` and `archived_at`.
+
+Canonical media asset rows created by Sprint 14 store metadata only. `storage_object_key` and `uploaded_at` remain null until private object storage upload is implemented. Generated local PDF URIs from mobile report drafts are not stored as server object keys.

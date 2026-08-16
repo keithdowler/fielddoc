@@ -58,6 +58,8 @@ Sprint 12 adds the first Clerk-backed web session surface. The web app uses Cler
 
 Sprint 13 adds the mobile outbox upload foundation. Mobile reads uploadable SQLite mutations, uses a stable local device ID, calls the real `/api/sync/mutations` endpoint through the shared API client, and reconciles accepted/duplicate/rejected receipt classifications back into local mutation state. This does not embed a mobile bearer token in public Expo configuration and does not add native Clerk sign-in yet; an auth token provider must be connected before production mobile uploads can run.
 
+Sprint 14 adds canonical server metadata application for the core mobile entities. After authenticated receipt insertion, the sync route validates and applies `Project`, `EvidenceItem`, `MediaAsset`, `Annotation`, and `ReportDraft` mutations to their Neon/Postgres canonical tables before returning accepted mutation IDs. Unsupported entity types and invalid canonical payloads are rejected per mutation. Media bytes, signed upload URLs, pull cursors, and conflict resolution remain future work.
+
 Future server synchronization will use:
 
 - Client-generated IDs for every locally-created entity.
@@ -191,3 +193,9 @@ Sprint 12 wires Clerk into the web application before mobile sync reconciliation
 Status: Accepted
 
 Sprint 13 implements mobile outbox upload and receipt reconciliation behind an explicit token-provider interface before adding native Clerk sign-in. This lets the offline SQLite layer, shared API client, idempotent upload contract, and local mutation state transitions be tested without committing an unsafe public bearer token or forcing an incompatible native auth SDK. Native mobile auth should connect to the same token-provider boundary when the chosen Clerk Expo SDK path is compatible with the app's Expo version.
+
+### ADR 0021: Canonical Metadata Application Before Media Upload
+
+Status: Accepted
+
+Sprint 14 applies synced metadata to canonical server tables before building original-media upload. This gets projects, evidence records, captions, annotations, media metadata, and report drafts under tenant-owned server persistence while preserving the architectural split that original media bytes belong in private object storage, not Postgres. The sync route returns accepted IDs only after supported canonical metadata application succeeds; rejected canonical payloads are preserved in the receipt ledger instead of being silently acknowledged.

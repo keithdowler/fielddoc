@@ -1,6 +1,8 @@
 # Synchronization
 
-Sprint 11 establishes authenticated mutation receipt. It does not turn on full production synchronization or canonical entity application.
+Sprint 14 establishes canonical metadata application for the core mobile
+entities. It still does not upload media bytes, return pull changes, or resolve
+conflicts.
 
 ## Current Contract
 
@@ -30,28 +32,54 @@ The endpoint now validates and records upload attempts when Clerk and Neon are c
 - Authenticated requests without an active organization return `403 ORGANIZATION_REQUIRED`.
 - Authenticated users without server-side membership in the active organization return `403 ORGANIZATION_MEMBERSHIP_REQUIRED`.
 - Uploadable local mutations in `PENDING` or `FAILED` state are inserted into `received_local_mutations`.
+- Supported canonical metadata mutations are applied to Neon/Postgres before the mutation is returned as accepted.
 - Replayed mutation IDs are returned as duplicates through the response contract.
-- Non-uploadable local mutation states are rejected per mutation instead of failing the whole upload.
+- Non-uploadable, unsupported, invalid, or failed canonical mutations are rejected per mutation instead of failing the whole upload.
 
-This still avoids fake acknowledgements. The server returns accepted mutation IDs only after the mutation envelope is durably stored in Neon. The endpoint does not yet apply canonical project/evidence/report changes or produce pull results.
+This still avoids fake acknowledgements. The server returns accepted mutation IDs only after the mutation envelope is durably stored in Neon and the supported canonical metadata change is applied. The endpoint does not yet produce pull results.
 
 ## Current Persistence Flow
 
-The Sprint 11 sync intake:
+The current sync intake:
 
 1. Verify the bearer token with Clerk.
 2. Resolve the Clerk user and active Clerk organization through server-side user and organization bridge records.
 3. Insert each uploadable mutation into `received_local_mutations` by `mutation_id`.
-4. Treat duplicate `mutation_id` inserts as idempotent duplicates.
-5. Return accepted, duplicate, and rejected mutation classifications.
+4. Apply supported mutations to canonical server metadata tables.
+5. Mark receipt rows `rejected` when canonical application fails.
+6. Treat duplicate `mutation_id` inserts as idempotent duplicates.
+7. Return accepted, duplicate, and rejected mutation classifications.
+
+## Canonical Application Scope
+
+Sprint 14 applies these entity types:
+
+- `Project`
+- `EvidenceItem`
+- `MediaAsset`
+- `Annotation`
+- `ReportDraft`
+
+Supported operations are create/update upserts plus soft-delete state changes.
+Project archive mutations update canonical project status and archive timestamp.
+
+These entity types remain rejected as unsupported until mobile workflows exist:
+
+- `Customer`
+- `Site`
+- `Document`
+
+Media asset sync applies metadata only. `storage_object_key` and `uploaded_at`
+remain null until signed upload URLs and private object storage writes are
+implemented.
 
 ## Future Sync Processor
 
 Later sprints should:
 
-1. Apply canonical record changes with server version checks.
-2. Preserve conflicting client payloads in `sync_conflicts`.
-3. Return pull cursors and server canonical record changes.
+1. Add server version checks and preserve conflicting client payloads in `sync_conflicts`.
+2. Return pull cursors and server canonical record changes.
+3. Add signed original-media upload URL issuance.
 4. Mark mobile outbox rows as synchronized only after the server response is reconciled locally.
 
 Original media upload and signed URL issuance remain separate from metadata mutation upload.
@@ -95,6 +123,6 @@ not safe for secrets. Until the native Clerk mobile token provider is connected,
 the Settings sync panel reports that cloud sign-in is required instead of
 pretending to sync.
 
-This sprint remains receipt-only. The server still does not apply canonical
-project/evidence/report records, upload media bytes, issue signed media URLs,
-return pull changes, or resolve conflicts.
+Sprint 13 remains mobile receipt-upload only. Sprint 14 adds server canonical
+metadata application, but still does not upload media bytes, issue signed media
+URLs, return pull changes, or resolve conflicts.
