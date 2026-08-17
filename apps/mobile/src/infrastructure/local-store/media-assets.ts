@@ -1,5 +1,6 @@
 import {
   type CreateMediaAssetInput,
+  type MarkMediaAssetUploadedInput,
   type MediaAsset,
   type MediaAssetRepository,
   type SyncState,
@@ -15,6 +16,7 @@ type MediaAssetRow = {
   id: string;
   evidence_item_id: string;
   local_uri: string;
+  storage_object_key: string | null;
   media_type: MediaAsset["mediaType"];
   mime_type: string;
   size_bytes: number;
@@ -27,6 +29,7 @@ type MediaAssetRow = {
   source_type: MediaAsset["sourceType"];
   original_asset_id: string | null;
   derivative_type: string | null;
+  uploaded_at: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -43,6 +46,7 @@ function mapMediaAsset(row: MediaAssetRow): MediaAsset {
     id: row.id,
     evidenceItemId: row.evidence_item_id,
     localUri: row.local_uri,
+    storageObjectKey: row.storage_object_key,
     mediaType: row.media_type,
     mimeType: row.mime_type,
     sizeBytes: row.size_bytes,
@@ -55,6 +59,7 @@ function mapMediaAsset(row: MediaAssetRow): MediaAsset {
     sourceType: row.source_type,
     originalAssetId: row.original_asset_id,
     derivativeType: row.derivative_type,
+    uploadedAt: row.uploaded_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -71,6 +76,7 @@ export class SqliteMediaAssetRepository implements MediaAssetRepository {
       id: createLocalId("media"),
       evidenceItemId: input.evidenceItemId,
       localUri: input.localUri,
+      storageObjectKey: null,
       mediaType: input.mediaType,
       mimeType: input.mimeType,
       sizeBytes: input.sizeBytes,
@@ -83,6 +89,7 @@ export class SqliteMediaAssetRepository implements MediaAssetRepository {
       sourceType: input.sourceType,
       originalAssetId: input.originalAssetId ?? null,
       derivativeType: input.derivativeType ?? null,
+      uploadedAt: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -96,6 +103,7 @@ export class SqliteMediaAssetRepository implements MediaAssetRepository {
             id,
             evidence_item_id,
             local_uri,
+            storage_object_key,
             media_type,
             mime_type,
             size_bytes,
@@ -108,16 +116,18 @@ export class SqliteMediaAssetRepository implements MediaAssetRepository {
             source_type,
             original_asset_id,
             derivative_type,
+            uploaded_at,
             created_at,
             updated_at,
             deleted_at,
             sync_state
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           mediaAsset.id,
           mediaAsset.evidenceItemId,
           mediaAsset.localUri,
+          mediaAsset.storageObjectKey,
           mediaAsset.mediaType,
           mediaAsset.mimeType,
           mediaAsset.sizeBytes,
@@ -130,6 +140,7 @@ export class SqliteMediaAssetRepository implements MediaAssetRepository {
           mediaAsset.sourceType,
           mediaAsset.originalAssetId,
           mediaAsset.derivativeType,
+          mediaAsset.uploadedAt,
           mediaAsset.createdAt,
           mediaAsset.updatedAt,
           mediaAsset.deletedAt,
@@ -144,6 +155,60 @@ export class SqliteMediaAssetRepository implements MediaAssetRepository {
         payloadRef: mediaAsset.updatedAt,
         payloadJson: JSON.stringify(mediaAsset),
         createdAt: now,
+      });
+    });
+
+    return mediaAsset;
+  }
+
+  async markUploaded(
+    id: string,
+    input: MarkMediaAssetUploadedInput,
+  ): Promise<MediaAsset> {
+    const existing = await this.database.getFirst<MediaAssetRow>(
+      "SELECT * FROM media_assets WHERE id = ?",
+      [id],
+    );
+
+    if (!existing) {
+      throw new Error("Media asset not found.");
+    }
+
+    const updatedAt = new Date().toISOString();
+    const mediaAsset: MediaAsset = {
+      ...mapMediaAsset(existing),
+      storageObjectKey: input.storageObjectKey,
+      uploadedAt: input.uploadedAt,
+      updatedAt,
+      syncState: "PENDING",
+    };
+
+    await this.database.transaction(async (tx) => {
+      await tx.run(
+        `
+          UPDATE media_assets
+          SET storage_object_key = ?,
+              uploaded_at = ?,
+              updated_at = ?,
+              sync_state = ?
+          WHERE id = ?
+        `,
+        [
+          mediaAsset.storageObjectKey,
+          mediaAsset.uploadedAt,
+          mediaAsset.updatedAt,
+          mediaAsset.syncState,
+          id,
+        ],
+      );
+      await new SqliteLocalMutationRepository(tx).enqueue({
+        mutationId: `media:${id}:uploaded:${updatedAt}`,
+        entityType: "MediaAsset",
+        entityId: id,
+        operation: "UPDATE",
+        payloadRef: updatedAt,
+        payloadJson: JSON.stringify(mediaAsset),
+        createdAt: updatedAt,
       });
     });
 
@@ -256,6 +321,21 @@ export class SqliteMediaAssetRepository implements MediaAssetRepository {
         ORDER BY evidence_item_id ASC, capture_timestamp ASC, created_at ASC
       `,
       evidenceItemIds,
+    );
+
+    return rows.map(mapMediaAsset);
+  }
+
+  async listPendingUpload(limit = 25): Promise<MediaAsset[]> {
+    const rows = await this.database.getAll<MediaAssetRow>(
+      `
+        SELECT * FROM media_assets
+        WHERE deleted_at IS NULL
+          AND storage_object_key IS NULL
+        ORDER BY created_at ASC, id ASC
+        LIMIT ?
+      `,
+      [limit],
     );
 
     return rows.map(mapMediaAsset);

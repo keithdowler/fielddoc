@@ -13,7 +13,7 @@ GitHub Actions runs install, lint, typecheck, tests, and web build. Mobile valid
 
 ## Future Coverage
 
-Future sprints should add focused tests for sync idempotency, conflict handling, evidence metadata validation, storage signing, authorization, and Proof Packet generation.
+Future sprints should add focused tests for sync idempotency, conflict handling, evidence metadata validation, mobile binary upload retry behavior, object verification, authorization, and Proof Packet generation.
 
 ## Sprint 2 Local Persistence Tests
 
@@ -84,3 +84,21 @@ Manual coverage should verify the Settings Cloud Sync panel reports missing conf
 Sprint 14 adds unit coverage for canonical mutation dispatch, Project create application, Project archive state changes, unsupported entity rejection, invalid payload rejection, and sync-service propagation of canonical application rejections.
 
 The Neon/Drizzle adapter is covered by strict TypeScript and production build checks. Live Neon integration testing remains future work because it needs controlled branch credentials, seeded Clerk tenant bridges, and migration lifecycle automation.
+
+## Sprint 15 Cloud Media Tests
+
+Sprint 15 adds unit coverage for private object-key generation, short-lived R2/S3-compatible signed URLs, media upload preparation auth enforcement, upload completion metadata recording, download preparation, API-client media route methods, SQLite media upload-state migration, and local upload-state outbox mutation generation.
+
+Manual coverage should verify production R2 credentials and bucket policy in Vercel, then use a signed upload URL from an authenticated request to upload a real object. A later native-auth/mobile-upload sprint must verify device binary upload, retry behavior, object existence checks, and local `storageObjectKey` reconciliation.
+
+## Sprint 16 Important Evidence And Mobile Media Upload Tests
+
+Sprint 16 adds unit coverage for important evidence migration, local
+persistence, summary counts, outbox update generation, Proof Packet preview and
+HTML rendering, mobile media upload queue auth/config states, signed upload
+preparation, binary upload invocation, completion recording, local
+`storageObjectKey` reconciliation, and failed-upload retry visibility.
+
+Manual coverage should verify the Capture important toggle, report readiness
+count, generated PDF badge, Settings media-upload auth-required state, and live
+upload after native Clerk token acquisition is added.

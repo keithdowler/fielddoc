@@ -43,6 +43,7 @@ const emptySummary: ProjectEvidenceSummary = {
   afterCount: 0,
   documentCount: 0,
   otherCount: 0,
+  importantCount: 0,
   mediaAssetCount: 0,
   missingCaptionCount: 0,
 };
@@ -505,6 +506,10 @@ export default function ReportsScreen() {
         <MetricRow label="Supporting documents" value={summary.documentCount} />
         <MetricRow label="Other evidence" value={summary.otherCount ?? 0} />
         <MetricRow
+          label="Important evidence"
+          value={summary.importantCount ?? 0}
+        />
+        <MetricRow
           label="Original media files"
           value={summary.mediaAssetCount ?? 0}
         />
@@ -616,6 +621,9 @@ export default function ReportsScreen() {
                         {formatDate(entry.capturedAt)} | {entry.mediaCount}{" "}
                         media | {entry.annotationCount} notes
                       </AppText>
+                      {entry.isImportant ? (
+                        <AppText variant="small">Important evidence</AppText>
+                      ) : null}
                       <AppText
                         variant="small"
                         style={

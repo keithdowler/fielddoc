@@ -216,6 +216,7 @@ export const evidenceItems = pgTable(
     title: text("title"),
     caption: text("caption"),
     notes: text("notes"),
+    isImportant: boolean("is_important").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     captureTimestamp: timestamp("capture_timestamp", {
       withTimezone: true,

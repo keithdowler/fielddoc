@@ -103,4 +103,70 @@ describe("createFieldDocApiClient", () => {
       code: "SYNC_PERSISTENCE_NOT_CONFIGURED",
     } satisfies Partial<FieldDocApiError>);
   });
+
+  it("prepares media uploads through the media API", async () => {
+    const requests: Request[] = [];
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      accessToken: "token",
+      fetchImpl: async (request) => {
+        requests.push(request);
+        return Response.json({
+          mediaAssetId: "33333333-3333-4333-8333-333333333333",
+          storageObjectKey:
+            "organizations/org/evidence/item/originals/media.jpg",
+          uploadUrl: "https://uploads.example.test/media.jpg",
+          requiredHeaders: {},
+          expiresAt: "2026-08-16T14:10:00.000Z",
+        });
+      },
+    });
+
+    const response = await client.prepareMediaUpload({
+      mediaAssetId: "33333333-3333-4333-8333-333333333333",
+      evidenceItemId: "44444444-4444-4444-8444-444444444444",
+      mimeType: "image/jpeg",
+      sizeBytes: 1024,
+      sha256:
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      fileExtension: "jpg",
+    });
+
+    expect(requests[0]?.url).toBe(
+      "https://example.test/api/media/uploads/prepare",
+    );
+    expect(requests[0]?.headers.get("authorization")).toBe("Bearer token");
+    expect(response.storageObjectKey).toContain("/originals/");
+  });
+
+  it("records media upload completion through the media API", async () => {
+    const requests: Request[] = [];
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      fetchImpl: async (request) => {
+        requests.push(request);
+        return Response.json({
+          mediaAssetId: "33333333-3333-4333-8333-333333333333",
+          storageObjectKey:
+            "organizations/org/evidence/item/originals/media.jpg",
+          uploadedAt: "2026-08-16T14:02:00.000Z",
+          status: "recorded",
+        });
+      },
+    });
+
+    const response = await client.completeMediaUpload({
+      mediaAssetId: "33333333-3333-4333-8333-333333333333",
+      storageObjectKey: "organizations/org/evidence/item/originals/media.jpg",
+      sha256:
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      sizeBytes: 1024,
+      uploadedAt: "2026-08-16T14:02:00.000Z",
+    });
+
+    expect(requests[0]?.url).toBe(
+      "https://example.test/api/media/uploads/complete",
+    );
+    expect(response.status).toBe("recorded");
+  });
 });

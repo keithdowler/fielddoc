@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.fielddoc.mobile",
+      "buildNumber": "1",
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSCameraUsageDescription": "Proof Packet uses the camera to capture job-site evidence photos.",
@@ -16,6 +17,8 @@
       }
     },
     "android": {
+      "package": "com.fielddoc.mobile",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -29,6 +32,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "@clerk/expo",
       "expo-router",
       [
         "expo-dev-client",
@@ -44,6 +48,7 @@
           "photosPermission": "Proof Packet lets you attach existing photos as job-site evidence."
         }
       ],
+      "expo-secure-store",
       "expo-document-picker"
     ],
     "experiments": {

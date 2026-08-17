@@ -79,6 +79,15 @@ describe("runMobileOutboxSync", () => {
             pullCursor: null,
           };
         },
+        async prepareMediaUpload() {
+          throw new Error("Not used by mobile outbox sync.");
+        },
+        async completeMediaUpload() {
+          throw new Error("Not used by mobile outbox sync.");
+        },
+        async prepareMediaDownload() {
+          throw new Error("Not used by mobile outbox sync.");
+        },
       };
 
       const result = await runMobileOutboxSync({
@@ -131,6 +140,15 @@ describe("runMobileOutboxSync", () => {
             ],
             pullCursor: null,
           };
+        },
+        async prepareMediaUpload() {
+          throw new Error("Not used by mobile outbox sync.");
+        },
+        async completeMediaUpload() {
+          throw new Error("Not used by mobile outbox sync.");
+        },
+        async prepareMediaDownload() {
+          throw new Error("Not used by mobile outbox sync.");
         },
       };
 

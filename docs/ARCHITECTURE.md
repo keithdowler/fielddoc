@@ -58,7 +58,7 @@ Sprint 12 adds the first Clerk-backed web session surface. The web app uses Cler
 
 Sprint 13 adds the mobile outbox upload foundation. Mobile reads uploadable SQLite mutations, uses a stable local device ID, calls the real `/api/sync/mutations` endpoint through the shared API client, and reconciles accepted/duplicate/rejected receipt classifications back into local mutation state. This does not embed a mobile bearer token in public Expo configuration and does not add native Clerk sign-in yet; an auth token provider must be connected before production mobile uploads can run.
 
-Sprint 14 adds canonical server metadata application for the core mobile entities. After authenticated receipt insertion, the sync route validates and applies `Project`, `EvidenceItem`, `MediaAsset`, `Annotation`, and `ReportDraft` mutations to their Neon/Postgres canonical tables before returning accepted mutation IDs. Unsupported entity types and invalid canonical payloads are rejected per mutation. Media bytes, signed upload URLs, pull cursors, and conflict resolution remain future work.
+Sprint 14 adds canonical server metadata application for the core mobile entities. After authenticated receipt insertion, the sync route validates and applies `Project`, `EvidenceItem`, `MediaAsset`, `Annotation`, and `ReportDraft` mutations to their Neon/Postgres canonical tables before returning accepted mutation IDs. Unsupported entity types and invalid canonical payloads are rejected per mutation. Sprint 15 adds authenticated signed media URL preparation. Mobile binary media upload, pull cursors, and conflict resolution remain future work.
 
 Future server synchronization will use:
 
@@ -156,7 +156,7 @@ Sprint 6 introduces a shared domain-level Proof Packet preview model before choo
 
 Status: Accepted
 
-Sprint 7 uses Expo Print as the first local PDF renderer because it is compatible with the current Expo application and lets field workers generate an offline file without adding a server dependency. The renderer consumes sanitized HTML from the shared domain package and stores the output PDF in app-owned local document storage. Local image embedding is intentionally deferred because iOS HTML printing does not reliably support local asset URLs; future image-heavy PDF output should use explicit derivative generation or a server renderer after sync.
+Sprint 7 uses Expo Print as the first local PDF renderer because it is compatible with the current Expo application and lets field workers generate an offline file without adding a server dependency. The renderer consumes sanitized HTML from the shared domain package and stores the output PDF in app-owned local document storage. Later remediation embeds available local image originals by converting them to data URIs before printing. Scanned documents, non-image previews, and richer cloud/server rendering remain future work.
 
 ### ADR 0015: Native Share Sheet Before Cloud Sharing
 
@@ -169,6 +169,8 @@ Sprint 8 uses local native device flows for opening and sharing generated PDFs b
 Status: Accepted
 
 Sprint 9 exposes report history as a derived read model over local `report_drafts` joined to local projects. No new history table is introduced yet because local report drafts already contain the draft title, lifecycle status, generated PDF URI, generation timestamp, and sync state needed for an offline archive. The mobile UI can load a historical draft from the archive for inspection or regeneration through the existing report-generation flow. Server export history, immutable generated-output versioning, delivery audit trails, and cloud share links remain future synchronized features.
+
+Sprint remediation on 2026-08-16 upgrades local PDF generation from metadata-only media references to embedded local image originals. The mobile renderer reads each available local image original, converts it to a data URI for Expo Print, and passes the result into the shared domain HTML renderer. The original evidence file is not modified. Non-image documents, scanned document pages, cloud report versions, and share-link delivery remain future work.
 
 ### ADR 0017: Contract-Only Sync Endpoint Before Persistence
 
@@ -188,6 +190,8 @@ Status: Accepted
 
 Sprint 12 wires Clerk into the web application before mobile sync reconciliation. This gives the production deployment a real login path, organization switching, and a server-side provisioning endpoint that maps Clerk users and organizations to FieldDoc's internal UUID tenant model. Mobile sync remains separate because the mobile app still needs token acquisition, outbox upload scheduling, retry policy, and local reconciliation semantics.
 
+Sprint remediation on 2026-08-16 adds tenant-scoped web workspace reads. Authenticated web routes resolve the active Clerk organization to the internal Neon tenant, then read project, evidence, media, report draft, and sync receipt metadata for dashboard, project list, report list, and readiness settings. These are read-only views; generated PDF downloads, share links, branding administration, and team workflows are still intentionally deferred.
+
 ### ADR 0020: Mobile Outbox Receipt Before Native Auth UI
 
 Status: Accepted
@@ -199,3 +203,9 @@ Sprint 13 implements mobile outbox upload and receipt reconciliation behind an e
 Status: Accepted
 
 Sprint 14 applies synced metadata to canonical server tables before building original-media upload. This gets projects, evidence records, captions, annotations, media metadata, and report drafts under tenant-owned server persistence while preserving the architectural split that original media bytes belong in private object storage, not Postgres. The sync route returns accepted IDs only after supported canonical metadata application succeeds; rejected canonical payloads are preserved in the receipt ledger instead of being silently acknowledged.
+
+### ADR 0022: Signed Private Object URLs Before Mobile Upload Orchestration
+
+Status: Accepted
+
+Sprint 15 adds authenticated media upload and download preparation routes before building mobile background upload orchestration. The web API verifies Clerk bearer tokens, resolves internal Neon organization membership, and issues short-lived signed private-object-storage URLs scoped by organization, evidence item, media asset, and SHA-256. Mobile SQLite now tracks `storageObjectKey` and `uploadedAt`, and canonical media sync preserves those fields. This keeps immutable originals out of Postgres and avoids public evidence URLs while leaving native sign-in UI, binary upload retry policy, and object-existence verification for later sprints.

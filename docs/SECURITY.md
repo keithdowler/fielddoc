@@ -36,6 +36,10 @@ Sprint 13 adds mobile sync transport without storing a bearer token in Expo publ
 
 Sprint 14 applies canonical metadata only after Clerk token verification and server-side organization membership resolution. Canonical writes use the internal organization ID from membership, not any organization value supplied by the client payload. Unsupported entity types and invalid payloads are rejected per mutation.
 
+Sprint 15 signs media upload and download URLs only after Clerk bearer verification and server-side organization membership resolution. Object keys are generated server-side from the internal organization ID, evidence item ID, media asset ID, and SHA-256; clients do not choose tenant scope. Signed URLs are temporary transport credentials, not share links, and must not be persisted in user-visible records or logs.
+
+Sprint 17 adds Clerk Expo hosted sign-in and secure mobile session caching. The mobile app stores Clerk session tokens through the Clerk Expo token cache backed by Expo secure storage and passes tokens only at request time to metadata sync and media upload services. Clerk publishable keys and API base URLs are public configuration; Clerk secret keys, JWT keys, database URLs, and object storage credentials must remain server-only.
+
 ## Secrets
 
 Secrets belong in Vercel, Expo/EAS, or local uncommitted environment files. `.env.example` contains placeholders only.
@@ -55,3 +59,7 @@ Report-history rows include project names, draft titles, generated timestamps, a
 Sync mutation payloads can contain customer names, addresses, captions, notes, hashes, and local file metadata. Do not log request bodies, parsed payloads, bearer tokens, or validation issue values in production logs.
 
 Rejected and duplicate sync responses should include mutation IDs and stable error codes, not payload contents.
+
+Signed upload and download URLs include credentials in query parameters. Do not log full URLs, request bodies containing object keys, R2 credentials, or generated signatures.
+
+Mobile auth errors may include provider or redirect details. Surface short user-facing errors in the UI, but do not log bearer tokens, refresh tokens, Clerk session claims, or hosted-auth callback URLs.

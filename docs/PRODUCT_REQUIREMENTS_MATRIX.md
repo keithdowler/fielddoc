@@ -1,0 +1,99 @@
+# Product Requirements Matrix
+
+Audit date: 2026-08-16
+
+Remediation update: 2026-08-16
+
+Status legend: VERIFIED, PARTIAL, MISSING, BROKEN, NOT APPLICABLE, DEFERRED INTENTIONALLY.
+
+| Requirement                                             | Status   | Evidence                                                                                                                                               |
+| ------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Production-grade pnpm monorepo                          | VERIFIED | `pnpm-workspace.yaml`, root `package.json`, apps/packages layout                                                                                       |
+| Expo mobile app with TypeScript and Expo Router         | VERIFIED | `apps/mobile/package.json`, `apps/mobile/src/app/_layout.tsx`                                                                                          |
+| Next.js App Router web app                              | VERIFIED | `apps/web/package.json`, `apps/web/app`                                                                                                                |
+| Shared domain models, no duplicate app models           | VERIFIED | `packages/domain/src/index.ts`, mobile/web import shared packages                                                                                      |
+| Strict TypeScript, ESLint, Prettier, Vitest             | VERIFIED | root scripts, CI, passing audit commands                                                                                                               |
+| CI install/lint/typecheck/test/web build                | VERIFIED | `.github/workflows/checks.yml`                                                                                                                         |
+| Environment schema validation                           | VERIFIED | `packages/config/src/index.ts`, `.env.example`                                                                                                         |
+| Documentation foundation                                | VERIFIED | `AGENTS.md`, `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/PRIVACY.md`, `docs/TESTING.md`, `docs/SYNC.md` |
+| Local Project model                                     | VERIFIED | `packages/domain/src/index.ts`, SQLite repositories/tests                                                                                              |
+| Local Customer model                                    | PARTIAL  | Domain/database support exists; UI remains project-centric                                                                                             |
+| Local Site model                                        | PARTIAL  | Domain/database support exists; UI stores site/address fields on project                                                                               |
+| Local EvidenceItem model                                | VERIFIED | `packages/domain/src/index.ts`, local-store repositories                                                                                               |
+| Local MediaAsset model                                  | VERIFIED | `packages/domain/src/index.ts`, `apps/mobile/src/infrastructure/local-store/media-assets.ts`                                                           |
+| Local Annotation model                                  | VERIFIED | `apps/mobile/src/infrastructure/local-store/annotations.ts`                                                                                            |
+| Local Document model                                    | PARTIAL  | Schema/domain support exists; document scanner and document-specific UI are not complete                                                               |
+| Local ReportDraft model                                 | VERIFIED | `apps/mobile/src/infrastructure/local-store/report-drafts.ts`                                                                                          |
+| Durable LocalMutation/outbox                            | VERIFIED | `apps/mobile/src/infrastructure/local-store/mutations.ts`, sync tests                                                                                  |
+| Create/edit/archive/delete/search/sort projects locally | VERIFIED | `apps/mobile/src/app/projects/index.tsx`, local repository tests                                                                                       |
+| Evidence metadata survives app restart/reload           | VERIFIED | SQLite local-store implementation and repository persistence tests                                                                                     |
+| Camera evidence capture                                 | VERIFIED | `apps/mobile/src/infrastructure/media/local-media.ts`                                                                                                  |
+| Photo library import                                    | VERIFIED | Batch photo-library import exists in the Field Capture flow                                                                                            |
+| File import                                             | VERIFIED | `apps/mobile/src/infrastructure/media/local-media.ts`                                                                                                  |
+| Native document scanner                                 | MISSING  | No VisionKit/native scanner module found. EAS config now exists for future development builds.                                                         |
+| OCR                                                     | MISSING  | No OCR implementation found                                                                                                                            |
+| Batch/rapid capture                                     | PARTIAL  | Field Capture panel adds sticky before/work/after stages, quick caption, camera shortcut, next-stage control, and batch photo-library import.          |
+| Captions and notes                                      | VERIFIED | Evidence and media caption/note fields in UI and repositories                                                                                          |
+| Annotations                                             | PARTIAL  | Text annotations exist; visual markups/pins/arrows are not implemented                                                                                 |
+| Chronological proof packet assembly                     | VERIFIED | `packages/domain/src/index.ts` deterministic packet assembly                                                                                           |
+| Local PDF generation                                    | VERIFIED | `apps/mobile/src/infrastructure/reporting/local-pdf-renderer.ts`                                                                                       |
+| PDF open/share local actions                            | VERIFIED | `apps/mobile/src/infrastructure/reporting/local-pdf-actions.ts`                                                                                        |
+| Embedded visual evidence in PDF                         | PARTIAL  | Local PDF renderer embeds available local image originals as data URIs. Scanned documents, non-image previews, and cloud report versions are missing.  |
+| Immutable original evidence                             | PARTIAL  | Local originals are copied and hashed; signed private upload preparation exists, but mobile binary upload/object verification are missing              |
+| Tamper-evident report positioning                       | PARTIAL  | SHA metadata exists; no signed manifest, audit trail, or immutable cloud version                                                                       |
+| Cloud auth for web                                      | VERIFIED | Clerk provider, middleware, account provisioning                                                                                                       |
+| Mobile auth/account conversion                          | MISSING  | Settings sync token provider returns `null`                                                                                                            |
+| Neon/Postgres schema                                    | VERIFIED | `packages/database/src/schema.ts`, migration SQL                                                                                                       |
+| Drizzle                                                 | VERIFIED | `packages/database/src/index.ts`, schema/migrations                                                                                                    |
+| Sync mutation upload route                              | VERIFIED | `apps/web/app/api/sync/mutations/route.ts`                                                                                                             |
+| Idempotent mutation receipt                             | VERIFIED | `received_local_mutations.mutation_id` primary key and duplicate tests                                                                                 |
+| Canonical metadata apply                                | PARTIAL  | Project/EvidenceItem/MediaAsset/Annotation/ReportDraft supported; Customer/Site/Document unsupported                                                   |
+| Pull sync                                               | MISSING  | Upload response returns `pullCursor: null`                                                                                                             |
+| Conflict preservation                                   | PARTIAL  | `sync_conflicts` table exists; no real stale-version conflict detection/UX                                                                             |
+| Private object storage                                  | PARTIAL  | Authenticated signed upload/download preparation routes exist; production R2 configuration, mobile binary upload, and verification are missing         |
+| Cloud report history                                    | MISSING  | Local report history exists; web/cloud report library missing                                                                                          |
+| Share links                                             | MISSING  | No `share_links` model or route                                                                                                                        |
+| Web dashboard                                           | PARTIAL  | Dashboard reads tenant-scoped Neon workspace metrics and recent projects.                                                                              |
+| Web projects view                                       | PARTIAL  | Projects page reads tenant-scoped Neon project rows with evidence/media/report counts. Detail pages and downloads are missing.                         |
+| Web reports view                                        | PARTIAL  | Reports page reads tenant-scoped report drafts. Cloud PDF download/share links are missing.                                                            |
+| Web settings/branding                                   | PARTIAL  | Settings page shows tenant/config readiness. Branding management is missing.                                                                           |
+| Account/profile/settings controls                       | PARTIAL  | Mobile settings lists controls but rows are placeholders                                                                                               |
+| Privacy/export/delete account                           | MISSING  | Placeholder UI only                                                                                                                                    |
+| RevenueCat subscriptions                                | MISSING  | Env placeholders/ADR only; no SDK/paywall/webhook                                                                                                      |
+| Observability                                           | MISSING  | PostHog/Sentry env placeholders only                                                                                                                   |
+| App Store production config                             | PARTIAL  | Bundle ID, build numbers, Android package/version, EAS profiles, and privacy/terms env placeholders exist. Store workflows are still incomplete.       |
+| Public brand configurability                            | PARTIAL  | Product name config exists; mobile app.json and local renderer still hardcode Proof Packet/fielddoc identifiers                                        |
+| Validation threshold discipline                         | VERIFIED | Docs warn against feature expansion before usage validation                                                                                            |
+
+## Quality-Gate Evidence
+
+Commands run during audit/remediation:
+
+- `CI=true corepack pnpm format:check` - passed
+- `CI=true corepack pnpm lint` - passed
+- `CI=true corepack pnpm typecheck` - passed
+- `CI=true corepack pnpm test` - passed during audit, 13 files / 63 tests
+- Sprint 15 targeted/full validation - passed, 15 files / 73 tests
+- Web production build - passed, including media route handlers
+
+## End-to-End Scenario Trace
+
+| Scenario Step                          | Status   | Notes                                                                                 |
+| -------------------------------------- | -------- | ------------------------------------------------------------------------------------- |
+| Open app                               | VERIFIED | Mobile shell runs in simulator.                                                       |
+| Create "Smith Property - Water Damage" | VERIFIED | Project form persists locally.                                                        |
+| Capture six BEFORE photos              | PARTIAL  | Faster with sticky Field Capture controls; camera still captures one at a time.       |
+| Caption one pre-existing condition     | VERIFIED | Captions persist.                                                                     |
+| Capture ten WORK photos                | PARTIAL  | Possible but too slow.                                                                |
+| Scan two-page signed document          | MISSING  | No native scanner/OCR.                                                                |
+| Capture six AFTER photos               | PARTIAL  | Possible one at a time.                                                               |
+| Mark two important                     | MISSING  | No important/star field or UX.                                                        |
+| Generate Proof Packet                  | PARTIAL  | Local PDF generated with embedded image originals when readable.                      |
+| Share report                           | PARTIAL  | Local native share exists, no cloud/share-link tracking.                              |
+| Go offline                             | VERIFIED | Local storage/outbox design supports offline metadata.                                |
+| Create another project offline         | VERIFIED | Local project creation works.                                                         |
+| Reconnect                              | PARTIAL  | Manual sync control exists but native mobile auth token acquisition is missing.       |
+| Verify sync                            | PARTIAL  | Server can receive/apply some metadata and prepare signed media URLs when configured. |
+| Log into web                           | VERIFIED | Clerk web auth works.                                                                 |
+| Find project in web                    | PARTIAL  | Web projects page lists synced projects; detail/search still needed.                  |
+| Download previous report in web        | MISSING  | Web reports page lists drafts, but cloud PDF storage/download is not implemented.     |

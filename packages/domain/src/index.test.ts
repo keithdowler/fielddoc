@@ -173,6 +173,7 @@ describe("domain constants", () => {
       category: "WORK",
       title: "Prep",
       caption: null,
+      isImportant: true,
       captureTimestamp: "2026-08-15T13:00:00.000Z",
       sortOrder: 1,
     });
@@ -227,6 +228,7 @@ describe("domain constants", () => {
       mediaCount: 1,
       annotationCount: 1,
       missingCaption: false,
+      isImportant: true,
     });
     expect(preview.totals).toEqual({
       sections: 3,
@@ -241,13 +243,23 @@ describe("domain constants", () => {
     const html = renderProofPacketHtml(preview, {
       generatedAt: "2026-08-15T15:00:00.000Z",
       productName: "Proof Packet",
+      embeddedMedia: {
+        [workMedia.id]: {
+          dataUri: "data:image/jpeg;base64,abc123",
+          altText: "Protected work surface",
+        },
+      },
     });
 
     expect(html).toContain("Unit 12 Proof Packet");
     expect(html).toContain("Generated locally 2026-08-15 15:00:00 UTC");
+    expect(html).toContain('src="data:image/jpeg;base64,abc123"');
+    expect(html).toContain('alt="Protected work surface"');
     expect(html).toContain("Surface protected before work.");
     expect(html).toContain("SHA-256 00");
     expect(html).toContain("Caption needed");
+    expect(html).toContain("Important evidence");
+    expect(html).not.toContain("metadata-only");
   });
 });
 
@@ -261,11 +273,13 @@ function createEvidence(
     | "caption"
     | "captureTimestamp"
     | "sortOrder"
-  >,
+  > &
+    Partial<Pick<EvidenceItem, "isImportant">>,
 ): EvidenceItem {
   return {
     ...input,
     notes: null,
+    isImportant: input.isImportant ?? false,
     createdAt: input.captureTimestamp,
     updatedAt: input.captureTimestamp,
     deletedAt: null,
@@ -282,6 +296,7 @@ function createMediaAsset(
   return {
     ...input,
     localUri: `file:///fielddoc/${input.id}.jpg`,
+    storageObjectKey: null,
     mediaType: "IMAGE",
     mimeType: "image/jpeg",
     sizeBytes: 1024,
@@ -292,6 +307,7 @@ function createMediaAsset(
     sourceType: "CAMERA_PHOTO",
     originalAssetId: null,
     derivativeType: null,
+    uploadedAt: null,
     createdAt: input.captureTimestamp,
     updatedAt: input.captureTimestamp,
     deletedAt: null,

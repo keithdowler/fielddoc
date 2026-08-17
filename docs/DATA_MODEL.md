@@ -122,7 +122,7 @@ The first server migration creates:
 - `received_local_mutations` for idempotent mutation ingestion
 - `sync_conflicts` for future non-destructive conflict preservation
 
-Original media bytes still do not belong in Postgres. `media_assets.storage_object_key` is nullable until private object-storage upload exists, and generated report PDFs use a future object key rather than a local mobile URI.
+Original media bytes still do not belong in Postgres. `media_assets.storage_object_key` is nullable until private object-storage upload completes, and generated report PDFs use a future object key rather than a local mobile URI.
 
 Sprint 11 starts using `received_local_mutations` as a durable server receipt ledger. Each row is keyed by client mutation ID, organization, user, device, entity type, entity ID, operation, payload reference, payload JSON, and the client creation timestamp. The endpoint inserts uploadable local mutations with server status `accepted`; duplicate primary-key inserts are classified as duplicate responses and are not treated as failures.
 
@@ -134,4 +134,8 @@ Sprint 13 adds mobile receipt reconciliation for `received_local_mutations`. Acc
 
 Sprint 14 applies supported metadata mutations to canonical server tables. Project, evidence item, media asset, annotation, and report draft create/update mutations are upserted by client-generated UUID. Delete mutations set canonical `deleted_at`/`updated_at` timestamps rather than removing rows. Project archive mutations set `status = 'archived'` and `archived_at`.
 
-Canonical media asset rows created by Sprint 14 store metadata only. `storage_object_key` and `uploaded_at` remain null until private object storage upload is implemented. Generated local PDF URIs from mobile report drafts are not stored as server object keys.
+Sprint 15 adds cloud-media state to local and canonical media rows. `storage_object_key` and `uploaded_at` are populated only after an authenticated private object-storage upload is prepared, completed, and recorded. Generated local PDF URIs from mobile report drafts are not stored as server object keys.
+
+Sprint 16 adds `is_important` to local and canonical evidence rows. Important
+evidence is mutable metadata, not a derivative of the original media file, and
+is represented in outbox mutations like other evidence metadata updates.

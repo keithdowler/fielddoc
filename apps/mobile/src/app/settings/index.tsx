@@ -1,3 +1,4 @@
+import { AuthView } from "@clerk/expo/native";
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -8,11 +9,17 @@ import { Card } from "@/components/card";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBanner } from "@/components/status-banner";
 import { spacing } from "@/design/tokens";
+import { useMobileAuth } from "@/infrastructure/auth/mobile-auth";
+import { getMobileAuthStatusCopy } from "@/infrastructure/auth/mobile-auth-state";
 import { getLocalRepositories } from "@/infrastructure/local-store/repositories";
 import {
   runMobileOutboxSync,
   type MobileSyncResult,
 } from "@/infrastructure/sync/mobile-outbox-sync";
+import {
+  runMobileMediaUpload,
+  type MobileMediaUploadResult,
+} from "@/infrastructure/sync/mobile-media-upload";
 
 const settingsSections = [
   "Profile",
@@ -26,24 +33,51 @@ const settingsSections = [
 ] as const;
 
 export default function SettingsScreen() {
+  const mobileAuth = useMobileAuth();
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<MobileSyncResult | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [mediaUploadResult, setMediaUploadResult] =
+    useState<MobileMediaUploadResult | null>(null);
+  const [authActionResult, setAuthActionResult] = useState<{
+    status: "success" | "canceled" | "failed";
+    message: string;
+  } | null>(null);
+  const [authActionRunning, setAuthActionRunning] = useState(false);
+
+  const authStatusCopy = getMobileAuthStatusCopy(mobileAuth.status);
+
+  const signOut = useCallback(async () => {
+    setAuthActionRunning(true);
+    const result = await mobileAuth.signOut();
+
+    setAuthActionResult(result);
+    setAuthActionRunning(false);
+  }, [mobileAuth]);
 
   const uploadPendingMetadata = useCallback(async () => {
     setSyncing(true);
     const repositories = await getLocalRepositories();
     const result = await runMobileOutboxSync({
       repositories,
-      tokenProvider: {
-        async getAccessToken() {
-          return null;
-        },
-      },
+      tokenProvider: mobileAuth,
     });
 
     setSyncResult(result);
     setSyncing(false);
-  }, []);
+  }, [mobileAuth]);
+
+  const uploadOriginalMedia = useCallback(async () => {
+    setUploadingMedia(true);
+    const repositories = await getLocalRepositories();
+    const result = await runMobileMediaUpload({
+      repositories,
+      tokenProvider: mobileAuth,
+    });
+
+    setMediaUploadResult(result);
+    setUploadingMedia(false);
+  }, [mobileAuth]);
 
   return (
     <AppScreen>
@@ -56,8 +90,45 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
+          title="Cloud Account"
+          detail="Connects this device to your Proof Packet workspace."
+        />
+        <StatusBanner
+          tone={authStatusCopy.tone}
+          title={authStatusCopy.title}
+          message={authActionResult?.message ?? authStatusCopy.message}
+        />
+        {mobileAuth.userId ? (
+          <View style={styles.metrics}>
+            <AppText variant="small" muted>
+              Clerk user {mobileAuth.userId}
+            </AppText>
+          </View>
+        ) : null}
+        {mobileAuth.isConfigured &&
+        mobileAuth.isLoaded &&
+        !mobileAuth.isSignedIn ? (
+          <View style={styles.authFrame}>
+            <AuthView mode="signInOrUp" isDismissible={false} />
+          </View>
+        ) : null}
+        {mobileAuth.isSignedIn ? (
+          <AppButton
+            label="Sign Out"
+            icon="rectangle.portrait.and.arrow.right"
+            accessibilityLabel="Sign out of cloud account"
+            onPress={signOut}
+            disabled={authActionRunning}
+            loading={authActionRunning}
+            variant="secondary"
+          />
+        ) : null}
+      </Card>
+
+      <Card>
+        <SectionHeader
           title="Cloud Sync"
-          detail="Uploads local metadata after cloud sign-in is available."
+          detail="Uploads local metadata with your cloud session."
         />
         {syncResult ? (
           <StatusBanner
@@ -68,7 +139,7 @@ export default function SettingsScreen() {
         ) : (
           <AppText muted>
             Project, evidence, annotation, media, and report metadata remain
-            local until an authenticated token provider is connected.
+            local until this device is signed in.
           </AppText>
         )}
         {syncResult ? (
@@ -86,7 +157,43 @@ export default function SettingsScreen() {
           icon="arrow.triangle.2.circlepath"
           accessibilityLabel="Upload pending local metadata changes"
           onPress={uploadPendingMetadata}
-          disabled={syncing}
+          disabled={syncing || !mobileAuth.isSignedIn}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="Original Media Upload"
+          detail="Uploads local originals after metadata exists in the cloud."
+        />
+        {mediaUploadResult ? (
+          <StatusBanner
+            tone={statusToneByMediaStatus[mediaUploadResult.status]}
+            title={statusTitleByMediaStatus[mediaUploadResult.status]}
+            message={mediaUploadResult.message}
+          />
+        ) : (
+          <AppText muted>
+            Original files stay on this device until cloud sign-in can prepare a
+            private upload URL.
+          </AppText>
+        )}
+        {mediaUploadResult ? (
+          <View style={styles.metrics}>
+            <AppText variant="small" muted>
+              Attempted {mediaUploadResult.attemptedCount} | uploaded{" "}
+              {mediaUploadResult.uploadedCount} | failed{" "}
+              {mediaUploadResult.failedCount} | pending{" "}
+              {mediaUploadResult.pendingCount}
+            </AppText>
+          </View>
+        ) : null}
+        <AppButton
+          label={uploadingMedia ? "Checking..." : "Upload Original Media"}
+          icon="icloud.and.arrow.up"
+          accessibilityLabel="Upload original media files to private cloud storage"
+          onPress={uploadOriginalMedia}
+          disabled={uploadingMedia || !mobileAuth.isSignedIn}
         />
       </Card>
 
@@ -125,6 +232,10 @@ const styles = StyleSheet.create({
   metrics: {
     gap: spacing.xs,
   },
+  authFrame: {
+    minHeight: 520,
+    overflow: "hidden",
+  },
 });
 
 const statusToneBySyncStatus = {
@@ -143,4 +254,22 @@ const statusTitleBySyncStatus = {
   success: "Metadata received",
   partial: "Some metadata rejected",
   failed: "Sync failed",
+} as const;
+
+const statusToneByMediaStatus = {
+  not_configured: "warning",
+  auth_required: "warning",
+  idle: "info",
+  success: "success",
+  partial: "warning",
+  failed: "error",
+} as const;
+
+const statusTitleByMediaStatus = {
+  not_configured: "Media upload not configured",
+  auth_required: "Cloud sign-in required",
+  idle: "No originals waiting",
+  success: "Originals uploaded",
+  partial: "Some originals uploaded",
+  failed: "Media upload failed",
 } as const;

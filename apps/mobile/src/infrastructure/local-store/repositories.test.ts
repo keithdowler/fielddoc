@@ -43,6 +43,17 @@ describe("SQLite local repositories", () => {
       const syncClientStateTable = await database.getFirst<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sync_client_state'",
       );
+      const mediaStorageColumn = await database.getFirst<{ name: string }>(
+        "SELECT name FROM pragma_table_info('media_assets') WHERE name = 'storage_object_key'",
+      );
+      const mediaUploadedAtColumn = await database.getFirst<{ name: string }>(
+        "SELECT name FROM pragma_table_info('media_assets') WHERE name = 'uploaded_at'",
+      );
+      const importantEvidenceColumn = await database.getFirst<{
+        name: string;
+      }>(
+        "SELECT name FROM pragma_table_info('evidence_items') WHERE name = 'is_important'",
+      );
 
       expect(row?.version).toBe(localDatabaseVersion);
       expect(indexRow?.name).toBe("idx_media_assets_evidence");
@@ -51,6 +62,9 @@ describe("SQLite local repositories", () => {
       expect(generatedPdfColumn?.name).toBe("generated_pdf_uri");
       expect(reportDraftIndex?.name).toBe("idx_report_drafts_project_updated");
       expect(syncClientStateTable?.name).toBe("sync_client_state");
+      expect(mediaStorageColumn?.name).toBe("storage_object_key");
+      expect(mediaUploadedAtColumn?.name).toBe("uploaded_at");
+      expect(importantEvidenceColumn?.name).toBe("is_important");
     });
   });
 
@@ -124,6 +138,33 @@ describe("SQLite local repositories", () => {
     });
   });
 
+  it("persists important evidence and generates update mutations", async () => {
+    await withRepositories(async ({ projects, evidence, mutations }) => {
+      const project = await projects.create({ name: "Important project" });
+      const item = await evidence.create({
+        projectId: project.id,
+        category: "WORK",
+        title: "Critical damage",
+        isImportant: true,
+      });
+
+      expect(item.isImportant).toBe(true);
+      expect(await evidence.summarizeProject(project.id)).toMatchObject({
+        importantCount: 1,
+      });
+
+      const updated = await evidence.update(item.id, { isImportant: false });
+
+      expect(updated.isImportant).toBe(false);
+      expect(await evidence.summarizeProject(project.id)).toMatchObject({
+        importantCount: 0,
+      });
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.operation),
+      ).toEqual(["CREATE", "CREATE", "UPDATE"]);
+    });
+  });
+
   it("stores local media assets and summarizes attached originals", async () => {
     await withRepositories(async ({ projects, evidence, media, mutations }) => {
       const project = await projects.create({ name: "Media project" });
@@ -161,6 +202,56 @@ describe("SQLite local repositories", () => {
       expect(
         (await mutations.listPending()).map((mutation) => mutation.entityType),
       ).toEqual(["Project", "EvidenceItem", "MediaAsset"]);
+    });
+  });
+
+  it("marks media assets uploaded without mutating immutable original metadata", async () => {
+    await withRepositories(async ({ projects, evidence, media, mutations }) => {
+      const project = await projects.create({ name: "Cloud media project" });
+      const item = await evidence.create({
+        projectId: project.id,
+        category: "WORK",
+      });
+      const mediaAsset = await media.create({
+        evidenceItemId: item.id,
+        localUri: "file:///fielddoc/evidence-originals/original.jpg",
+        mediaType: "IMAGE",
+        mimeType: "image/jpeg",
+        sizeBytes: 8192,
+        sha256:
+          "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+        width: 1600,
+        height: 1200,
+        sourceType: "CAMERA_PHOTO",
+      });
+
+      const uploaded = await media.markUploaded(mediaAsset.id, {
+        storageObjectKey:
+          "organizations/org-1/evidence/item-1/originals/media-1.jpg",
+        uploadedAt: "2026-08-16T14:00:00.000Z",
+      });
+      const pending = await mutations.listPending();
+      const uploadMutation = pending.at(-1);
+
+      expect(uploaded).toMatchObject({
+        id: mediaAsset.id,
+        localUri: mediaAsset.localUri,
+        sha256: mediaAsset.sha256,
+        storageObjectKey:
+          "organizations/org-1/evidence/item-1/originals/media-1.jpg",
+        uploadedAt: "2026-08-16T14:00:00.000Z",
+        syncState: "PENDING",
+      });
+      expect(uploadMutation).toMatchObject({
+        entityType: "MediaAsset",
+        entityId: mediaAsset.id,
+        operation: "UPDATE",
+      });
+      expect(JSON.parse(uploadMutation?.payloadJson ?? "{}")).toMatchObject({
+        storageObjectKey:
+          "organizations/org-1/evidence/item-1/originals/media-1.jpg",
+        uploadedAt: "2026-08-16T14:00:00.000Z",
+      });
     });
   });
 

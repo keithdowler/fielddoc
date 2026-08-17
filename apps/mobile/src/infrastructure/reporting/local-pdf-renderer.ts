@@ -1,10 +1,12 @@
 import {
   renderProofPacketHtml,
   type GeneratedProofPacket,
+  type MediaAsset,
   type ProofPacketPreview,
   type ProofPacketRenderOptions,
   type ProofPacketRenderer,
 } from "@fielddoc/domain";
+import { resolvePublicProductName } from "@fielddoc/config";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
 
@@ -18,7 +20,10 @@ export class ExpoProofPacketPdfRenderer implements ProofPacketRenderer {
     const generatedAt = options.generatedAt ?? new Date().toISOString();
     const html = renderProofPacketHtml(preview, {
       generatedAt,
-      productName: "Proof Packet",
+      productName: resolvePublicProductName(
+        process.env.EXPO_PUBLIC_PRODUCT_NAME,
+      ),
+      embeddedMedia: await createEmbeddedMediaMap(preview),
     });
     const printed = await Print.printToFileAsync({
       html,
@@ -62,6 +67,45 @@ export class ExpoProofPacketPdfRenderer implements ProofPacketRenderer {
 }
 
 export const localProofPacketRenderer = new ExpoProofPacketPdfRenderer();
+
+async function createEmbeddedMediaMap(
+  preview: ProofPacketPreview,
+): Promise<Record<string, { dataUri: string; altText?: string }>> {
+  const imageMedia = preview.sections.flatMap((section) =>
+    section.evidenceItems.flatMap((entry) =>
+      entry.mediaAssets.filter(
+        (media) => media.mediaType === "IMAGE" && !media.deletedAt,
+      ),
+    ),
+  );
+  const entries = await Promise.all(
+    imageMedia.map(async (media) => {
+      const embedded = await createEmbeddedMedia(media);
+      return embedded ? ([media.id, embedded] as const) : null;
+    }),
+  );
+
+  return Object.fromEntries(entries.filter((entry) => entry !== null));
+}
+
+async function createEmbeddedMedia(
+  media: MediaAsset,
+): Promise<{ dataUri: string; altText?: string } | null> {
+  if (!media.mimeType.startsWith("image/")) return null;
+
+  try {
+    const base64 = await FileSystem.readAsStringAsync(media.localUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return {
+      dataUri: `data:${media.mimeType};base64,${base64}`,
+      altText: media.caption ?? "Evidence image",
+    };
+  } catch {
+    return null;
+  }
+}
 
 function getProofPacketDirectory(): string {
   if (!FileSystem.documentDirectory) {

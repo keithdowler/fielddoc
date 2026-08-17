@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   publicMobileEnvSchema,
+  publicWebEnvSchema,
   resolvePublicProductName,
   webServerEnvSchema,
 } from "./index";
@@ -48,14 +49,36 @@ describe("webServerEnvSchema", () => {
   });
 });
 
+describe("publicWebEnvSchema", () => {
+  it("validates public legal URLs when configured", () => {
+    const parsed = publicWebEnvSchema.parse({
+      NEXT_PUBLIC_PRIVACY_POLICY_URL: "https://example.com/privacy",
+      NEXT_PUBLIC_TERMS_URL: "https://example.com/terms",
+    });
+
+    expect(parsed.NEXT_PUBLIC_PRIVACY_POLICY_URL).toBe(
+      "https://example.com/privacy",
+    );
+    expect(parsed.NEXT_PUBLIC_TERMS_URL).toBe("https://example.com/terms");
+  });
+});
+
 describe("publicMobileEnvSchema", () => {
   it("validates the public mobile API base URL", () => {
     const parsed = publicMobileEnvSchema.parse({
       EXPO_PUBLIC_FIELDDOC_API_BASE_URL: "https://fielddoc-web.vercel.app",
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_example",
+      EXPO_PUBLIC_PRIVACY_POLICY_URL: "https://example.com/privacy",
+      EXPO_PUBLIC_TERMS_URL: "https://example.com/terms",
     });
 
     expect(parsed.EXPO_PUBLIC_FIELDDOC_API_BASE_URL).toBe(
       "https://fielddoc-web.vercel.app",
     );
+    expect(parsed.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY).toBe("pk_test_example");
+    expect(parsed.EXPO_PUBLIC_PRIVACY_POLICY_URL).toBe(
+      "https://example.com/privacy",
+    );
+    expect(parsed.EXPO_PUBLIC_TERMS_URL).toBe("https://example.com/terms");
   });
 });

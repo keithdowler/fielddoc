@@ -5,6 +5,7 @@ import type { ColorValue } from "react-native";
 
 import { AppIcon } from "@/components/app-icon";
 import { colors } from "@/design/tokens";
+import { MobileAuthProvider } from "@/infrastructure/auth/mobile-auth";
 import { primaryNavigation } from "@/navigation/app-navigation";
 
 function tabBarIcon(name: SFSymbol) {
@@ -15,7 +16,7 @@ function tabBarIcon(name: SFSymbol) {
 
 export default function RootLayout() {
   return (
-    <>
+    <MobileAuthProvider>
       <Tabs
         screenOptions={{
           headerStyle: { backgroundColor: colors.light.background },
@@ -48,6 +49,6 @@ export default function RootLayout() {
         ))}
       </Tabs>
       <StatusBar style="dark" />
-    </>
+    </MobileAuthProvider>
   );
 }

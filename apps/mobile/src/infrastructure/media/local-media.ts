@@ -63,6 +63,13 @@ export async function captureCameraPhoto(): Promise<PreparedLocalMediaAsset | nu
 }
 
 export async function pickPhotoLibraryMedia(): Promise<PreparedLocalMediaAsset | null> {
+  const assets = await pickPhotoLibraryMediaBatch();
+  return assets[0] ?? null;
+}
+
+export async function pickPhotoLibraryMediaBatch(): Promise<
+  PreparedLocalMediaAsset[]
+> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
     throw new Error("Photo library permission is required to attach evidence.");
@@ -72,25 +79,26 @@ export async function pickPhotoLibraryMedia(): Promise<PreparedLocalMediaAsset |
     mediaTypes: ["images"],
     quality: 1,
     exif: false,
-    allowsMultipleSelection: false,
+    allowsMultipleSelection: true,
   });
 
-  if (result.canceled) return null;
+  if (result.canceled) return [];
 
-  const asset = result.assets[0];
-  if (!asset) return null;
-
-  return prepareLocalMediaAsset({
-    uri: asset.uri,
-    sourceType: "PHOTO_LIBRARY",
-    mimeType: asset.mimeType,
-    sizeBytes: asset.fileSize,
-    width: normalizeDimension(asset.width),
-    height: normalizeDimension(asset.height),
-    fileName: asset.fileName,
-    originalAssetId: asset.assetId,
-    captureTimestamp: new Date().toISOString(),
-  });
+  return Promise.all(
+    result.assets.map((asset) =>
+      prepareLocalMediaAsset({
+        uri: asset.uri,
+        sourceType: "PHOTO_LIBRARY",
+        mimeType: asset.mimeType,
+        sizeBytes: asset.fileSize,
+        width: normalizeDimension(asset.width),
+        height: normalizeDimension(asset.height),
+        fileName: asset.fileName,
+        originalAssetId: asset.assetId,
+        captureTimestamp: new Date().toISOString(),
+      }),
+    ),
+  );
 }
 
 export async function importLocalFile(): Promise<PreparedLocalMediaAsset | null> {

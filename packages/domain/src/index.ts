@@ -111,6 +111,7 @@ export type EvidenceItem = {
   title: string | null;
   caption: string | null;
   notes: string | null;
+  isImportant: boolean;
   sortOrder: number;
   captureTimestamp: string;
   createdAt: string;
@@ -123,6 +124,7 @@ export type MediaAsset = {
   id: string;
   evidenceItemId: string;
   localUri: string;
+  storageObjectKey: string | null;
   mediaType: MediaType;
   mimeType: string;
   sizeBytes: number;
@@ -135,6 +137,7 @@ export type MediaAsset = {
   sourceType: MediaSourceType;
   originalAssetId: string | null;
   derivativeType: string | null;
+  uploadedAt: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -352,6 +355,7 @@ export type ProjectEvidenceSummary = {
   afterCount: number;
   documentCount: number;
   otherCount?: number;
+  importantCount?: number;
   mediaAssetCount?: number;
   missingCaptionCount: number;
 };
@@ -379,6 +383,7 @@ export type ProofPacketEvidenceEntry = {
   mediaCount: number;
   annotationCount: number;
   missingCaption: boolean;
+  isImportant: boolean;
 };
 
 export type ProofPacketSectionPreview = {
@@ -419,6 +424,12 @@ export type ProofPacketPreviewInput = {
 export type ProofPacketHtmlOptions = {
   generatedAt: string;
   productName?: string;
+  embeddedMedia?: Record<string, ProofPacketEmbeddedMedia>;
+};
+
+export type ProofPacketEmbeddedMedia = {
+  dataUri: string;
+  altText?: string;
 };
 
 export type GeneratedProofPacket = {
@@ -575,6 +586,7 @@ export function assembleProofPacketPreview(
           mediaCount: mediaAssets.length,
           annotationCount: annotations.length,
           missingCaption: !caption?.trim(),
+          isImportant: evidence.isImportant,
         };
       });
 
@@ -665,7 +677,12 @@ export function renderProofPacketHtml(
             section.evidenceItems.length
               ? section.evidenceItems
                   .map((entry, entryIndex) =>
-                    renderEvidenceEntryHtml(entry, sectionIndex, entryIndex),
+                    renderEvidenceEntryHtml(
+                      entry,
+                      sectionIndex,
+                      entryIndex,
+                      options.embeddedMedia,
+                    ),
                   )
                   .join("")
               : '<p class="empty">No evidence in this section.</p>'
@@ -764,10 +781,45 @@ export function renderProofPacketHtml(
         color: #8a5b00;
         font-weight: 800;
       }
+      .important-badge {
+        background: #fff7d6;
+        border: 1px solid #b58100;
+        border-radius: 999px;
+        color: #5f3f00;
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 800;
+        margin: 6px 0;
+        padding: 3px 8px;
+        text-transform: uppercase;
+      }
       .media-list,
       .annotation-list {
         margin: 8px 0 0 18px;
         padding: 0;
+      }
+      .media-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin: 10px 0;
+      }
+      .media-figure {
+        border: 1px solid #cbd3d3;
+        border-radius: 6px;
+        margin: 0;
+        overflow: hidden;
+      }
+      .media-figure img {
+        display: block;
+        height: 190px;
+        object-fit: cover;
+        width: 100%;
+      }
+      .media-figure figcaption {
+        color: #52636b;
+        font-size: 10px;
+        padding: 6px 8px;
       }
       footer {
         border-top: 1px solid #cbd3d3;
@@ -796,7 +848,7 @@ export function renderProofPacketHtml(
     </div>
     ${sectionHtml}
     <footer>
-      Generated from local offline metadata. Original evidence remains immutable; report media references are metadata-only in this sprint.
+      Generated from local offline evidence. Original evidence remains immutable; embedded visuals are report renderings of the stored originals and do not alter source files.
     </footer>
   </body>
 </html>`;
@@ -878,6 +930,7 @@ export type CreateEvidenceInput = {
   title?: string;
   caption?: string;
   notes?: string;
+  isImportant?: boolean;
   captureTimestamp?: string;
 };
 
@@ -901,6 +954,11 @@ export type CreateMediaAssetInput = {
 export type UpdateMediaAssetMetadataInput = {
   caption?: string;
   notes?: string;
+};
+
+export type MarkMediaAssetUploadedInput = {
+  storageObjectKey: string;
+  uploadedAt: string;
 };
 
 export type CreateAnnotationInput = {
@@ -961,12 +1019,17 @@ export interface MediaAssetRepository {
     id: string,
     input: UpdateMediaAssetMetadataInput,
   ): Promise<MediaAsset>;
+  markUploaded(
+    id: string,
+    input: MarkMediaAssetUploadedInput,
+  ): Promise<MediaAsset>;
   listByEvidenceItem(
     evidenceItemId: string,
     options?: { includeDeleted?: boolean },
   ): Promise<MediaAsset[]>;
   listByProject(projectId: string): Promise<MediaAsset[]>;
   listByEvidenceIds(evidenceItemIds: string[]): Promise<MediaAsset[]>;
+  listPendingUpload(limit?: number): Promise<MediaAsset[]>;
   countByEvidenceIds(
     evidenceItemIds: string[],
   ): Promise<Record<string, number>>;
@@ -1002,8 +1065,25 @@ function renderEvidenceEntryHtml(
   entry: ProofPacketEvidenceEntry,
   sectionIndex: number,
   entryIndex: number,
+  embeddedMedia: Record<string, ProofPacketEmbeddedMedia> = {},
 ): string {
   const title = entry.evidence.title ?? "Untitled evidence";
+  const visualMedia = entry.mediaAssets
+    .map((media) => ({
+      media,
+      embedded: embeddedMedia[media.id],
+    }))
+    .filter(({ media, embedded }) => media.mediaType === "IMAGE" && embedded);
+  const visualMediaHtml = visualMedia
+    .map(
+      ({ media, embedded }) => `
+        <figure class="media-figure">
+          <img src="${escapeHtml(embedded?.dataUri ?? "")}" alt="${escapeHtml(embedded?.altText ?? media.caption ?? entry.caption ?? title)}" />
+          <figcaption>${escapeHtml(media.caption ?? entry.caption ?? title)}</figcaption>
+        </figure>
+      `,
+    )
+    .join("");
   const mediaItems = entry.mediaAssets
     .map(
       (media) =>
@@ -1018,9 +1098,11 @@ function renderEvidenceEntryHtml(
     <article class="entry">
       <h3>${sectionIndex + 1}.${entryIndex + 1} ${escapeHtml(title)}</h3>
       <div class="muted">${escapeHtml(formatPacketTimestamp(entry.capturedAt))}</div>
+      ${entry.isImportant ? '<div class="important-badge">Important evidence</div>' : ""}
       <p class="${entry.missingCaption ? "caption-needed" : ""}">
         ${escapeHtml(entry.caption ?? "Caption needed")}
       </p>
+      ${visualMediaHtml ? `<div class="media-grid">${visualMediaHtml}</div>` : ""}
       ${
         mediaItems
           ? `<p class="muted">Media files</p><ul class="media-list">${mediaItems}</ul>`

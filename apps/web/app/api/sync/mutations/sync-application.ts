@@ -257,6 +257,7 @@ export const evidenceItemPayloadSchema = baseLocalPayloadSchema.extend({
   title: nullableTextSchema,
   caption: nullableTextSchema,
   notes: nullableTextSchema,
+  isImportant: z.boolean().default(false),
   sortOrder: z.number().int().nonnegative(),
   captureTimestamp: isoDateTimeSchema,
 });
@@ -266,6 +267,7 @@ export type EvidenceItemPayload = z.infer<typeof evidenceItemPayloadSchema>;
 export const mediaAssetPayloadSchema = baseLocalPayloadSchema.extend({
   evidenceItemId: uuidSchema,
   localUri: z.string().trim().min(1),
+  storageObjectKey: nullableTextSchema,
   mediaType: z.enum(["IMAGE", "VIDEO", "DOCUMENT", "OTHER"]),
   mimeType: z.string().trim().min(1),
   sizeBytes: z.number().int().nonnegative(),
@@ -283,6 +285,7 @@ export const mediaAssetPayloadSchema = baseLocalPayloadSchema.extend({
   ]),
   originalAssetId: nullableTextSchema,
   derivativeType: nullableTextSchema,
+  uploadedAt: nullableDateTimeSchema,
 });
 
 export type MediaAssetPayload = z.infer<typeof mediaAssetPayloadSchema>;

@@ -85,10 +85,75 @@ export const syncMutationUploadResponseSchema = z.object({
   pullCursor: z.string().trim().min(1).nullable(),
 });
 
+export const mediaUploadPrepareRequestSchema = z.object({
+  mediaAssetId: uuidSchema,
+  evidenceItemId: uuidSchema,
+  mimeType: z.string().trim().min(1),
+  sizeBytes: z.number().int().nonnegative(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  fileExtension: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]{1,12}$/)
+    .optional(),
+});
+
+export const mediaUploadPrepareResponseSchema = z.object({
+  mediaAssetId: uuidSchema,
+  storageObjectKey: z.string().trim().min(1),
+  uploadUrl: z.string().url(),
+  requiredHeaders: z.record(z.string(), z.string()),
+  expiresAt: isoDateTimeSchema,
+});
+
+export const mediaUploadCompleteRequestSchema = z.object({
+  mediaAssetId: uuidSchema,
+  storageObjectKey: z.string().trim().min(1),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  sizeBytes: z.number().int().nonnegative(),
+  uploadedAt: isoDateTimeSchema,
+});
+
+export const mediaUploadCompleteResponseSchema = z.object({
+  mediaAssetId: uuidSchema,
+  storageObjectKey: z.string().trim().min(1),
+  uploadedAt: isoDateTimeSchema,
+  status: z.literal("recorded"),
+});
+
+export const mediaDownloadPrepareRequestSchema = z.object({
+  mediaAssetId: uuidSchema,
+});
+
+export const mediaDownloadPrepareResponseSchema = z.object({
+  mediaAssetId: uuidSchema,
+  storageObjectKey: z.string().trim().min(1),
+  downloadUrl: z.string().url(),
+  expiresAt: isoDateTimeSchema,
+});
+
 export type SyncMutationEnvelope = z.infer<typeof syncMutationEnvelopeSchema>;
 export type SyncMutationUploadRequest = z.infer<
   typeof syncMutationUploadRequestSchema
 >;
 export type SyncMutationUploadResponse = z.infer<
   typeof syncMutationUploadResponseSchema
+>;
+export type MediaUploadPrepareRequest = z.infer<
+  typeof mediaUploadPrepareRequestSchema
+>;
+export type MediaUploadPrepareResponse = z.infer<
+  typeof mediaUploadPrepareResponseSchema
+>;
+export type MediaUploadCompleteRequest = z.infer<
+  typeof mediaUploadCompleteRequestSchema
+>;
+export type MediaUploadCompleteResponse = z.infer<
+  typeof mediaUploadCompleteResponseSchema
+>;
+export type MediaDownloadPrepareRequest = z.infer<
+  typeof mediaDownloadPrepareRequestSchema
+>;
+export type MediaDownloadPrepareResponse = z.infer<
+  typeof mediaDownloadPrepareResponseSchema
 >;

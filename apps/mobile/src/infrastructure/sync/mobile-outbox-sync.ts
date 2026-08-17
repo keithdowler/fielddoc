@@ -1,7 +1,6 @@
 import {
   createFieldDocApiClient,
   FieldDocApiError,
-  type FieldDocApiClient,
 } from "@fielddoc/api-client";
 import type { LocalMutation } from "@fielddoc/domain";
 import type { SyncMutationUploadResponse } from "@fielddoc/validation";
@@ -35,11 +34,16 @@ export type MobileSyncTokenProvider = {
   getAccessToken(): Promise<string | null>;
 };
 
+type MobileMutationApiClient = Pick<
+  ReturnType<typeof createFieldDocApiClient>,
+  "uploadLocalMutations"
+>;
+
 export type RunMobileOutboxSyncInput = {
   repositories: LocalRepositories;
   tokenProvider: MobileSyncTokenProvider;
   apiBaseUrl?: string | null;
-  apiClient?: FieldDocApiClient;
+  apiClient?: MobileMutationApiClient;
   now?: () => Date;
 };
 

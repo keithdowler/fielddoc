@@ -42,6 +42,8 @@ export const webServerEnvSchema = z.object({
 
 export const publicWebEnvSchema = z.object({
   NEXT_PUBLIC_PRODUCT_NAME: optionalSecret,
+  NEXT_PUBLIC_PRIVACY_POLICY_URL: optionalUrl,
+  NEXT_PUBLIC_TERMS_URL: optionalUrl,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalSecret,
   NEXT_PUBLIC_CLERK_SIGN_IN_URL: optionalSecret,
   NEXT_PUBLIC_CLERK_SIGN_UP_URL: optionalSecret,
@@ -54,5 +56,8 @@ export const publicWebEnvSchema = z.object({
 export const publicMobileEnvSchema = z.object({
   EXPO_PUBLIC_PRODUCT_NAME: optionalSecret,
   EXPO_PUBLIC_FIELDDOC_API_BASE_URL: optionalUrl,
+  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalSecret,
+  EXPO_PUBLIC_PRIVACY_POLICY_URL: optionalUrl,
+  EXPO_PUBLIC_TERMS_URL: optionalUrl,
   EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: optionalSecret,
 });

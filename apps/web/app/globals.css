@@ -121,6 +121,136 @@ p {
   padding: 40px 0;
 }
 
+.workspaceStack {
+  display: grid;
+  gap: 28px;
+}
+
+.workspaceSection {
+  padding: 28px 0;
+}
+
+.sectionTitleRow {
+  align-items: flex-end;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.metricGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metricBox {
+  border: 1px solid #d8d3ca;
+  display: grid;
+  gap: 4px;
+  min-height: 96px;
+  padding: 18px;
+}
+
+.metricBox strong {
+  color: #1d2528;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.metricBox span,
+.compactText,
+.emptyMessage,
+.warningText {
+  color: #536166;
+  font-size: 0.95rem;
+}
+
+.dataList {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.dataRow {
+  align-items: center;
+  border: 1px solid #d8d3ca;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 18px;
+}
+
+.dataRow h3 {
+  font-size: 1.05rem;
+  margin: 0 0 6px;
+}
+
+.compactText,
+.emptyMessage {
+  margin: 0;
+}
+
+.rowMetrics {
+  align-items: flex-end;
+  color: #536166;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  gap: 4px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tableWrap {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.dataTable {
+  border-collapse: collapse;
+  min-width: 780px;
+  width: 100%;
+}
+
+.dataTable th,
+.dataTable td {
+  border-bottom: 1px solid #d8d3ca;
+  padding: 14px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dataTable th {
+  color: #536166;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.dataTable td span,
+.warningText {
+  display: block;
+  margin-top: 4px;
+}
+
+.warningText {
+  color: #8a5b00;
+}
+
+.statusPill {
+  border: 1px solid #8a5b00;
+  color: #8a5b00;
+  font-size: 0.82rem;
+  font-weight: 750;
+  min-width: 132px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.statusPill.ready {
+  border-color: #146c43;
+  color: #146c43;
+}
+
 .detailList {
   display: grid;
   gap: 14px;
@@ -199,5 +329,19 @@ p {
   .accountControls {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dataRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rowMetrics {
+    align-items: flex-start;
+    text-align: left;
   }
 }

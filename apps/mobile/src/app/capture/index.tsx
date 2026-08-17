@@ -23,7 +23,7 @@ import { spacing } from "@/design/tokens";
 import {
   captureCameraPhoto,
   importLocalFile,
-  pickPhotoLibraryMedia,
+  pickPhotoLibraryMediaBatch,
   type PreparedLocalMediaAsset,
 } from "@/infrastructure/media/local-media";
 import { getLocalRepositories } from "@/infrastructure/local-store/repositories";
@@ -43,6 +43,8 @@ const sourceLabels: Record<MediaSourceType, string> = {
   FILE_IMPORT: "file import",
 };
 
+const fieldCaptureStages: EvidenceCategory[] = ["BEFORE", "WORK", "AFTER"];
+
 export default function CaptureScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string | undefined>();
@@ -50,6 +52,7 @@ export default function CaptureScreen() {
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [notes, setNotes] = useState("");
+  const [isImportant, setIsImportant] = useState(false);
   const [editingEvidenceId, setEditingEvidenceId] = useState<
     string | undefined
   >();
@@ -70,6 +73,13 @@ export default function CaptureScreen() {
     (item) => item.id === selectedEvidenceId,
   );
   const editingMedia = mediaAssets.find((item) => item.id === editingMediaId);
+  const captureCounts = evidenceItems.reduce<Record<EvidenceCategory, number>>(
+    (counts, item) => ({
+      ...counts,
+      [item.category]: counts[item.category] + 1,
+    }),
+    { BEFORE: 0, WORK: 0, AFTER: 0, DOCUMENT: 0, OTHER: 0 },
+  );
 
   const refresh = useCallback(() => {
     let mounted = true;
@@ -142,6 +152,7 @@ export default function CaptureScreen() {
             title,
             caption,
             notes,
+            isImportant,
           })
         : await repositories.evidence.create({
             projectId,
@@ -149,6 +160,7 @@ export default function CaptureScreen() {
             title,
             caption,
             notes,
+            isImportant,
             captureTimestamp: new Date().toISOString(),
           });
 
@@ -177,37 +189,57 @@ export default function CaptureScreen() {
 
     try {
       setBusySource(sourceType);
-      const preparedMedia = await pickMedia(sourceType);
-      if (!preparedMedia) {
+      const preparedMediaItems = await pickMedia(sourceType);
+      if (!preparedMediaItems.length) {
         setStatusMessage("Media selection canceled.");
         setErrorMessage(undefined);
         return;
       }
 
       const repositories = await getLocalRepositories();
-      const evidence = await repositories.evidence.create({
-        projectId,
-        category,
-        title: title || preparedMedia.displayName,
-        caption,
-        notes,
-        captureTimestamp: preparedMedia.captureTimestamp,
-      });
-      const mediaAsset = await repositories.media.create({
-        evidenceItemId: evidence.id,
-        ...preparedMedia,
-        caption,
-        notes,
-      });
+      const savedItems: Array<{
+        evidence: EvidenceItem;
+        mediaAsset: MediaAsset;
+      }> = [];
+
+      for (const [index, preparedMedia] of preparedMediaItems.entries()) {
+        const evidence = await repositories.evidence.create({
+          projectId,
+          category,
+          title:
+            title ||
+            (preparedMediaItems.length > 1
+              ? `${preparedMedia.displayName} ${index + 1}`
+              : preparedMedia.displayName),
+          caption,
+          notes,
+          isImportant,
+          captureTimestamp: preparedMedia.captureTimestamp,
+        });
+        const mediaAsset = await repositories.media.create({
+          evidenceItemId: evidence.id,
+          ...preparedMedia,
+          caption,
+          notes,
+        });
+        savedItems.push({ evidence, mediaAsset });
+      }
+
+      const lastSaved = savedItems.at(-1);
 
       setStatusMessage(
-        `${categoryLabels[evidence.category]} evidence saved from ${sourceLabels[sourceType]} (${Math.round(
-          mediaAsset.sizeBytes / 1024,
-        )} KB).`,
+        `${savedItems.length} ${categoryLabels[category].toLowerCase()} evidence ${
+          savedItems.length === 1 ? "item" : "items"
+        } saved from ${sourceLabels[sourceType]}.`,
       );
       await reloadEvidence(projectId);
-      setSelectedEvidenceId(evidence.id);
-      await reloadEvidenceDetail(evidence.id, mediaAsset.id);
+      if (lastSaved) {
+        setSelectedEvidenceId(lastSaved.evidence.id);
+        await reloadEvidenceDetail(
+          lastSaved.evidence.id,
+          lastSaved.mediaAsset.id,
+        );
+      }
       resetEvidenceForm();
       setErrorMessage(undefined);
     } catch (error) {
@@ -374,6 +406,7 @@ export default function CaptureScreen() {
     setTitle("");
     setCaption("");
     setNotes("");
+    setIsImportant(false);
   }
 
   function resetMediaForm() {
@@ -397,14 +430,31 @@ export default function CaptureScreen() {
     setTitle(evidence.title ?? "");
     setCaption(evidence.caption ?? "");
     setNotes(evidence.notes ?? "");
+    setIsImportant(evidence.isImportant);
   }
 
   function pickMedia(
     sourceType: Exclude<MediaSourceType, "DOCUMENT_SCAN">,
-  ): Promise<PreparedLocalMediaAsset | null> {
-    if (sourceType === "CAMERA_PHOTO") return captureCameraPhoto();
-    if (sourceType === "PHOTO_LIBRARY") return pickPhotoLibraryMedia();
-    return importLocalFile();
+  ): Promise<PreparedLocalMediaAsset[]> {
+    if (sourceType === "CAMERA_PHOTO") return pickOne(captureCameraPhoto);
+    if (sourceType === "PHOTO_LIBRARY") return pickPhotoLibraryMediaBatch();
+    return pickOne(importLocalFile);
+  }
+
+  async function pickOne(
+    pick: () => Promise<PreparedLocalMediaAsset | null>,
+  ): Promise<PreparedLocalMediaAsset[]> {
+    const media = await pick();
+    return media ? [media] : [];
+  }
+
+  function advanceFieldStage() {
+    const currentIndex = fieldCaptureStages.indexOf(category);
+    const nextIndex =
+      currentIndex === -1
+        ? 0
+        : Math.min(currentIndex + 1, fieldCaptureStages.length - 1);
+    setCategory(fieldCaptureStages[nextIndex] ?? "BEFORE");
   }
 
   function startEditingMedia(mediaAsset: MediaAsset) {
@@ -473,6 +523,79 @@ export default function CaptureScreen() {
 
       <Card>
         <SectionHeader
+          title="Field Capture"
+          detail="Sticky stage controls for fast one-handed evidence capture."
+        />
+        <View style={styles.captureStats}>
+          {fieldCaptureStages.map((stage) => (
+            <View key={stage} style={styles.captureStat}>
+              <AppText variant="small" muted>
+                {categoryLabels[stage]}
+              </AppText>
+              <AppText variant="label">{captureCounts[stage]}</AppText>
+            </View>
+          ))}
+        </View>
+        <View style={styles.inlineActions}>
+          {fieldCaptureStages.map((nextCategory) => (
+            <AppButton
+              key={nextCategory}
+              label={categoryLabels[nextCategory]}
+              variant={nextCategory === category ? "primary" : "secondary"}
+              onPress={() => setCategory(nextCategory)}
+              accessibilityLabel={`Set capture stage to ${categoryLabels[nextCategory]}`}
+            />
+          ))}
+        </View>
+        <FormField
+          label="Quick Caption"
+          value={caption}
+          onChangeText={setCaption}
+          placeholder="North wall before repair"
+        />
+        <View style={styles.inlineActions}>
+          <AppButton
+            label={isImportant ? "Important" : "Mark Important"}
+            icon={isImportant ? "star.fill" : "star"}
+            variant={isImportant ? "primary" : "secondary"}
+            onPress={() => setIsImportant((current) => !current)}
+            accessibilityLabel={
+              isImportant
+                ? "Remove important evidence mark"
+                : "Mark next evidence as important"
+            }
+          />
+        </View>
+        <View style={styles.inlineActions}>
+          <AppButton
+            label="Take Photo"
+            icon="camera.fill"
+            onPress={() => addMediaEvidence("CAMERA_PHOTO")}
+            loading={busySource === "CAMERA_PHOTO"}
+            disabled={!selectedProject || Boolean(editingEvidenceId)}
+            accessibilityLabel={`Take ${categoryLabels[category]} evidence photo`}
+          />
+          <AppButton
+            label="Import Batch"
+            icon="photo.on.rectangle"
+            variant="secondary"
+            onPress={() => addMediaEvidence("PHOTO_LIBRARY")}
+            loading={busySource === "PHOTO_LIBRARY"}
+            disabled={!selectedProject || Boolean(editingEvidenceId)}
+            accessibilityLabel="Import one or more evidence photos"
+          />
+          <AppButton
+            label="Next Stage"
+            icon="arrow.right"
+            variant="secondary"
+            onPress={advanceFieldStage}
+            accessibilityLabel="Move to the next field capture stage"
+          />
+        </View>
+      </Card>
+
+      <Card>
+        <SectionHeader
           title="Evidence Metadata"
           detail={
             editingEvidenceId
@@ -509,6 +632,19 @@ export default function CaptureScreen() {
           placeholder="Optional evidence notes"
           multiline
         />
+        <View style={styles.inlineActions}>
+          <AppButton
+            label={isImportant ? "Important" : "Mark Important"}
+            icon={isImportant ? "star.fill" : "star"}
+            variant={isImportant ? "primary" : "secondary"}
+            onPress={() => setIsImportant((current) => !current)}
+            accessibilityLabel={
+              isImportant
+                ? "Remove important evidence mark"
+                : "Mark evidence as important"
+            }
+          />
+        </View>
         <View style={styles.inlineActions}>
           <AppButton
             label={
@@ -581,6 +717,7 @@ export default function CaptureScreen() {
             <View key={item.id} style={styles.evidenceRow}>
               <View style={styles.evidenceCopy}>
                 <AppText variant="label">
+                  {item.isImportant ? "Important / " : ""}
                   {categoryLabels[item.category]} /{" "}
                   {item.title ?? "Untitled evidence"}
                 </AppText>
@@ -842,6 +979,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
+  },
+  captureStats: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  captureStat: {
+    flex: 1,
+    gap: spacing.xs,
+    minHeight: 56,
   },
   evidenceRow: {
     gap: spacing.md,

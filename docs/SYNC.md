@@ -1,8 +1,10 @@
 # Synchronization
 
 Sprint 14 establishes canonical metadata application for the core mobile
-entities. It still does not upload media bytes, return pull changes, or resolve
-conflicts.
+entities. Sprint 15 adds authenticated signed media URL preparation. Sprint 16
+adds a mobile media upload queue and important-evidence sync state. The sync
+system still does not acquire native mobile auth tokens, return pull changes, or
+resolve conflicts.
 
 ## Current Contract
 
@@ -69,9 +71,11 @@ These entity types remain rejected as unsupported until mobile workflows exist:
 - `Site`
 - `Document`
 
-Media asset sync applies metadata only. `storage_object_key` and `uploaded_at`
-remain null until signed upload URLs and private object storage writes are
-implemented.
+Media asset sync applies metadata plus cloud upload state. `storage_object_key`
+and `uploaded_at` remain null until mobile uploads the original through a signed
+private storage URL and records completion. Evidence sync includes
+`isImportant`, which controls important evidence highlighting in readiness,
+reports, and web project lists.
 
 ## Future Sync Processor
 
@@ -79,10 +83,11 @@ Later sprints should:
 
 1. Add server version checks and preserve conflicting client payloads in `sync_conflicts`.
 2. Return pull cursors and server canonical record changes.
-3. Add signed original-media upload URL issuance.
-4. Mark mobile outbox rows as synchronized only after the server response is reconciled locally.
+3. Add native Clerk mobile token acquisition.
+4. Verify object existence and MIME type after upload.
+5. Mark mobile outbox rows as synchronized only after the server response is reconciled locally.
 
-Original media upload and signed URL issuance remain separate from metadata mutation upload.
+Original media binary upload and signed URL issuance remain separate from metadata mutation upload.
 
 ## Account Provisioning
 
@@ -124,5 +129,39 @@ the Settings sync panel reports that cloud sign-in is required instead of
 pretending to sync.
 
 Sprint 13 remains mobile receipt-upload only. Sprint 14 adds server canonical
-metadata application, but still does not upload media bytes, issue signed media
-URLs, return pull changes, or resolve conflicts.
+metadata application. Sprint 15 adds signed media URL preparation. Sprint 16
+adds mobile media upload orchestration behind the existing token-provider
+boundary. The system still does not acquire native mobile auth tokens, return
+pull changes, or resolve conflicts.
+
+## Cloud Media Foundation
+
+Sprint 15 adds:
+
+- `POST /api/media/uploads/prepare`
+- `POST /api/media/uploads/complete`
+- `POST /api/media/downloads/prepare`
+
+These routes require Clerk bearer authorization and server-side organization
+membership. Object keys are generated from the internal organization ID,
+evidence item ID, media asset ID, and SHA-256. The routes return short-lived
+private object-storage URLs, not permanent public links.
+
+Mobile SQLite now tracks `storage_object_key` and `uploaded_at` on
+`media_assets`. Marking a media asset uploaded writes a durable `MediaAsset`
+update mutation into the local outbox so canonical sync can preserve the upload
+state.
+
+## Mobile Media Upload Queue
+
+Sprint 16 adds a mobile queue that:
+
+1. Finds local media assets without `storageObjectKey`.
+2. Requests `/api/media/uploads/prepare`.
+3. Uploads the original local file with a binary `PUT`.
+4. Calls `/api/media/uploads/complete`.
+5. Calls `media.markUploaded` to record private object storage state locally and
+   enqueue a sync mutation.
+
+The queue is ready for native auth integration, but the Settings screen still
+uses a token provider that returns `null` until Clerk Expo sign-in is added.

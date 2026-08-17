@@ -18,6 +18,7 @@ type EvidenceRow = {
   title: string | null;
   caption: string | null;
   notes: string | null;
+  is_important: number;
   sort_order: number;
   capture_timestamp: string;
   created_at: string;
@@ -34,6 +35,7 @@ function mapEvidence(row: EvidenceRow): EvidenceItem {
     title: row.title,
     caption: row.caption,
     notes: row.notes,
+    isImportant: row.is_important === 1,
     sortOrder: row.sort_order,
     captureTimestamp: row.capture_timestamp,
     createdAt: row.created_at,
@@ -59,6 +61,7 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
       title: normalizeOptionalText(input.title),
       caption: normalizeOptionalText(input.caption),
       notes: normalizeOptionalText(input.notes),
+      isImportant: input.isImportant ?? false,
       sortOrder: sortRow?.next_sort_order ?? 0,
       captureTimestamp: input.captureTimestamp ?? now,
       createdAt: now,
@@ -77,13 +80,14 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
             title,
             caption,
             notes,
+            is_important,
             sort_order,
             capture_timestamp,
             created_at,
             updated_at,
             deleted_at,
             sync_state
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           evidence.id,
@@ -92,6 +96,7 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
           evidence.title,
           evidence.caption,
           evidence.notes,
+          evidence.isImportant ? 1 : 0,
           evidence.sortOrder,
           evidence.captureTimestamp,
           evidence.createdAt,
@@ -143,6 +148,7 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
         input.notes === undefined
           ? existing.notes
           : normalizeOptionalText(input.notes),
+      isImportant: input.isImportant ?? existing.is_important === 1,
       captureTimestamp: input.captureTimestamp ?? existing.capture_timestamp,
       updatedAt,
       syncState: "PENDING",
@@ -156,6 +162,7 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
               title = ?,
               caption = ?,
               notes = ?,
+              is_important = ?,
               capture_timestamp = ?,
               updated_at = ?,
               sync_state = ?
@@ -166,6 +173,7 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
           evidence.title,
           evidence.caption,
           evidence.notes,
+          evidence.isImportant ? 1 : 0,
           evidence.captureTimestamp,
           evidence.updatedAt,
           evidence.syncState,
@@ -249,6 +257,7 @@ export class SqliteEvidenceRepository implements EvidenceRepository {
       documentCount: items.filter((item) => item.category === "DOCUMENT")
         .length,
       otherCount: items.filter((item) => item.category === "OTHER").length,
+      importantCount: items.filter((item) => item.isImportant).length,
       mediaAssetCount: mediaRow?.media_count ?? 0,
       missingCaptionCount: items.filter((item) => !item.caption?.trim()).length,
     };

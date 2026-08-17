@@ -1,6 +1,6 @@
 import type { LocalDatabase } from "./database";
 
-export const localDatabaseVersion = 6;
+export const localDatabaseVersion = 8;
 
 export const localMigrations = [
   {
@@ -190,6 +190,27 @@ export const localMigrations = [
         value TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+    `,
+  },
+  {
+    version: 7,
+    name: "media_asset_cloud_upload_state",
+    sql: `
+      ALTER TABLE media_assets ADD COLUMN storage_object_key TEXT;
+      ALTER TABLE media_assets ADD COLUMN uploaded_at TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_media_assets_upload_state
+        ON media_assets(storage_object_key, deleted_at, updated_at);
+    `,
+  },
+  {
+    version: 8,
+    name: "important_evidence",
+    sql: `
+      ALTER TABLE evidence_items ADD COLUMN is_important INTEGER NOT NULL DEFAULT 0;
+
+      CREATE INDEX IF NOT EXISTS idx_evidence_project_important
+        ON evidence_items(project_id, is_important, capture_timestamp);
     `,
   },
 ] as const;

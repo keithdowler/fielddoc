@@ -1,4 +1,16 @@
 import {
+  mediaDownloadPrepareRequestSchema,
+  mediaDownloadPrepareResponseSchema,
+  mediaUploadCompleteRequestSchema,
+  mediaUploadCompleteResponseSchema,
+  mediaUploadPrepareRequestSchema,
+  mediaUploadPrepareResponseSchema,
+  type MediaDownloadPrepareRequest,
+  type MediaDownloadPrepareResponse,
+  type MediaUploadCompleteRequest,
+  type MediaUploadCompleteResponse,
+  type MediaUploadPrepareRequest,
+  type MediaUploadPrepareResponse,
   syncMutationUploadRequestSchema,
   syncMutationUploadResponseSchema,
   type SyncMutationUploadRequest,
@@ -22,6 +34,15 @@ export type FieldDocApiClient = {
   uploadLocalMutations(
     input: SyncMutationUploadRequest,
   ): Promise<SyncMutationUploadResponse>;
+  prepareMediaUpload(
+    input: MediaUploadPrepareRequest,
+  ): Promise<MediaUploadPrepareResponse>;
+  completeMediaUpload(
+    input: MediaUploadCompleteRequest,
+  ): Promise<MediaUploadCompleteResponse>;
+  prepareMediaDownload(
+    input: MediaDownloadPrepareRequest,
+  ): Promise<MediaDownloadPrepareResponse>;
 };
 
 export class FieldDocApiError extends Error {
@@ -76,7 +97,82 @@ export function createFieldDocApiClient(
 
       return syncMutationUploadResponseSchema.parse(body);
     },
+
+    async prepareMediaUpload(requestInput) {
+      return postJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        path: "/api/media/uploads/prepare",
+        body: mediaUploadPrepareRequestSchema.parse(requestInput),
+        responseSchema: mediaUploadPrepareResponseSchema,
+      });
+    },
+
+    async completeMediaUpload(requestInput) {
+      return postJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        path: "/api/media/uploads/complete",
+        body: mediaUploadCompleteRequestSchema.parse(requestInput),
+        responseSchema: mediaUploadCompleteResponseSchema,
+      });
+    },
+
+    async prepareMediaDownload(requestInput) {
+      return postJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        path: "/api/media/downloads/prepare",
+        body: mediaDownloadPrepareRequestSchema.parse(requestInput),
+        responseSchema: mediaDownloadPrepareResponseSchema,
+      });
+    },
   };
+}
+
+async function postJson<TResponse>({
+  baseUrl,
+  accessToken,
+  fetchImpl,
+  path,
+  body,
+  responseSchema,
+}: {
+  baseUrl: string;
+  accessToken: string | undefined;
+  fetchImpl: (request: Request) => Promise<Response>;
+  path: string;
+  body: unknown;
+  responseSchema: z.ZodType<TResponse>;
+}): Promise<TResponse> {
+  const response = await fetchImpl(
+    new Request(new URL(path, baseUrl), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const errorBody = errorResponseSchema.safeParse(responseBody);
+    throw new FieldDocApiError(
+      errorBody.success
+        ? errorBody.data.error.message
+        : "FieldDoc API request failed.",
+      response.status,
+      errorBody.success ? errorBody.data.error.code : undefined,
+    );
+  }
+
+  return responseSchema.parse(responseBody);
 }
 
 const errorResponseSchema = z.object({
