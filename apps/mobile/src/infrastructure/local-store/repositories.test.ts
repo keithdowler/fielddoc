@@ -54,6 +54,11 @@ describe("SQLite local repositories", () => {
       }>(
         "SELECT name FROM pragma_table_info('evidence_items') WHERE name = 'is_important'",
       );
+      const localSyncConflictsTable = await database.getFirst<{
+        name: string;
+      }>(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'local_sync_conflicts'",
+      );
 
       expect(row?.version).toBe(localDatabaseVersion);
       expect(indexRow?.name).toBe("idx_media_assets_evidence");
@@ -65,6 +70,159 @@ describe("SQLite local repositories", () => {
       expect(mediaStorageColumn?.name).toBe("storage_object_key");
       expect(mediaUploadedAtColumn?.name).toBe("uploaded_at");
       expect(importantEvidenceColumn?.name).toBe("is_important");
+      expect(localSyncConflictsTable?.name).toBe("local_sync_conflicts");
+    });
+  });
+
+  it("applies pulled cloud metadata and records pull diagnostics", async () => {
+    await withRepositories(async ({ projects, evidence, media, pullSync }) => {
+      const result = await pullSync.applyChanges({
+        projects: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            customerId: null,
+            siteId: null,
+            name: "Pulled project",
+            customerCompany: "Rivergate",
+            siteAddress: "100 Main",
+            workOrderReference: null,
+            scheduledDate: null,
+            notes: null,
+            status: "active",
+            archivedAt: null,
+            createdAt: "2026-08-17T14:00:00.000Z",
+            updatedAt: "2026-08-17T14:01:00.000Z",
+            deletedAt: null,
+            serverVersion: 1,
+          },
+        ],
+        evidenceItems: [
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            projectId: "11111111-1111-4111-8111-111111111111",
+            category: "BEFORE",
+            title: "Front elevation",
+            caption: "Before work",
+            notes: null,
+            isImportant: true,
+            sortOrder: 0,
+            captureTimestamp: "2026-08-17T14:02:00.000Z",
+            createdAt: "2026-08-17T14:02:00.000Z",
+            updatedAt: "2026-08-17T14:02:00.000Z",
+            deletedAt: null,
+            serverVersion: 1,
+          },
+        ],
+        mediaAssets: [
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            evidenceItemId: "22222222-2222-4222-8222-222222222222",
+            storageObjectKey:
+              "organizations/org/evidence/item/originals/media.jpg",
+            mediaType: "IMAGE",
+            mimeType: "image/jpeg",
+            sizeBytes: 2048,
+            sha256:
+              "3a6eb0790f39ac87c94f3856b2dd2c5d110e6811602261a9a923d3bb23adc8b7",
+            width: 1200,
+            height: 800,
+            caption: "Server caption",
+            notes: null,
+            captureTimestamp: "2026-08-17T14:02:00.000Z",
+            sourceType: "CAMERA_PHOTO",
+            originalAssetId: null,
+            derivativeType: null,
+            uploadedAt: "2026-08-17T14:04:00.000Z",
+            createdAt: "2026-08-17T14:03:00.000Z",
+            updatedAt: "2026-08-17T14:04:00.000Z",
+            deletedAt: null,
+            serverVersion: 1,
+          },
+        ],
+        annotations: [],
+        documents: [],
+        reportDrafts: [],
+      });
+
+      expect(result).toEqual({
+        pulledCount: 3,
+        appliedCount: 3,
+        conflictCount: 0,
+      });
+      expect(
+        await projects.getById("11111111-1111-4111-8111-111111111111"),
+      ).toMatchObject({
+        name: "Pulled project",
+        syncState: "SYNCED",
+      });
+      expect(
+        await evidence.listByProject("11111111-1111-4111-8111-111111111111"),
+      ).toHaveLength(1);
+      expect(
+        await media.listByEvidenceItem("22222222-2222-4222-8222-222222222222"),
+      ).toMatchObject([
+        {
+          storageObjectKey:
+            "organizations/org/evidence/item/originals/media.jpg",
+          syncState: "SYNCED",
+        },
+      ]);
+    });
+  });
+
+  it("preserves local pending edits as sync conflicts during pull", async () => {
+    await withRepositories(async ({ database, projects, pullSync }) => {
+      const project = await projects.create({ name: "Local title" });
+      await projects.update(project.id, { name: "Pending local title" });
+
+      const result = await pullSync.applyChanges({
+        projects: [
+          {
+            id: project.id,
+            customerId: null,
+            siteId: null,
+            name: "Server title",
+            customerCompany: null,
+            siteAddress: null,
+            workOrderReference: null,
+            scheduledDate: null,
+            notes: null,
+            status: "active",
+            archivedAt: null,
+            createdAt: project.createdAt,
+            updatedAt: "2026-08-17T15:00:00.000Z",
+            deletedAt: null,
+            serverVersion: 2,
+          },
+        ],
+        evidenceItems: [],
+        mediaAssets: [],
+        annotations: [],
+        documents: [],
+        reportDrafts: [],
+      });
+
+      const current = await projects.getById(project.id);
+      const conflictCount = await pullSync.countUnresolvedConflicts();
+      const conflict = await database.getFirst<{
+        entity_type: string;
+        entity_id: string;
+      }>("SELECT entity_type, entity_id FROM local_sync_conflicts LIMIT 1");
+
+      expect(result).toEqual({
+        pulledCount: 1,
+        appliedCount: 0,
+        conflictCount: 1,
+      });
+      expect(current).toMatchObject({
+        name: "Pending local title",
+        syncState: "CONFLICT",
+      });
+      expect(conflictCount).toBe(1);
+      expect(conflict).toEqual({
+        entity_type: "Project",
+        entity_id: project.id,
+      });
     });
   });
 

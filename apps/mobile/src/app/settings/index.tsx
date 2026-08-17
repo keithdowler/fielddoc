@@ -21,6 +21,10 @@ import {
   type MobileSyncResult,
 } from "@/infrastructure/sync/mobile-outbox-sync";
 import {
+  runMobilePullSync,
+  type MobilePullSyncResult,
+} from "@/infrastructure/sync/mobile-pull-sync";
+import {
   runMobileMediaUpload,
   type MobileMediaUploadResult,
 } from "@/infrastructure/sync/mobile-media-upload";
@@ -52,7 +56,10 @@ export default function SettingsScreen() {
   const [uploadingReports, setUploadingReports] = useState(false);
   const [cloudSyncResult, setCloudSyncResult] =
     useState<MobileCloudSyncResult | null>(null);
+  const [pullSyncResult, setPullSyncResult] =
+    useState<MobilePullSyncResult | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
+  const [pullingChanges, setPullingChanges] = useState(false);
   const [authActionResult, setAuthActionResult] = useState<{
     status: "success" | "canceled" | "failed";
     message: string;
@@ -121,6 +128,22 @@ export default function SettingsScreen() {
       setReportUploadResult(result.reports);
     } finally {
       setSyncingAll(false);
+    }
+  }, [mobileAuth]);
+
+  const downloadCloudChanges = useCallback(async () => {
+    setPullingChanges(true);
+
+    try {
+      const repositories = await getLocalRepositories();
+      const result = await runMobilePullSync({
+        repositories,
+        tokenProvider: mobileAuth,
+      });
+
+      setPullSyncResult(result);
+    } finally {
+      setPullingChanges(false);
     }
   }, [mobileAuth]);
 
@@ -251,6 +274,47 @@ export default function SettingsScreen() {
           accessibilityLabel="Upload pending local metadata changes"
           onPress={uploadPendingMetadata}
           disabled={syncing || syncingAll || !mobileAuth.isSignedIn}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="Download Cloud Changes"
+          detail="Pulls tenant-scoped canonical metadata into local storage."
+        />
+        {pullSyncResult ? (
+          <StatusBanner
+            tone={statusToneByPullStatus[pullSyncResult.status]}
+            title={statusTitleByPullStatus[pullSyncResult.status]}
+            message={pullSyncResult.message}
+          />
+        ) : (
+          <AppText muted>
+            Use this after signing in on a new device or after another device
+            uploads project metadata.
+          </AppText>
+        )}
+        {pullSyncResult ? (
+          <View style={styles.metrics}>
+            <AppText variant="small" muted>
+              Pulled {pullSyncResult.pulledCount} | applied{" "}
+              {pullSyncResult.appliedCount} | conflicts{" "}
+              {pullSyncResult.conflictCount} | unresolved{" "}
+              {pullSyncResult.unresolvedConflictCount}
+            </AppText>
+            <AppText variant="small" muted>
+              Last pull {pullSyncResult.lastPulledAt ?? "never"} | cursor{" "}
+              {pullSyncResult.cursor ?? "none"}
+            </AppText>
+          </View>
+        ) : null}
+        <AppButton
+          label={pullingChanges ? "Downloading..." : "Download Cloud Changes"}
+          icon="icloud.and.arrow.down"
+          accessibilityLabel="Download cloud metadata changes"
+          onPress={downloadCloudChanges}
+          disabled={pullingChanges || syncingAll || !mobileAuth.isSignedIn}
+          loading={pullingChanges}
         />
       </Card>
 
@@ -437,4 +501,22 @@ const statusTitleByCloudStatus = {
   success: "Cloud upload complete",
   partial: "Some changes need attention",
   failed: "Cloud upload failed",
+} as const;
+
+const statusToneByPullStatus = {
+  not_configured: "warning",
+  auth_required: "warning",
+  idle: "info",
+  success: "success",
+  partial: "warning",
+  failed: "error",
+} as const;
+
+const statusTitleByPullStatus = {
+  not_configured: "Download not configured",
+  auth_required: "Cloud sign-in required",
+  idle: "Nothing to download",
+  success: "Cloud changes downloaded",
+  partial: "Conflicts need review",
+  failed: "Download failed",
 } as const;

@@ -1,6 +1,6 @@
 import type { LocalDatabase } from "./database";
 
-export const localDatabaseVersion = 9;
+export const localDatabaseVersion = 10;
 
 export const localMigrations = [
   {
@@ -224,6 +224,24 @@ export const localMigrations = [
 
       CREATE INDEX IF NOT EXISTS idx_report_drafts_pdf_upload_state
         ON report_drafts(generated_pdf_uri, generated_pdf_uploaded_at, deleted_at, updated_at);
+    `,
+  },
+  {
+    version: 10,
+    name: "local_sync_conflicts",
+    sql: `
+      CREATE TABLE IF NOT EXISTS local_sync_conflicts (
+        id TEXT PRIMARY KEY,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        local_payload_json TEXT NOT NULL,
+        server_payload_json TEXT NOT NULL,
+        detected_at TEXT NOT NULL,
+        resolved_at TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_local_sync_conflicts_entity
+        ON local_sync_conflicts(entity_type, entity_id, resolved_at);
     `,
   },
 ] as const;

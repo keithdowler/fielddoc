@@ -264,3 +264,19 @@ private storage URLs and increment access counts. This keeps PDF artifacts out
 of Postgres, avoids public bucket URLs, and gives FieldDoc a durable report
 version boundary before adding custom branding, customer-facing landing pages,
 or detailed audit-event streams.
+
+### ADR 0027: Pull Reconciliation Before Automatic Background Sync
+
+Status: Accepted
+
+Sprint 22 adds explicit, user-triggered pull reconciliation before automatic
+background sync. The web app exposes an authenticated `/api/sync/pull` route
+that resolves Clerk user and organization membership, reads tenant-scoped
+canonical metadata from Neon/Postgres, and returns project, evidence, media,
+annotation, document, and report draft changes updated after the mobile
+cursor. Mobile applies those records to SQLite through infrastructure
+repositories only, stores cursor diagnostics in `sync_client_state`, and
+preserves pending local edits by marking rows `CONFLICT` and writing
+`local_sync_conflicts` entries. The first cursor is timestamp-based; high-volume
+production sync should upgrade to a stable `(updatedAt, id)` tuple cursor and
+add user-facing conflict resolution.

@@ -157,3 +157,16 @@ confirm the report PDF upload count succeeds, refresh web Reports, download the
 PDF from the authenticated web route, create a share link through the API route
 or a later UI, and confirm the share URL redirects to a short-lived private
 storage URL.
+
+## Sprint 22 Pull Reconciliation Tests
+
+Sprint 22 adds unit coverage for the sync pull API client method, authenticated
+pull route behavior, server-side membership enforcement, local SQLite pull
+application, local conflict preservation, pull cursor diagnostics, and mobile
+pull orchestration auth/config states.
+
+Manual coverage should sign into mobile, upload pending changes, tap Download
+Cloud Changes in Settings, confirm no changes are waiting, then sign into a
+fresh simulator/device and tap Download Cloud Changes to confirm canonical
+project metadata appears locally. Conflict review remains future UI work; tests
+verify conflicting local rows are preserved and marked `CONFLICT`.

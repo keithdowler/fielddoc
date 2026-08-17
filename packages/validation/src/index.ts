@@ -85,6 +85,102 @@ export const syncMutationUploadResponseSchema = z.object({
   pullCursor: z.string().trim().min(1).nullable(),
 });
 
+const canonicalBaseSchema = z.object({
+  id: uuidSchema,
+  createdAt: isoDateTimeSchema,
+  updatedAt: isoDateTimeSchema,
+  deletedAt: isoDateTimeSchema.nullable(),
+  serverVersion: z.number().int().positive(),
+});
+
+export const syncPullProjectSchema = canonicalBaseSchema.extend({
+  customerId: uuidSchema.nullable(),
+  siteId: uuidSchema.nullable(),
+  name: z.string().trim().min(1),
+  customerCompany: z.string().nullable(),
+  siteAddress: z.string().nullable(),
+  workOrderReference: z.string().nullable(),
+  scheduledDate: z.string().nullable(),
+  notes: z.string().nullable(),
+  status: projectStatusSchema,
+  archivedAt: isoDateTimeSchema.nullable(),
+});
+
+export const syncPullEvidenceItemSchema = canonicalBaseSchema.extend({
+  projectId: uuidSchema,
+  category: evidenceCategorySchema,
+  title: z.string().nullable(),
+  caption: z.string().nullable(),
+  notes: z.string().nullable(),
+  isImportant: z.boolean(),
+  sortOrder: z.number().int(),
+  captureTimestamp: isoDateTimeSchema,
+});
+
+export const syncPullMediaAssetSchema = canonicalBaseSchema.extend({
+  evidenceItemId: uuidSchema,
+  storageObjectKey: z.string().nullable(),
+  mediaType: z.enum(["IMAGE", "VIDEO", "DOCUMENT", "OTHER"]),
+  mimeType: z.string().trim().min(1),
+  sizeBytes: z.number().int().nonnegative(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  width: z.number().int().nonnegative().nullable(),
+  height: z.number().int().nonnegative().nullable(),
+  caption: z.string().nullable(),
+  notes: z.string().nullable(),
+  captureTimestamp: isoDateTimeSchema,
+  sourceType: z.enum(mediaSourceTypes),
+  originalAssetId: z.string().nullable(),
+  derivativeType: z.string().nullable(),
+  uploadedAt: isoDateTimeSchema.nullable(),
+});
+
+export const syncPullAnnotationSchema = canonicalBaseSchema.extend({
+  evidenceItemId: uuidSchema,
+  mediaAssetId: uuidSchema.nullable(),
+  body: z.string().trim().min(1),
+});
+
+export const syncPullDocumentSchema = canonicalBaseSchema.extend({
+  projectId: uuidSchema,
+  evidenceItemId: uuidSchema.nullable(),
+  title: z.string().trim().min(1),
+  notes: z.string().nullable(),
+});
+
+export const syncPullReportDraftSchema = canonicalBaseSchema.extend({
+  projectId: uuidSchema,
+  title: z.string().trim().min(1),
+  notes: z.string().nullable(),
+  sectionsJson: z.string().trim().min(1),
+  status: z.string().trim().min(1),
+  generatedPdfObjectKey: z.string().nullable(),
+  generatedAt: isoDateTimeSchema.nullable(),
+});
+
+export const syncPullChangesSchema = z.object({
+  projects: z.array(syncPullProjectSchema),
+  evidenceItems: z.array(syncPullEvidenceItemSchema),
+  mediaAssets: z.array(syncPullMediaAssetSchema),
+  annotations: z.array(syncPullAnnotationSchema),
+  documents: z.array(syncPullDocumentSchema),
+  reportDrafts: z.array(syncPullReportDraftSchema),
+});
+
+export const syncPullRequestSchema = z.object({
+  clientId: z.string().trim().min(1),
+  deviceId: z.string().trim().min(1),
+  cursor: z.string().trim().min(1).nullable(),
+  limit: z.number().int().min(1).max(500).optional(),
+});
+
+export const syncPullResponseSchema = z.object({
+  serverTime: isoDateTimeSchema,
+  cursor: z.string().trim().min(1).nullable(),
+  hasMore: z.boolean(),
+  changes: syncPullChangesSchema,
+});
+
 export const mediaUploadPrepareRequestSchema = z.object({
   mediaAssetId: uuidSchema,
   evidenceItemId: uuidSchema,
@@ -198,6 +294,15 @@ export type SyncMutationUploadRequest = z.infer<
 export type SyncMutationUploadResponse = z.infer<
   typeof syncMutationUploadResponseSchema
 >;
+export type SyncPullProject = z.infer<typeof syncPullProjectSchema>;
+export type SyncPullEvidenceItem = z.infer<typeof syncPullEvidenceItemSchema>;
+export type SyncPullMediaAsset = z.infer<typeof syncPullMediaAssetSchema>;
+export type SyncPullAnnotation = z.infer<typeof syncPullAnnotationSchema>;
+export type SyncPullDocument = z.infer<typeof syncPullDocumentSchema>;
+export type SyncPullReportDraft = z.infer<typeof syncPullReportDraftSchema>;
+export type SyncPullChanges = z.infer<typeof syncPullChangesSchema>;
+export type SyncPullRequest = z.infer<typeof syncPullRequestSchema>;
+export type SyncPullResponse = z.infer<typeof syncPullResponseSchema>;
 export type MediaUploadPrepareRequest = z.infer<
   typeof mediaUploadPrepareRequestSchema
 >;

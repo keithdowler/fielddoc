@@ -13,6 +13,8 @@ import {
   reportPdfUploadPrepareResponseSchema,
   reportShareLinkCreateRequestSchema,
   reportShareLinkCreateResponseSchema,
+  syncPullRequestSchema,
+  syncPullResponseSchema,
   type MediaDownloadPrepareRequest,
   type MediaDownloadPrepareResponse,
   type MediaUploadCompleteRequest,
@@ -27,6 +29,8 @@ import {
   type ReportPdfUploadPrepareResponse,
   type ReportShareLinkCreateRequest,
   type ReportShareLinkCreateResponse,
+  type SyncPullRequest,
+  type SyncPullResponse,
   syncMutationUploadRequestSchema,
   syncMutationUploadResponseSchema,
   type SyncMutationUploadRequest,
@@ -50,6 +54,7 @@ export type FieldDocApiClient = {
   uploadLocalMutations(
     input: SyncMutationUploadRequest,
   ): Promise<SyncMutationUploadResponse>;
+  pullSyncChanges(input: SyncPullRequest): Promise<SyncPullResponse>;
   prepareMediaUpload(
     input: MediaUploadPrepareRequest,
   ): Promise<MediaUploadPrepareResponse>;
@@ -124,6 +129,17 @@ export function createFieldDocApiClient(
       }
 
       return syncMutationUploadResponseSchema.parse(body);
+    },
+
+    async pullSyncChanges(requestInput) {
+      return postJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        path: "/api/sync/pull",
+        body: syncPullRequestSchema.parse(requestInput),
+        responseSchema: syncPullResponseSchema,
+      });
     },
 
     async prepareMediaUpload(requestInput) {

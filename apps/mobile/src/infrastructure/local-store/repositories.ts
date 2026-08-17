@@ -5,6 +5,7 @@ import { SqliteEvidenceRepository } from "./evidence";
 import { SqliteLocalMutationRepository } from "./mutations";
 import { SqliteMediaAssetRepository } from "./media-assets";
 import { SqliteProjectRepository } from "./projects";
+import { SqlitePullSyncRepository } from "./pull-sync";
 import { SqliteReportDraftRepository } from "./report-drafts";
 import { SqliteSyncClientStateRepository } from "./sync-client-state";
 
@@ -17,6 +18,7 @@ export type LocalRepositories = {
   reportDrafts: SqliteReportDraftRepository;
   mutations: SqliteLocalMutationRepository;
   syncClientState: SqliteSyncClientStateRepository;
+  pullSync: SqlitePullSyncRepository;
 };
 
 let repositoriesPromise: Promise<LocalRepositories> | undefined;
@@ -35,6 +37,7 @@ export async function createLocalRepositories(
     reportDrafts: new SqliteReportDraftRepository(database),
     mutations: new SqliteLocalMutationRepository(database),
     syncClientState: new SqliteSyncClientStateRepository(database),
+    pullSync: new SqlitePullSyncRepository(database),
   };
 }
 

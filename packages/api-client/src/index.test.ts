@@ -80,6 +80,59 @@ describe("createFieldDocApiClient", () => {
     ]);
   });
 
+  it("pulls canonical sync changes through the sync pull route", async () => {
+    const requests: Request[] = [];
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      accessToken: "token",
+      fetchImpl: async (request) => {
+        requests.push(request);
+        return Response.json({
+          serverTime: "2026-08-17T15:00:00.000Z",
+          cursor: "2026-08-17T14:59:59.000Z",
+          hasMore: false,
+          changes: {
+            projects: [
+              {
+                id: "11111111-1111-4111-8111-111111111111",
+                customerId: null,
+                siteId: null,
+                name: "Synced project",
+                customerCompany: null,
+                siteAddress: null,
+                workOrderReference: null,
+                scheduledDate: null,
+                notes: null,
+                status: "active",
+                archivedAt: null,
+                createdAt: "2026-08-17T14:00:00.000Z",
+                updatedAt: "2026-08-17T14:59:59.000Z",
+                deletedAt: null,
+                serverVersion: 2,
+              },
+            ],
+            evidenceItems: [],
+            mediaAssets: [],
+            annotations: [],
+            documents: [],
+            reportDrafts: [],
+          },
+        });
+      },
+    });
+
+    const response = await client.pullSyncChanges({
+      clientId: "fielddoc-mobile",
+      deviceId: "device-1",
+      cursor: null,
+      limit: 250,
+    });
+
+    expect(requests[0]?.url).toBe("https://example.test/api/sync/pull");
+    expect(requests[0]?.headers.get("authorization")).toBe("Bearer token");
+    expect(response.changes.projects[0]?.name).toBe("Synced project");
+  });
+
   it("throws typed API errors for rejected sync uploads", async () => {
     const client = createFieldDocApiClient({
       baseUrl: "https://example.test",
