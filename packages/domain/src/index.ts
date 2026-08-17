@@ -1037,6 +1037,10 @@ export type UpdateMediaAssetMetadataInput = {
   notes?: string;
 };
 
+export type ReplaceMediaAssetInput = CreateMediaAssetInput & {
+  replacedMediaAssetId: string;
+};
+
 export type MarkMediaAssetUploadedInput = {
   storageObjectKey: string;
   uploadedAt: string;
@@ -1111,6 +1115,10 @@ export interface MediaAssetRepository {
     id: string,
     input: MarkMediaAssetUploadedInput,
   ): Promise<MediaAsset>;
+  replace(input: ReplaceMediaAssetInput): Promise<{
+    replacement: MediaAsset;
+    replaced: MediaAsset;
+  }>;
   listByEvidenceItem(
     evidenceItemId: string,
     options?: { includeDeleted?: boolean },

@@ -487,6 +487,71 @@ describe("SQLite local repositories", () => {
     });
   });
 
+  it("replaces media assets while preserving the original record", async () => {
+    await withRepositories(async ({ projects, evidence, media, mutations }) => {
+      const project = await projects.create({ name: "Replacement project" });
+      const item = await evidence.create({
+        projectId: project.id,
+        category: "WORK",
+        caption: "Original installation photo",
+      });
+      const original = await media.create({
+        evidenceItemId: item.id,
+        localUri: "file:///fielddoc/evidence-originals/bad.jpg",
+        mediaType: "IMAGE",
+        mimeType: "image/jpeg",
+        sizeBytes: 1024,
+        sha256:
+          "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        sourceType: "CAMERA_PHOTO",
+        caption: "Blurry photo",
+      });
+
+      const { replaced, replacement } = await media.replace({
+        replacedMediaAssetId: original.id,
+        evidenceItemId: item.id,
+        localUri: "file:///fielddoc/evidence-originals/clear.jpg",
+        mediaType: "IMAGE",
+        mimeType: "image/jpeg",
+        sizeBytes: 2048,
+        sha256:
+          "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7",
+        sourceType: "CAMERA_PHOTO",
+        caption: "Clear replacement photo",
+      });
+
+      const active = await media.listByEvidenceItem(item.id);
+      const history = await media.listByEvidenceItem(item.id, {
+        includeDeleted: true,
+      });
+      const pending = await mutations.listPending();
+
+      expect(replaced.id).toBe(original.id);
+      expect(replaced.deletedAt).toBeTruthy();
+      expect(replaced.sha256).toBe(original.sha256);
+      expect(replacement.originalAssetId).toBe(original.id);
+      expect(replacement.derivativeType).toBe("REPLACEMENT");
+      expect(replacement.sha256).not.toBe(original.sha256);
+      expect(active.map((asset) => asset.id)).toEqual([replacement.id]);
+      expect(history.map((asset) => asset.id)).toEqual([
+        replacement.id,
+        original.id,
+      ]);
+      expect(pending.slice(-2)).toMatchObject([
+        {
+          entityType: "MediaAsset",
+          entityId: original.id,
+          operation: "DELETE",
+        },
+        {
+          entityType: "MediaAsset",
+          entityId: replacement.id,
+          operation: "CREATE",
+        },
+      ]);
+    });
+  });
+
   it("stores and restores non-destructive annotations", async () => {
     await withRepositories(
       async ({ projects, evidence, media, annotations, mutations }) => {

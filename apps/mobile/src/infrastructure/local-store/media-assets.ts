@@ -3,6 +3,7 @@ import {
   type MarkMediaAssetUploadedInput,
   type MediaAsset,
   type MediaAssetRepository,
+  type ReplaceMediaAssetInput,
   type SyncState,
   type UpdateMediaAssetMetadataInput,
   normalizeOptionalText,
@@ -213,6 +214,142 @@ export class SqliteMediaAssetRepository implements MediaAssetRepository {
     });
 
     return mediaAsset;
+  }
+
+  async replace(input: ReplaceMediaAssetInput): Promise<{
+    replacement: MediaAsset;
+    replaced: MediaAsset;
+  }> {
+    const existing = await this.database.getFirst<MediaAssetRow>(
+      "SELECT * FROM media_assets WHERE id = ? AND deleted_at IS NULL",
+      [input.replacedMediaAssetId],
+    );
+
+    if (!existing) {
+      throw new Error("Media asset not found.");
+    }
+
+    if (existing.evidence_item_id !== input.evidenceItemId) {
+      throw new Error("Replacement must belong to the same evidence item.");
+    }
+
+    const now = new Date().toISOString();
+    const replaced: MediaAsset = {
+      ...mapMediaAsset(existing),
+      deletedAt: now,
+      updatedAt: now,
+      syncState: "PENDING",
+    };
+    const replacement: MediaAsset = {
+      id: createLocalId("media"),
+      evidenceItemId: input.evidenceItemId,
+      localUri: input.localUri,
+      storageObjectKey: null,
+      mediaType: input.mediaType,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      sha256: input.sha256,
+      width: input.width ?? null,
+      height: input.height ?? null,
+      caption: normalizeOptionalText(input.caption),
+      notes: normalizeOptionalText(input.notes),
+      captureTimestamp: input.captureTimestamp ?? now,
+      sourceType: input.sourceType,
+      originalAssetId: input.originalAssetId ?? input.replacedMediaAssetId,
+      derivativeType: input.derivativeType ?? "REPLACEMENT",
+      uploadedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      syncState: "PENDING",
+    };
+
+    await this.database.transaction(async (tx) => {
+      await tx.run(
+        "UPDATE media_assets SET deleted_at = ?, updated_at = ?, sync_state = ? WHERE id = ? AND deleted_at IS NULL",
+        [
+          replaced.deletedAt,
+          replaced.updatedAt,
+          replaced.syncState,
+          replaced.id,
+        ],
+      );
+      await tx.run(
+        `
+          INSERT INTO media_assets (
+            id,
+            evidence_item_id,
+            local_uri,
+            storage_object_key,
+            media_type,
+            mime_type,
+            size_bytes,
+            sha256,
+            width,
+            height,
+            caption,
+            notes,
+            capture_timestamp,
+            source_type,
+            original_asset_id,
+            derivative_type,
+            uploaded_at,
+            created_at,
+            updated_at,
+            deleted_at,
+            sync_state
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          replacement.id,
+          replacement.evidenceItemId,
+          replacement.localUri,
+          replacement.storageObjectKey,
+          replacement.mediaType,
+          replacement.mimeType,
+          replacement.sizeBytes,
+          replacement.sha256,
+          replacement.width,
+          replacement.height,
+          replacement.caption,
+          replacement.notes,
+          replacement.captureTimestamp,
+          replacement.sourceType,
+          replacement.originalAssetId,
+          replacement.derivativeType,
+          replacement.uploadedAt,
+          replacement.createdAt,
+          replacement.updatedAt,
+          replacement.deletedAt,
+          replacement.syncState,
+        ],
+      );
+      const mutations = new SqliteLocalMutationRepository(tx);
+      await mutations.enqueue({
+        mutationId: `media:${replaced.id}:replace-delete:${now}`,
+        entityType: "MediaAsset",
+        entityId: replaced.id,
+        operation: "DELETE",
+        payloadRef: now,
+        payloadJson: JSON.stringify({
+          id: replaced.id,
+          deletedAt: now,
+          replacedByMediaAssetId: replacement.id,
+        }),
+        createdAt: now,
+      });
+      await mutations.enqueue({
+        mutationId: `media:${replacement.id}:replacement-create:${now}`,
+        entityType: "MediaAsset",
+        entityId: replacement.id,
+        operation: "CREATE",
+        payloadRef: replacement.updatedAt,
+        payloadJson: JSON.stringify(replacement),
+        createdAt: now,
+      });
+    });
+
+    return { replacement, replaced };
   }
 
   async updateMetadata(

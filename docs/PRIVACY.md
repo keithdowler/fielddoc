@@ -34,3 +34,11 @@ IDs, entitlement IDs, store/environment values, and transaction identifiers.
 They must not be sent to analytics or exposed to other tenants. Mobile uses
 public RevenueCat keys only; server-side webhook secrets and app-store billing
 credentials are not client data.
+
+Sprint 25 adds local privacy controls. Export My Data creates a JSON archive of
+local metadata tables only; it does not bundle original media files or generated
+PDFs. Delete Local Device Data clears local metadata tables, sync state, queued
+mutations, evidence-original files, and generated PDFs from the current device.
+It is not a cloud account deletion workflow and must not be represented as one
+until server-side account export/deletion, retention, and authorization policy
+are implemented.

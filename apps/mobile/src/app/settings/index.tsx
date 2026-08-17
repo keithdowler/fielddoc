@@ -35,16 +35,10 @@ import {
 } from "@/infrastructure/sync/mobile-report-upload";
 import { useRevenueCatEntitlements } from "@/infrastructure/revenuecat/revenuecat";
 import { getRevenueCatStatusCopy } from "@/infrastructure/revenuecat/revenuecat-state";
-
-const settingsSections = [
-  "Profile",
-  "Cloud Backup",
-  "Default Report Branding",
-  "Privacy",
-  "Export My Data",
-  "Delete Account",
-  "Diagnostics",
-] as const;
+import {
+  deleteLocalDeviceData,
+  exportLocalData,
+} from "@/infrastructure/privacy/local-privacy";
 
 export default function SettingsScreen() {
   const mobileAuth = useMobileAuth();
@@ -70,7 +64,14 @@ export default function SettingsScreen() {
     status: "success" | "canceled" | "failed";
     message: string;
   } | null>(null);
+  const [privacyActionResult, setPrivacyActionResult] = useState<{
+    status: "success" | "failed";
+    message: string;
+  } | null>(null);
   const [authActionRunning, setAuthActionRunning] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+  const [deletingLocalData, setDeletingLocalData] = useState(false);
+  const [deleteLocalDataArmed, setDeleteLocalDataArmed] = useState(false);
 
   const authStatusCopy = getMobileAuthStatusCopy(mobileAuth.status);
   const revenueCat = useRevenueCatEntitlements({
@@ -182,12 +183,66 @@ export default function SettingsScreen() {
     }
   }, [mobileAuth]);
 
+  const exportDeviceData = useCallback(async () => {
+    setExportingData(true);
+
+    try {
+      const repositories = await getLocalRepositories();
+      const result = await exportLocalData({
+        database: repositories.database,
+      });
+
+      setPrivacyActionResult({
+        status: result.status,
+        message: result.localUri
+          ? `${result.message} Saved at ${result.localUri}`
+          : result.message,
+      });
+    } finally {
+      setExportingData(false);
+    }
+  }, []);
+
+  const deleteDeviceData = useCallback(async () => {
+    if (!deleteLocalDataArmed) {
+      setDeleteLocalDataArmed(true);
+      setPrivacyActionResult({
+        status: "failed",
+        message:
+          "Press Delete Local Device Data again to confirm. This does not delete cloud account data.",
+      });
+      return;
+    }
+
+    setDeletingLocalData(true);
+
+    try {
+      const repositories = await getLocalRepositories();
+      const result = await deleteLocalDeviceData({
+        database: repositories.database,
+      });
+
+      setPrivacyActionResult({
+        status: result.status,
+        message: `${result.message} Rows removed: ${result.deletedRows}.`,
+      });
+      setDeleteLocalDataArmed(false);
+      setSyncResult(null);
+      setMediaUploadResult(null);
+      setReportUploadResult(null);
+      setCloudSyncResult(null);
+      setPullSyncResult(null);
+    } finally {
+      setDeletingLocalData(false);
+    }
+  }, [deleteLocalDataArmed]);
+
   return (
     <AppScreen>
       <View>
         <AppText variant="hero">Settings</AppText>
         <AppText muted>
-          Operational controls and privacy settings placeholders.
+          Operational controls, privacy actions, and production readiness.
         </AppText>
       </View>
 
@@ -467,22 +522,105 @@ export default function SettingsScreen() {
       </Card>
 
       <Card>
-        <SectionHeader title="Account & Workspace" />
-        {settingsSections.map((section) => (
-          <View key={section} style={styles.row}>
-            <View style={styles.copy}>
-              <AppText variant="label">{section}</AppText>
-              <AppText variant="small" muted>
-                Placeholder
-              </AppText>
-            </View>
-            <AppButton
-              label="Open"
-              variant={section === "Delete Account" ? "danger" : "secondary"}
-              accessibilityLabel={`Open ${section}`}
-            />
+        <SectionHeader
+          title="Privacy"
+          detail="Local-first controls for data portability and device cleanup."
+        />
+        {privacyActionResult ? (
+          <StatusBanner
+            tone={
+              privacyActionResult.status === "success" ? "success" : "warning"
+            }
+            title={
+              privacyActionResult.status === "success"
+                ? "Privacy action complete"
+                : "Confirm action"
+            }
+            message={privacyActionResult.message}
+          />
+        ) : (
+          <AppText muted>
+            FieldDoc keeps originals and report PDFs in app-owned storage until
+            you explicitly upload or remove them.
+          </AppText>
+        )}
+        <View style={styles.row}>
+          <View style={styles.copy}>
+            <AppText variant="label">Export My Data</AppText>
+            <AppText variant="small" muted>
+              Creates a JSON archive of local metadata. Original files are not
+              bundled into the archive.
+            </AppText>
           </View>
-        ))}
+          <AppButton
+            label={exportingData ? "Exporting" : "Export"}
+            icon="square.and.arrow.up"
+            variant="secondary"
+            accessibilityLabel="Export local FieldDoc metadata"
+            onPress={exportDeviceData}
+            disabled={exportingData || deletingLocalData}
+            loading={exportingData}
+          />
+        </View>
+        <View style={styles.row}>
+          <View style={styles.copy}>
+            <AppText variant="label">Delete Local Device Data</AppText>
+            <AppText variant="small" muted>
+              Removes local projects, evidence metadata, originals, generated
+              PDFs, queued mutations, and sync state from this device only.
+            </AppText>
+          </View>
+          <AppButton
+            label={deleteLocalDataArmed ? "Confirm Delete" : "Delete Local"}
+            icon="trash"
+            variant="danger"
+            accessibilityLabel="Delete local FieldDoc data from this device"
+            onPress={deleteDeviceData}
+            disabled={exportingData || deletingLocalData}
+            loading={deletingLocalData}
+          />
+        </View>
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="Workspace Controls"
+          detail="Production controls that are partially wired or awaiting a future sprint."
+        />
+        <View style={styles.row}>
+          <View style={styles.copy}>
+            <AppText variant="label">Profile</AppText>
+            <AppText variant="small" muted>
+              Cloud identity is managed by Clerk sign-in and sign-out above.
+            </AppText>
+          </View>
+        </View>
+        <View style={styles.row}>
+          <View style={styles.copy}>
+            <AppText variant="label">Default Report Branding</AppText>
+            <AppText variant="small" muted>
+              Not yet editable. Generated Proof Packets use the configured
+              product name.
+            </AppText>
+          </View>
+        </View>
+        <View style={styles.row}>
+          <View style={styles.copy}>
+            <AppText variant="label">Delete Cloud Account</AppText>
+            <AppText variant="small" muted>
+              Not yet implemented. Current delete control is device-local only.
+            </AppText>
+          </View>
+        </View>
+        <View style={styles.row}>
+          <View style={styles.copy}>
+            <AppText variant="label">Diagnostics</AppText>
+            <AppText variant="small" muted>
+              Use sync result cards above for upload, download, subscription,
+              and authentication diagnostics.
+            </AppText>
+          </View>
+        </View>
       </Card>
     </AppScreen>
   );

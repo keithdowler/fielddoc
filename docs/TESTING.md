@@ -199,3 +199,17 @@ cloud upload controls remain disabled until RevenueCat reports `fielddoc_pro`
 active. Server coverage requires applying migration
 `0006_revenuecat_entitlements.sql`, setting `REVENUECAT_WEBHOOK_SECRET`, adding
 the webhook URL in RevenueCat, and sending a signed test event.
+
+## Sprint 25 Evidence Replacement And Local Privacy Tests
+
+Sprint 25 adds repository coverage for retake/replace behavior. The tests assert
+that the replaced media asset is soft-deleted, immutable original metadata
+remains intact, the replacement records `originalAssetId` and
+`derivativeType: "REPLACEMENT"`, and local outbox delete/create mutations are
+queued.
+
+Local privacy tests cover metadata-only JSON export and local device database
+clearing while preserving schema migrations. Manual coverage should export local
+data from Settings, confirm the native share sheet opens with a JSON archive,
+then use Delete Local Device Data on a simulator seeded with disposable data and
+confirm projects/evidence disappear after navigating away and back.

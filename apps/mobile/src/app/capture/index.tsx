@@ -23,6 +23,7 @@ import { spacing } from "@/design/tokens";
 import {
   captureCameraPhoto,
   importLocalFile,
+  pickPhotoLibraryMedia,
   pickPhotoLibraryMediaBatch,
   type PreparedLocalMediaAsset,
 } from "@/infrastructure/media/local-media";
@@ -362,6 +363,49 @@ export default function CaptureScreen() {
     setStatusMessage("Media asset restored locally.");
   }
 
+  async function replaceMediaAsset(
+    mediaAsset: MediaAsset,
+    sourceType: Exclude<MediaSourceType, "DOCUMENT_SCAN">,
+  ) {
+    if (!selectedEvidenceId || !projectId) return;
+
+    try {
+      setBusySource(sourceType);
+      const preparedMedia = await pickReplacementMedia(sourceType);
+
+      if (!preparedMedia) {
+        setStatusMessage("Replacement selection canceled.");
+        setErrorMessage(undefined);
+        return;
+      }
+
+      const repositories = await getLocalRepositories();
+      const result = await repositories.media.replace({
+        replacedMediaAssetId: mediaAsset.id,
+        evidenceItemId: selectedEvidenceId,
+        ...preparedMedia,
+        caption:
+          mediaAsset.caption ??
+          selectedEvidence?.caption ??
+          preparedMedia.displayName,
+        notes: mediaAsset.notes ?? undefined,
+      });
+
+      await reloadEvidenceDetail(selectedEvidenceId, result.replacement.id);
+      await reloadEvidence(projectId);
+      setStatusMessage(
+        "Replacement saved. The previous original was preserved in local history.",
+      );
+      setErrorMessage(undefined);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Replacement was not saved.",
+      );
+    } finally {
+      setBusySource(undefined);
+    }
+  }
+
   async function saveAnnotation() {
     if (!selectedEvidenceId) return;
 
@@ -446,6 +490,14 @@ export default function CaptureScreen() {
   ): Promise<PreparedLocalMediaAsset[]> {
     const media = await pick();
     return media ? [media] : [];
+  }
+
+  function pickReplacementMedia(
+    sourceType: Exclude<MediaSourceType, "DOCUMENT_SCAN">,
+  ): Promise<PreparedLocalMediaAsset | null> {
+    if (sourceType === "CAMERA_PHOTO") return captureCameraPhoto();
+    if (sourceType === "PHOTO_LIBRARY") return pickPhotoLibraryMedia();
+    return importLocalFile();
   }
 
   function advanceFieldStage() {
@@ -810,8 +862,18 @@ export default function CaptureScreen() {
                         mediaAsset.mimeType,
                         `${Math.round(mediaAsset.sizeBytes / 1024)} KB`,
                         `SHA ${mediaAsset.sha256.slice(0, 10)}`,
-                      ].join(" / ")}
+                        mediaAsset.derivativeType === "REPLACEMENT"
+                          ? "Replacement"
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" / ")}
                     </AppText>
+                    {mediaAsset.originalAssetId ? (
+                      <AppText variant="small" muted>
+                        Replaces original {mediaAsset.originalAssetId}
+                      </AppText>
+                    ) : null}
                     {mediaAsset.notes ? (
                       <AppText variant="small" muted>
                         {mediaAsset.notes}
@@ -840,6 +902,28 @@ export default function CaptureScreen() {
                           onPress={() => deleteMediaAsset(mediaAsset.id)}
                         />
                       )}
+                      {!mediaAsset.deletedAt ? (
+                        <>
+                          <AppButton
+                            label="Retake"
+                            icon="camera.fill"
+                            variant="secondary"
+                            onPress={() =>
+                              replaceMediaAsset(mediaAsset, "CAMERA_PHOTO")
+                            }
+                            loading={busySource === "CAMERA_PHOTO"}
+                          />
+                          <AppButton
+                            label="Replace"
+                            icon="photo.on.rectangle"
+                            variant="secondary"
+                            onPress={() =>
+                              replaceMediaAsset(mediaAsset, "PHOTO_LIBRARY")
+                            }
+                            loading={busySource === "PHOTO_LIBRARY"}
+                          />
+                        </>
+                      ) : null}
                     </View>
                   </View>
                 </View>
