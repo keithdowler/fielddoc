@@ -27,6 +27,9 @@ export type MobileMediaUploadResult = {
   uploadedCount: number;
   failedCount: number;
   pendingCount: number;
+  failedMediaAssetIds: string[];
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
 };
 
 type MobileMediaApiClient = Pick<
@@ -105,6 +108,9 @@ export async function runMobileMediaUpload({
     });
   let uploadedCount = 0;
   let failedCount = 0;
+  const failedMediaAssetIds: string[] = [];
+  let lastErrorCode: string | null = null;
+  let lastErrorMessage: string | null = null;
 
   for (const media of pendingMedia) {
     try {
@@ -116,8 +122,12 @@ export async function runMobileMediaUpload({
         uploadedAt: now().toISOString(),
       });
       uploadedCount += 1;
-    } catch {
+    } catch (error) {
       failedCount += 1;
+      failedMediaAssetIds.push(media.id);
+      const normalizedError = normalizeUploadError(error);
+      lastErrorCode = normalizedError.code;
+      lastErrorMessage = normalizedError.message;
     }
   }
 
@@ -135,12 +145,21 @@ export async function runMobileMediaUpload({
       status === "success"
         ? "Original media files were uploaded to private storage."
         : status === "partial"
-          ? "Some original media files uploaded; retry the rest later."
-          : "Original media files could not be uploaded.",
+          ? appendFailureReason(
+              "Some original media files uploaded; retry the rest later.",
+              lastErrorMessage,
+            )
+          : appendFailureReason(
+              "Original media files could not be uploaded.",
+              lastErrorMessage,
+            ),
     attemptedCount: pendingMedia.length,
     uploadedCount,
     failedCount,
     pendingCount,
+    failedMediaAssetIds,
+    lastErrorCode,
+    lastErrorMessage,
   });
 }
 
@@ -217,6 +236,34 @@ async function countPendingMediaUploads(
   return (await repositories.media.listPendingUpload(1000)).length;
 }
 
+function normalizeUploadError(error: unknown): {
+  code: string | null;
+  message: string;
+} {
+  if (error instanceof FieldDocApiError) {
+    return {
+      code: error.code ?? null,
+      message: error.message,
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      code: null,
+      message: error.message,
+    };
+  }
+
+  return {
+    code: null,
+    message: "Unknown media upload failure.",
+  };
+}
+
+function appendFailureReason(message: string, reason: string | null): string {
+  return reason ? `${message} Last error: ${reason}` : message;
+}
+
 function createResult(
   input: Partial<MobileMediaUploadResult>,
 ): MobileMediaUploadResult {
@@ -227,5 +274,8 @@ function createResult(
     uploadedCount: input.uploadedCount ?? 0,
     failedCount: input.failedCount ?? 0,
     pendingCount: input.pendingCount ?? 0,
+    failedMediaAssetIds: input.failedMediaAssetIds ?? [],
+    lastErrorCode: input.lastErrorCode ?? null,
+    lastErrorMessage: input.lastErrorMessage ?? null,
   };
 }

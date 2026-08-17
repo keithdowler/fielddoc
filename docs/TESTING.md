@@ -100,5 +100,33 @@ preparation, binary upload invocation, completion recording, local
 `storageObjectKey` reconciliation, and failed-upload retry visibility.
 
 Manual coverage should verify the Capture important toggle, report readiness
-count, generated PDF badge, Settings media-upload auth-required state, and live
-upload after native Clerk token acquisition is added.
+count, generated PDF badge, Settings native Clerk sign-in state, metadata sync,
+and live original-media upload from a signed-in simulator/device.
+
+## Sprint 18 Ordered Cloud Upload And Web Download Tests
+
+Sprint 18 adds unit coverage for the mobile Upload All Pending Changes
+orchestrator. Tests verify metadata uploads before media binaries, local media
+is marked uploaded after prepare/binary/complete succeeds, and media upload is
+skipped when metadata sync has rejected rows.
+
+The web download route has unit coverage for signed-in Clerk session
+requirements, active organization requirements, organization membership
+enforcement, not-yet-uploaded media handling, and redirecting to a no-store
+short-lived private object URL.
+
+Manual coverage should capture/import a real image on the simulator, tap Upload
+All Pending Changes, refresh the web Projects page, and use Download original
+from the Uploaded originals section.
+
+## Sprint 19 Media Integrity Tests
+
+Sprint 19 adds unit coverage for signed upload headers, object verification
+through private storage `HEAD` and `GET`, size/type/hash rejection, upload
+completion rejection before local uploaded-state recording, and mobile
+user-facing upload failure details.
+
+Manual coverage should repeat the live signed-in upload flow with a real image,
+then confirm the web download still opens the uploaded original. Storage
+policies should be validated by confirming uploaded originals are not publicly
+readable without a signed URL.

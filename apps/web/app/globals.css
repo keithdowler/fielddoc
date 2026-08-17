@@ -50,6 +50,12 @@ h1 {
   margin: 0 0 20px;
 }
 
+h2 {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.05;
+  margin: 0;
+}
+
 p {
   color: #3e494d;
   font-size: 1.1rem;
@@ -308,6 +314,16 @@ p {
   color: #0f5b78;
   font-weight: 700;
   padding: 0;
+}
+
+.downloadLink {
+  border: 1px solid #0f6b85;
+  color: #0f5b78;
+  font-size: 0.9rem;
+  font-weight: 800;
+  min-height: 40px;
+  padding: 10px 12px;
+  text-align: center;
 }
 
 .statusText {

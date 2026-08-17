@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Last groomed: 2026-08-16 after mobile auth bridge sprint
+Last groomed: 2026-08-17 after media integrity sprint
 
 Priority legend: P0 critical, P1 high, P2 medium, P3 low.
 
@@ -14,24 +14,24 @@ RETENTION, PRODUCTION, GROWTH, NICE-TO-HAVE.
 These items should not keep reappearing as open backlog unless a narrower
 follow-up is listed below.
 
-| Area                   | Closed Remediation                                                                                                            | Remaining Follow-Up                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Proof Packet output    | Local Proof Packet PDFs embed available local image originals with captions/metadata.                                         | Document page rendering, visual QA, cloud report versions.                      |
-| Capture speed          | Mobile Capture has sticky before/work/after stage controls, quick captioning, next-stage control, and batch photo import.     | Camera loop, retake/replace, scanner mode.                                      |
-| Web workspace          | Authenticated web dashboard/projects/reports/settings now read tenant-scoped Neon data instead of placeholder-only content.   | Project detail, report downloads, branding management, share links.             |
-| App build readiness    | EAS profiles, initial iOS/Android identifiers, build numbers, and privacy/terms env placeholders exist.                       | Real App Store review package, account deletion, restore purchases, legal URLs. |
-| Canonical sync apply   | Project, EvidenceItem, MediaAsset, Annotation, and ReportDraft mutations apply to canonical Neon tables after auth.           | Customer/Site/Document canonical application, pull sync, conflict detection.    |
-| Cloud media foundation | Web can prepare authenticated signed private upload/download URLs; media upload state syncs through local and canonical rows. | Native mobile auth, live R2/device verification, object-existence verification. |
-| Important evidence     | Evidence can be marked important locally, synced canonically, counted in readiness, shown in web lists, and rendered in PDFs. | Visual polish and filtering for important-only review.                          |
-| Media upload queue     | Mobile has a tested queue for prepare URL, binary PUT, complete upload, and local upload-state reconciliation.                | Native mobile auth token acquisition and live device/R2 verification.           |
-| Mobile cloud auth      | Expo app has Clerk hosted sign-in, secure token cache, Settings sign-in/out UI, and real token providers for sync/upload.     | Live device auth callback verification and production/preview env hardening.    |
+| Area                   | Closed Remediation                                                                                                             | Remaining Follow-Up                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Proof Packet output    | Local Proof Packet PDFs embed available local image originals with captions/metadata.                                          | Document page rendering, visual QA, cloud report versions.                      |
+| Capture speed          | Mobile Capture has sticky before/work/after stage controls, quick captioning, next-stage control, and batch photo import.      | Camera loop, retake/replace, scanner mode.                                      |
+| Web workspace          | Authenticated web dashboard/projects/reports/settings now read tenant-scoped Neon data instead of placeholder-only content.    | Project detail, report downloads, branding management, share links.             |
+| App build readiness    | EAS profiles, initial iOS/Android identifiers, build numbers, and privacy/terms env placeholders exist.                        | Real App Store review package, account deletion, restore purchases, legal URLs. |
+| Canonical sync apply   | Project, EvidenceItem, MediaAsset, Annotation, and ReportDraft mutations apply to canonical Neon tables after auth.            | Customer/Site/Document canonical application, pull sync, conflict detection.    |
+| Cloud media foundation | Web can prepare authenticated signed private upload/download URLs; media upload state syncs through local and canonical rows.  | Live R2/device verification, object-existence verification.                     |
+| Important evidence     | Evidence can be marked important locally, synced canonically, counted in readiness, shown in web lists, and rendered in PDFs.  | Visual polish and filtering for important-only review.                          |
+| Media upload queue     | Mobile has a tested queue for prepare URL, binary PUT, complete upload, and local upload-state reconciliation.                 | Background retry controls and user-configurable upload constraints.             |
+| Mobile cloud auth      | Expo app has Clerk native sign-in, secure token cache, Settings sign-in/out UI, and real token providers for sync/upload.      | Production/preview env hardening and App Store credential validation.           |
+| Live cloud media loop  | Signed-in simulator/device metadata sync, R2 original upload, web original count, and private download were manually verified. | Background retry controls and larger-file performance verification.             |
+| Media integrity        | Upload completion verifies private object existence, size, type, optional metadata hash, and downloaded byte SHA-256.          | Async quarantine/verification workflow if large uploads need it.                |
 
 ## Active P1 Backlog
 
 | Priority | Category       | Item                                                                                        | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
 | -------- | -------------- | ------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
-| P1       | RELIABILITY    | Verify Clerk mobile hosted-auth callback on Expo/device and confirm token reaches sync APIs | S          | Yes         | No               | Yes                 |
-| P1       | RELIABILITY    | Verify live signed-in R2/device original-media upload                                       | M          | Yes         | Yes              | Yes                 |
 | P1       | CORE VALUE     | Add retake/replace flow that preserves immutable originals and records replacement metadata | M          | Yes         | No               | Yes                 |
 | P1       | CORE VALUE     | Add native document scanning path for signed/job documents                                  | L          | Yes         | Yes              | No                  |
 | P1       | CORE VALUE     | Render scanned/imported document pages or previews into Proof Packet PDFs                   | M          | Yes         | Yes              | Yes                 |
@@ -43,20 +43,19 @@ follow-up is listed below.
 
 ## Active P2 Backlog
 
-| Priority | Category       | Item                                                                                               | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
-| -------- | -------------- | -------------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
-| P2       | TRUST/SECURITY | Verify uploaded object existence and MIME; tenant key/SHA/size validation is partially implemented | M          | No          | Yes              | No                  |
-| P2       | TRUST/SECURITY | Add malware-scan integration point or explicit quarantine placeholder for uploaded docs            | M          | No          | Yes              | No                  |
-| P2       | TRUST/SECURITY | Add audit events for report generation, share, delete, sync, account, and admin actions            | M          | No          | No               | No                  |
-| P2       | PRIVACY        | Implement Export My Data and Delete Account flows                                                  | M          | No          | Yes              | No                  |
-| P2       | RELIABILITY    | Implement conflict detection using server versions and preserve conflicting edits                  | L          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add report branding controls for company name, logo, colors, and footer text                       | M          | No          | No               | Yes                 |
-| P2       | RELIABILITY    | Generate thumbnail/preview derivatives for web and reports                                         | M          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add OCR extraction for scanned/imported documents                                                  | L          | No          | No               | No                  |
-| P2       | PRODUCTION     | Exercise EAS production build, review notes, screenshots, privacy manifest, legal URLs             | M          | No          | Yes              | No                  |
-| P2       | PRODUCTION     | Add Sentry and privacy-safe analytics event taxonomy                                               | S          | No          | No               | No                  |
-| P2       | RETENTION      | Add activation metrics for project created, evidence captured, packet generated, synced            | S          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add template model for vertical report sections without building a large template pack             | M          | No          | No               | No                  |
+| Priority | Category       | Item                                                                                    | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
+| -------- | -------------- | --------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
+| P2       | TRUST/SECURITY | Add malware-scan integration point or explicit quarantine placeholder for uploaded docs | M          | No          | Yes              | No                  |
+| P2       | TRUST/SECURITY | Add audit events for report generation, share, delete, sync, account, and admin actions | M          | No          | No               | No                  |
+| P2       | PRIVACY        | Implement Export My Data and Delete Account flows                                       | M          | No          | Yes              | No                  |
+| P2       | RELIABILITY    | Implement conflict detection using server versions and preserve conflicting edits       | L          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add report branding controls for company name, logo, colors, and footer text            | M          | No          | No               | Yes                 |
+| P2       | RELIABILITY    | Generate thumbnail/preview derivatives for web and reports                              | M          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add OCR extraction for scanned/imported documents                                       | L          | No          | No               | No                  |
+| P2       | PRODUCTION     | Exercise EAS production build, review notes, screenshots, privacy manifest, legal URLs  | M          | No          | Yes              | No                  |
+| P2       | PRODUCTION     | Add Sentry and privacy-safe analytics event taxonomy                                    | S          | No          | No               | No                  |
+| P2       | RETENTION      | Add activation metrics for project created, evidence captured, packet generated, synced | S          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add template model for vertical report sections without building a large template pack  | M          | No          | No               | No                  |
 
 ## P3 Cleanup
 
@@ -68,21 +67,25 @@ follow-up is listed below.
 
 ## Recommended Next Sprint
 
-Do live cloud upload verification and object-existence hardening next.
+Build the report/detail web review loop next.
 
 ### Why
 
-The server can receive metadata, apply canonical rows, prepare signed private
-media URLs, and mobile can acquire Clerk tokens. The biggest remaining break in
-the customer loop is live signed-in upload verification against production R2.
+The core mobile-to-cloud evidence path now works and verifies uploaded
+originals before accepting them. The biggest remaining customer-visible gap is
+that web review still stops at list-level workspace screens instead of detailed
+project/report inspection and delivery.
 
 ### Scope
 
-1. Run metadata sync followed by media upload from a signed-in device.
-2. Verify production R2 bucket policy and signed upload/download behavior.
-3. Add object-existence verification after upload completion.
-4. Add manual QA steps for offline capture, reconnect, sync metadata, upload
-   originals, web review, and local PDF generation.
+1. Build a tenant-scoped web project detail page with evidence sections,
+   uploaded originals, important flags, annotations, and report readiness.
+2. Build a tenant-scoped report detail page that can inspect generated local
+   report metadata and prepare for cloud report archival.
+3. Add download affordances that use the existing private media redirect.
+4. Add tenant-isolation tests for project/report detail queries and routes.
+5. Add manual QA steps for mobile capture, sync, web detail review, and private
+   original download.
 
 ### Explicitly Out Of Scope
 

@@ -13,6 +13,10 @@ import { useMobileAuth } from "@/infrastructure/auth/mobile-auth";
 import { getMobileAuthStatusCopy } from "@/infrastructure/auth/mobile-auth-state";
 import { getLocalRepositories } from "@/infrastructure/local-store/repositories";
 import {
+  runMobileCloudSync,
+  type MobileCloudSyncResult,
+} from "@/infrastructure/sync/mobile-cloud-sync";
+import {
   runMobileOutboxSync,
   type MobileSyncResult,
 } from "@/infrastructure/sync/mobile-outbox-sync";
@@ -39,6 +43,9 @@ export default function SettingsScreen() {
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [mediaUploadResult, setMediaUploadResult] =
     useState<MobileMediaUploadResult | null>(null);
+  const [cloudSyncResult, setCloudSyncResult] =
+    useState<MobileCloudSyncResult | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
   const [authActionResult, setAuthActionResult] = useState<{
     status: "success" | "canceled" | "failed";
     message: string;
@@ -77,6 +84,24 @@ export default function SettingsScreen() {
 
     setMediaUploadResult(result);
     setUploadingMedia(false);
+  }, [mobileAuth]);
+
+  const uploadAllPendingChanges = useCallback(async () => {
+    setSyncingAll(true);
+
+    try {
+      const repositories = await getLocalRepositories();
+      const result = await runMobileCloudSync({
+        repositories,
+        tokenProvider: mobileAuth,
+      });
+
+      setCloudSyncResult(result);
+      setSyncResult(result.metadata);
+      setMediaUploadResult(result.media);
+    } finally {
+      setSyncingAll(false);
+    }
   }, [mobileAuth]);
 
   return (
@@ -127,6 +152,49 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
+          title="Upload All Pending Changes"
+          detail="Sends metadata first, then uploads original files."
+        />
+        {cloudSyncResult ? (
+          <StatusBanner
+            tone={statusToneByCloudStatus[cloudSyncResult.status]}
+            title={statusTitleByCloudStatus[cloudSyncResult.status]}
+            message={cloudSyncResult.message}
+          />
+        ) : (
+          <AppText muted>
+            Use this for the normal field workflow after capturing evidence.
+            Metadata must reach the cloud before originals can be placed in
+            private storage.
+          </AppText>
+        )}
+        {cloudSyncResult ? (
+          <View style={styles.metrics}>
+            <AppText variant="small" muted>
+              Metadata accepted {cloudSyncResult.metadata.acceptedCount} |
+              duplicates {cloudSyncResult.metadata.duplicateCount} | rejected{" "}
+              {cloudSyncResult.metadata.rejectedCount} | pending{" "}
+              {cloudSyncResult.metadata.pendingCount}
+            </AppText>
+            <AppText variant="small" muted>
+              Originals uploaded {cloudSyncResult.media?.uploadedCount ?? 0} |
+              failed {cloudSyncResult.media?.failedCount ?? 0} | pending{" "}
+              {cloudSyncResult.media?.pendingCount ?? 0}
+            </AppText>
+          </View>
+        ) : null}
+        <AppButton
+          label={syncingAll ? "Uploading..." : "Upload All Pending Changes"}
+          icon="icloud.and.arrow.up"
+          accessibilityLabel="Upload all pending metadata and original media"
+          onPress={uploadAllPendingChanges}
+          disabled={syncingAll || !mobileAuth.isSignedIn}
+          loading={syncingAll}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader
           title="Cloud Sync"
           detail="Uploads local metadata with your cloud session."
         />
@@ -157,7 +225,7 @@ export default function SettingsScreen() {
           icon="arrow.triangle.2.circlepath"
           accessibilityLabel="Upload pending local metadata changes"
           onPress={uploadPendingMetadata}
-          disabled={syncing || !mobileAuth.isSignedIn}
+          disabled={syncing || syncingAll || !mobileAuth.isSignedIn}
         />
       </Card>
 
@@ -193,7 +261,7 @@ export default function SettingsScreen() {
           icon="icloud.and.arrow.up"
           accessibilityLabel="Upload original media files to private cloud storage"
           onPress={uploadOriginalMedia}
-          disabled={uploadingMedia || !mobileAuth.isSignedIn}
+          disabled={uploadingMedia || syncingAll || !mobileAuth.isSignedIn}
         />
       </Card>
 
@@ -272,4 +340,22 @@ const statusTitleByMediaStatus = {
   success: "Originals uploaded",
   partial: "Some originals uploaded",
   failed: "Media upload failed",
+} as const;
+
+const statusToneByCloudStatus = {
+  not_configured: "warning",
+  auth_required: "warning",
+  idle: "info",
+  success: "success",
+  partial: "warning",
+  failed: "error",
+} as const;
+
+const statusTitleByCloudStatus = {
+  not_configured: "Sync not configured",
+  auth_required: "Cloud sign-in required",
+  idle: "Nothing to upload",
+  success: "Cloud upload complete",
+  partial: "Some changes need attention",
+  failed: "Cloud upload failed",
 } as const;

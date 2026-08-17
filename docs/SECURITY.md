@@ -38,7 +38,9 @@ Sprint 14 applies canonical metadata only after Clerk token verification and ser
 
 Sprint 15 signs media upload and download URLs only after Clerk bearer verification and server-side organization membership resolution. Object keys are generated server-side from the internal organization ID, evidence item ID, media asset ID, and SHA-256; clients do not choose tenant scope. Signed URLs are temporary transport credentials, not share links, and must not be persisted in user-visible records or logs.
 
-Sprint 17 adds Clerk Expo hosted sign-in and secure mobile session caching. The mobile app stores Clerk session tokens through the Clerk Expo token cache backed by Expo secure storage and passes tokens only at request time to metadata sync and media upload services. Clerk publishable keys and API base URLs are public configuration; Clerk secret keys, JWT keys, database URLs, and object storage credentials must remain server-only.
+Sprint 19 hardens original-media acceptance. Upload preparation signs required `Content-Type` and `x-amz-meta-sha256` headers into the private object URL, and upload completion verifies the object in private storage before marking it uploaded. The server checks tenant object-key shape, canonical size, content type, optional metadata SHA-256, and downloaded byte SHA-256. Verification failures return stable error codes and do not mark the media asset uploaded.
+
+Sprint 17 adds Clerk Expo native sign-in and secure mobile session caching. The mobile app stores Clerk session tokens through the Clerk Expo token cache backed by Expo secure storage and passes tokens only at request time to metadata sync and media upload services. Clerk publishable keys and API base URLs are public configuration; Clerk secret keys, JWT keys, database URLs, and object storage credentials must remain server-only.
 
 ## Secrets
 
@@ -62,4 +64,6 @@ Rejected and duplicate sync responses should include mutation IDs and stable err
 
 Signed upload and download URLs include credentials in query parameters. Do not log full URLs, request bodies containing object keys, R2 credentials, or generated signatures.
 
-Mobile auth errors may include provider or redirect details. Surface short user-facing errors in the UI, but do not log bearer tokens, refresh tokens, Clerk session claims, or hosted-auth callback URLs.
+Mobile auth errors may include provider details. Surface short user-facing errors in the UI, but do not log bearer tokens, refresh tokens, Clerk session claims, or auth callback URLs.
+
+Media integrity errors should be surfaced as short stable user-facing status messages. Do not log or display signed URLs, raw object bodies, full customer filenames, or storage credentials while diagnosing upload failures.

@@ -57,8 +57,33 @@ describe("media service", () => {
       mediaAssetId,
       storageObjectKey: expectedObjectKey,
       uploadUrl: expect.stringContaining("https://uploads.example.test/"),
-      requiredHeaders: {},
+      requiredHeaders: {
+        "Content-Type": "image/jpeg",
+        "x-amz-meta-sha256": sha256,
+      },
       expiresAt: "2026-08-16T14:10:00.000Z",
+    });
+  });
+
+  it("does not sign upload URLs for evidence outside the organization", async () => {
+    const response = await createMediaUploadPrepareHandler(
+      createDependencies({
+        repository: createRepository({ evidenceBelongsToOrganization: false }),
+      }),
+    )(
+      jsonRequest("/api/media/uploads/prepare", {
+        mediaAssetId,
+        evidenceItemId,
+        mimeType: "image/jpeg",
+        sizeBytes: 1024,
+        sha256,
+        fileExtension: "jpg",
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "EVIDENCE_NOT_FOUND" },
     });
   });
 
@@ -86,6 +111,67 @@ describe("media service", () => {
       mediaAssetId,
       storageObjectKey: expectedObjectKey,
     });
+  });
+
+  it("refuses completion when object storage integrity verification fails", async () => {
+    const repository = createRepository();
+    const response = await createMediaUploadCompleteHandler(
+      createDependencies({
+        repository,
+        storage: createStorage({
+          verification: {
+            ok: false,
+            code: "MEDIA_OBJECT_HASH_MISMATCH",
+            message: "Uploaded original bytes do not match.",
+          },
+        }),
+      }),
+    )(
+      jsonRequest("/api/media/uploads/complete", {
+        mediaAssetId,
+        storageObjectKey: expectedObjectKey,
+        sha256,
+        sizeBytes: 1024,
+        uploadedAt: "2026-08-16T14:02:00.000Z",
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "MEDIA_OBJECT_HASH_MISMATCH" },
+    });
+    expect(repository.lastMarkedUpload).toBeUndefined();
+  });
+
+  it("refuses completion when uploaded object size differs from metadata", async () => {
+    const repository = createRepository();
+    const response = await createMediaUploadCompleteHandler(
+      createDependencies({
+        repository,
+        storage: createStorage({
+          verification: {
+            ok: false,
+            code: "MEDIA_OBJECT_SIZE_MISMATCH",
+            message:
+              "Uploaded original size does not match local evidence metadata.",
+          },
+        }),
+      }),
+    )(
+      jsonRequest("/api/media/uploads/complete", {
+        mediaAssetId,
+        storageObjectKey: expectedObjectKey,
+        sha256,
+        sizeBytes: 1024,
+        uploadedAt: "2026-08-16T14:02:00.000Z",
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "MEDIA_OBJECT_SIZE_MISMATCH" },
+    });
+    expect(repository.lastMarkedUpload).toBeUndefined();
   });
 
   it("rejects upload completion for mismatched object keys", async () => {
@@ -163,7 +249,12 @@ function createAuthVerifier(): SyncMutationAuthVerifier {
   };
 }
 
-function createRepository(input: { storageObjectKey?: string | null } = {}) {
+function createRepository(
+  input: {
+    storageObjectKey?: string | null;
+    evidenceBelongsToOrganization?: boolean;
+  } = {},
+) {
   const repository: MediaUploadRepository & {
     lastMarkedUpload?: {
       organizationId: string;
@@ -177,7 +268,8 @@ function createRepository(input: { storageObjectKey?: string | null } = {}) {
       userId,
       role: "admin",
     }),
-    evidenceBelongsToOrganization: async () => true,
+    evidenceBelongsToOrganization: async () =>
+      input.evidenceBelongsToOrganization ?? true,
     markMediaUploaded: async (upload) => {
       repository.lastMarkedUpload = upload;
       return true;
@@ -185,6 +277,7 @@ function createRepository(input: { storageObjectKey?: string | null } = {}) {
     getStoredMediaAsset: async () => ({
       id: mediaAssetId,
       evidenceItemId,
+      mimeType: "image/jpeg",
       sha256,
       sizeBytes: 1024,
       storageObjectKey: input.storageObjectKey ?? null,
@@ -194,11 +287,23 @@ function createRepository(input: { storageObjectKey?: string | null } = {}) {
   return repository;
 }
 
-function createStorage(): PrivateObjectStorage {
+function createStorage(
+  input: {
+    verification?: Awaited<ReturnType<PrivateObjectStorage["verifyObject"]>>;
+  } = {},
+): PrivateObjectStorage {
   return {
     createPresignedUrl: (input) =>
       input.method === "PUT"
         ? `https://uploads.example.test/${input.objectKey}`
         : `https://downloads.example.test/${input.objectKey}`,
+    verifyObject: async () =>
+      input.verification ?? {
+        ok: true,
+        sizeBytes: 1024,
+        contentType: "image/jpeg",
+        sha256,
+        metadataSha256: sha256,
+      },
   };
 }

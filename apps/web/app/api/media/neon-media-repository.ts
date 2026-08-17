@@ -19,6 +19,7 @@ import {
 export type StoredMediaAsset = {
   id: string;
   evidenceItemId: string;
+  mimeType: string;
   sha256: string;
   sizeBytes: number;
   storageObjectKey: string | null;
@@ -128,6 +129,7 @@ export function createNeonMediaUploadRepository(
         .select({
           id: mediaAssets.id,
           evidenceItemId: mediaAssets.evidenceItemId,
+          mimeType: mediaAssets.mimeType,
           sha256: mediaAssets.sha256,
           sizeBytes: mediaAssets.sizeBytes,
           storageObjectKey: mediaAssets.storageObjectKey,

@@ -46,6 +46,21 @@ export type WorkspaceReport = {
   hasGeneratedPdf: boolean;
 };
 
+export type WorkspaceMediaAsset = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  evidenceItemId: string;
+  evidenceTitle: string | null;
+  evidenceCaption: string | null;
+  evidenceCategory: string;
+  mimeType: string;
+  sizeBytes: number;
+  captureTimestamp: Date;
+  uploadedAt: Date | null;
+  hasUploadedOriginal: boolean;
+};
+
 export type WorkspaceData = {
   status: WorkspaceStatus;
   message: string;
@@ -53,6 +68,7 @@ export type WorkspaceData = {
   organizationRole: string | null;
   projects: WorkspaceProject[];
   reports: WorkspaceReport[];
+  media: WorkspaceMediaAsset[];
   syncReceiptCount: number;
   rejectedSyncReceiptCount: number;
 };
@@ -147,12 +163,25 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
         .select({
           id: mediaAssets.id,
           evidenceItemId: mediaAssets.evidenceItemId,
+          projectId: evidenceItems.projectId,
+          evidenceCategory: evidenceItems.category,
+          evidenceTitle: evidenceItems.title,
+          evidenceCaption: evidenceItems.caption,
+          mimeType: mediaAssets.mimeType,
+          sizeBytes: mediaAssets.sizeBytes,
+          captureTimestamp: mediaAssets.captureTimestamp,
           storageObjectKey: mediaAssets.storageObjectKey,
+          uploadedAt: mediaAssets.uploadedAt,
         })
         .from(mediaAssets)
+        .innerJoin(
+          evidenceItems,
+          eq(mediaAssets.evidenceItemId, evidenceItems.id),
+        )
         .where(
           and(
             eq(mediaAssets.organizationId, membership.organizationId),
+            isNull(evidenceItems.deletedAt),
             isNull(mediaAssets.deletedAt),
           ),
         ),
@@ -194,15 +223,10 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     evidenceRows.filter((row) => row.isImportant),
     (row) => row.projectId,
   );
-  const evidenceProjectById = new Map(
-    evidenceRows.map((row) => [row.id, row.projectId]),
-  );
-  const mediaByProject = countBy(mediaRows, (row) => {
-    return evidenceProjectById.get(row.evidenceItemId) ?? "unknown";
-  });
+  const mediaByProject = countBy(mediaRows, (row) => row.projectId);
   const uploadedMediaByProject = countBy(
     mediaRows.filter((row) => Boolean(row.storageObjectKey)),
-    (row) => evidenceProjectById.get(row.evidenceItemId) ?? "unknown",
+    (row) => row.projectId,
   );
   const reportsByProject = countBy(reportRows, (row) => row.projectId);
   const projectNameById = new Map(projectRows.map((row) => [row.id, row.name]));
@@ -231,6 +255,20 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       updatedAt: report.updatedAt,
       hasGeneratedPdf: Boolean(report.generatedPdfObjectKey),
     })),
+    media: mediaRows.map((media) => ({
+      id: media.id,
+      projectId: media.projectId,
+      projectName: projectNameById.get(media.projectId) ?? "Unknown project",
+      evidenceItemId: media.evidenceItemId,
+      evidenceTitle: media.evidenceTitle,
+      evidenceCaption: media.evidenceCaption,
+      evidenceCategory: media.evidenceCategory,
+      mimeType: media.mimeType,
+      sizeBytes: media.sizeBytes,
+      captureTimestamp: media.captureTimestamp,
+      uploadedAt: media.uploadedAt,
+      hasUploadedOriginal: Boolean(media.storageObjectKey),
+    })),
     syncReceiptCount: receiptRows.length,
     rejectedSyncReceiptCount: receiptRows.filter(
       (receipt) => receipt.status === "rejected",
@@ -247,6 +285,7 @@ function emptyWorkspaceData(
     organizationRole: null,
     projects: [],
     reports: [],
+    media: [],
     syncReceiptCount: 0,
     rejectedSyncReceiptCount: 0,
   };

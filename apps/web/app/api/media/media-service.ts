@@ -33,7 +33,7 @@ type AuthenticatedMediaRequest = {
 
 export class MediaConfigurationError extends Error {
   constructor(
-    readonly code: "PRIVATE_OBJECT_STORAGE_NOT_CONFIGURED",
+    readonly code: MediaConfigurationErrorCode,
     message: string,
     readonly status: 503,
   ) {
@@ -41,6 +41,9 @@ export class MediaConfigurationError extends Error {
     this.name = "MediaConfigurationError";
   }
 }
+
+export type MediaConfigurationErrorCode =
+  "PRIVATE_OBJECT_STORAGE_NOT_CONFIGURED";
 
 const uploadUrlExpiresInSeconds = 10 * 60;
 const downloadUrlExpiresInSeconds = 5 * 60;
@@ -90,10 +93,15 @@ export function createMediaUploadPrepareHandler(
       sha256: parsed.sha256,
       fileExtension: parsed.fileExtension,
     });
+    const requiredHeaders = {
+      "Content-Type": parsed.mimeType,
+      "x-amz-meta-sha256": parsed.sha256,
+    };
     const uploadUrl = storage.createPresignedUrl({
       method: "PUT",
       objectKey: storageObjectKey,
       expiresInSeconds: uploadUrlExpiresInSeconds,
+      signedHeaders: requiredHeaders,
       now,
     });
 
@@ -102,7 +110,7 @@ export function createMediaUploadPrepareHandler(
         mediaAssetId: parsed.mediaAssetId,
         storageObjectKey,
         uploadUrl,
-        requiredHeaders: {},
+        requiredHeaders,
         expiresAt,
       }),
     );
@@ -153,6 +161,26 @@ export function createMediaUploadCompleteHandler(
         "INVALID_STORAGE_OBJECT_KEY",
         "Completed media upload does not match the canonical media record.",
         400,
+      );
+    }
+
+    const storage = createStorageOrResponse(dependencies);
+
+    if (storage instanceof Response) return storage;
+
+    const verification = await storage.verifyObject({
+      objectKey: parsed.storageObjectKey,
+      expectedSizeBytes: mediaAsset.sizeBytes,
+      expectedSha256: mediaAsset.sha256,
+      expectedContentType: mediaAsset.mimeType,
+      now: dependencies.now?.() ?? new Date(),
+    });
+
+    if (!verification.ok) {
+      return errorResponse(
+        verification.code,
+        verification.message,
+        verification.code === "MEDIA_OBJECT_VERIFICATION_FAILED" ? 502 : 409,
       );
     }
 
@@ -363,7 +391,7 @@ function isExpectedEvidenceObjectKey(input: {
 function errorResponse(
   code: string,
   message: string,
-  status: 400 | 401 | 403 | 404 | 501 | 503,
+  status: 400 | 401 | 403 | 404 | 409 | 501 | 502 | 503,
 ): Response {
   return Response.json({ error: { code, message } }, { status });
 }

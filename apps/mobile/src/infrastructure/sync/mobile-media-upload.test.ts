@@ -181,7 +181,67 @@ describe("runMobileMediaUpload", () => {
         uploadedCount: 0,
         failedCount: 1,
         pendingCount: 1,
+        failedMediaAssetIds: [expect.any(String)],
+        lastErrorCode: "MEDIA_UPLOAD_FAILED",
+        lastErrorMessage: "Private media upload failed.",
       });
+      expect(result.message).toContain("Private media upload failed.");
+      expect((await repositories.media.listPendingUpload()).length).toBe(1);
+    });
+  });
+
+  it("reports server-side integrity rejection after object upload", async () => {
+    await withRepositories(async (repositories) => {
+      const project = await repositories.projects.create({
+        name: "Integrity failure project",
+      });
+      const evidence = await repositories.evidence.create({
+        projectId: project.id,
+        category: "WORK",
+      });
+      const media = await repositories.media.create({
+        evidenceItemId: evidence.id,
+        localUri: "file:///fielddoc/evidence-originals/work.jpg",
+        mediaType: "IMAGE",
+        mimeType: "image/jpeg",
+        sizeBytes: 1024,
+        sha256:
+          "3f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+        sourceType: "CAMERA_PHOTO",
+      });
+
+      const result = await runMobileMediaUpload({
+        repositories,
+        apiBaseUrl: "https://proof.example",
+        tokenProvider: { getAccessToken: async () => "token" },
+        apiClient: {
+          async prepareMediaUpload(input) {
+            return {
+              mediaAssetId: input.mediaAssetId,
+              storageObjectKey:
+                "organizations/org/evidence/item/originals/work.jpg",
+              uploadUrl: "https://uploads.example.test/work.jpg",
+              requiredHeaders: {
+                "Content-Type": "image/jpeg",
+                "x-amz-meta-sha256": input.sha256,
+              },
+              expiresAt: "2026-08-16T16:10:00.000Z",
+            };
+          },
+          async completeMediaUpload() {
+            throw new Error("Uploaded original bytes do not match.");
+          },
+        },
+        uploadBinary: async () => ({ status: 200 }),
+      });
+
+      expect(result).toMatchObject({
+        status: "failed",
+        failedMediaAssetIds: [media.id],
+        lastErrorCode: null,
+        lastErrorMessage: "Uploaded original bytes do not match.",
+      });
+      expect(result.message).toContain("Uploaded original bytes do not match.");
       expect((await repositories.media.listPendingUpload()).length).toBe(1);
     });
   });

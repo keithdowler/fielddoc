@@ -209,3 +209,29 @@ Sprint 14 applies synced metadata to canonical server tables before building ori
 Status: Accepted
 
 Sprint 15 adds authenticated media upload and download preparation routes before building mobile background upload orchestration. The web API verifies Clerk bearer tokens, resolves internal Neon organization membership, and issues short-lived signed private-object-storage URLs scoped by organization, evidence item, media asset, and SHA-256. Mobile SQLite now tracks `storageObjectKey` and `uploadedAt`, and canonical media sync preserves those fields. This keeps immutable originals out of Postgres and avoids public evidence URLs while leaving native sign-in UI, binary upload retry policy, and object-existence verification for later sprints.
+
+### ADR 0023: Ordered Cloud Upload Before Background Sync
+
+Status: Accepted
+
+Sprint 18 adds a user-triggered Upload All Pending Changes action before
+background sync. The mobile app uploads metadata first and uploads original
+media only after metadata is accepted or already current, because signed media
+upload preparation requires canonical evidence and media records in Neon. The
+web app adds an authenticated original-download redirect under `/app` so a
+signed-in organization member can verify uploaded originals without exposing
+public bucket URLs. Background scheduling, object-existence verification,
+content-type validation, and cloud PDF archival remain future work.
+
+### ADR 0024: Synchronous Original Verification Before Uploaded State
+
+Status: Accepted
+
+Sprint 19 verifies private original media objects during upload completion
+before the canonical media row is marked uploaded. The server checks the
+tenant-scoped object key, canonical size, content type, optional storage
+metadata SHA-256, and downloaded byte SHA-256. This keeps immutable evidence
+trustworthy at the first cloud boundary and prevents a stale or corrupted
+object from becoming the canonical uploaded original. If synchronous byte
+verification becomes too slow for larger files, a future Vercel Workflow can
+move the same checks to an asynchronous quarantine-to-accepted lifecycle.
