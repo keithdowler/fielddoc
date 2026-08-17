@@ -162,6 +162,7 @@ function createWorkspaceData(): WorkspaceData {
     reportShareLinkCount: 1,
     auditEventCount: 2,
     recentAuditEvents: [],
+    diagnosticsWarning: null,
   };
 }
 

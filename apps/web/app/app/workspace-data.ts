@@ -167,6 +167,7 @@ export type WorkspaceData = {
   reportShareLinkCount: number;
   auditEventCount: number;
   recentAuditEvents: WorkspaceAuditEvent[];
+  diagnosticsWarning: string | null;
 };
 
 export type WorkspaceAuditEvent = {
@@ -236,10 +237,6 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     annotationRows,
     reportRows,
     receiptRows,
-    reportExportRows,
-    reportShareLinkRows,
-    auditEventCountRows,
-    auditEventRows,
   ] = await Promise.all([
     db
       .select({
@@ -363,31 +360,11 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       .where(
         eq(receivedLocalMutations.organizationId, membership.organizationId),
       ),
-    db
-      .select({ id: reportExports.id })
-      .from(reportExports)
-      .where(eq(reportExports.organizationId, membership.organizationId)),
-    db
-      .select({ id: reportShareLinks.id })
-      .from(reportShareLinks)
-      .where(eq(reportShareLinks.organizationId, membership.organizationId)),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(auditEvents)
-      .where(eq(auditEvents.organizationId, membership.organizationId)),
-    db
-      .select({
-        id: auditEvents.id,
-        eventType: auditEvents.eventType,
-        entityType: auditEvents.entityType,
-        entityId: auditEvents.entityId,
-        createdAt: auditEvents.createdAt,
-      })
-      .from(auditEvents)
-      .where(eq(auditEvents.organizationId, membership.organizationId))
-      .orderBy(desc(auditEvents.createdAt))
-      .limit(10),
   ]);
+  const diagnostics = await getOptionalWorkspaceDiagnostics(
+    db,
+    membership.organizationId,
+  );
 
   const evidenceByProject = countBy(evidenceRows, (row) => row.projectId);
   const missingCaptionsByProject = countBy(
@@ -482,10 +459,11 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     rejectedSyncReceiptCount: receiptRows.filter(
       (receipt) => receipt.status === "rejected",
     ).length,
-    reportExportCount: reportExportRows.length,
-    reportShareLinkCount: reportShareLinkRows.length,
-    auditEventCount: auditEventCountRows[0]?.count ?? 0,
-    recentAuditEvents: auditEventRows,
+    reportExportCount: diagnostics.reportExportCount,
+    reportShareLinkCount: diagnostics.reportShareLinkCount,
+    auditEventCount: diagnostics.auditEventCount,
+    recentAuditEvents: diagnostics.recentAuditEvents,
+    diagnosticsWarning: diagnostics.warning,
   };
 }
 
@@ -507,7 +485,70 @@ function emptyWorkspaceData(
     reportShareLinkCount: 0,
     auditEventCount: 0,
     recentAuditEvents: [],
+    diagnosticsWarning: null,
   };
+}
+
+async function getOptionalWorkspaceDiagnostics(
+  db: ReturnType<typeof createNeonDatabase>,
+  organizationId: string,
+): Promise<{
+  reportExportCount: number;
+  reportShareLinkCount: number;
+  auditEventCount: number;
+  recentAuditEvents: WorkspaceAuditEvent[];
+  warning: string | null;
+}> {
+  try {
+    const [
+      reportExportRows,
+      reportShareLinkRows,
+      auditEventCountRows,
+      auditEventRows,
+    ] = await Promise.all([
+      db
+        .select({ id: reportExports.id })
+        .from(reportExports)
+        .where(eq(reportExports.organizationId, organizationId)),
+      db
+        .select({ id: reportShareLinks.id })
+        .from(reportShareLinks)
+        .where(eq(reportShareLinks.organizationId, organizationId)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(auditEvents)
+        .where(eq(auditEvents.organizationId, organizationId)),
+      db
+        .select({
+          id: auditEvents.id,
+          eventType: auditEvents.eventType,
+          entityType: auditEvents.entityType,
+          entityId: auditEvents.entityId,
+          createdAt: auditEvents.createdAt,
+        })
+        .from(auditEvents)
+        .where(eq(auditEvents.organizationId, organizationId))
+        .orderBy(desc(auditEvents.createdAt))
+        .limit(10),
+    ]);
+
+    return {
+      reportExportCount: reportExportRows.length,
+      reportShareLinkCount: reportShareLinkRows.length,
+      auditEventCount: auditEventCountRows[0]?.count ?? 0,
+      recentAuditEvents: auditEventRows,
+      warning: null,
+    };
+  } catch {
+    return {
+      reportExportCount: 0,
+      reportShareLinkCount: 0,
+      auditEventCount: 0,
+      recentAuditEvents: [],
+      warning:
+        "Optional diagnostics are unavailable. Confirm report export and audit migrations have been applied in Neon.",
+    };
+  }
 }
 
 export function getProjectDetailFromWorkspaceData(

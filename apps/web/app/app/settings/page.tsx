@@ -82,6 +82,15 @@ export default async function SettingsPage() {
       </dl>
 
       <div className="dataList">
+        {workspace.diagnosticsWarning ? (
+          <article className="dataRow">
+            <div>
+              <h3>Diagnostics unavailable</h3>
+              <p className="compactText">{workspace.diagnosticsWarning}</p>
+            </div>
+            <span className="statusPill">Needs Neon</span>
+          </article>
+        ) : null}
         {readiness.map((item) => (
           <article className="dataRow" key={item.label}>
             <div>
