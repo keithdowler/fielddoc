@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Last groomed: 2026-08-17 after media integrity sprint
+Last groomed: 2026-08-17 after web review loop sprint
 
 Priority legend: P0 critical, P1 high, P2 medium, P3 low.
 
@@ -27,6 +27,7 @@ follow-up is listed below.
 | Mobile cloud auth      | Expo app has Clerk native sign-in, secure token cache, Settings sign-in/out UI, and real token providers for sync/upload.      | Production/preview env hardening and App Store credential validation.           |
 | Live cloud media loop  | Signed-in simulator/device metadata sync, R2 original upload, web original count, and private download were manually verified. | Background retry controls and larger-file performance verification.             |
 | Media integrity        | Upload completion verifies private object existence, size, type, optional metadata hash, and downloaded byte SHA-256.          | Async quarantine/verification workflow if large uploads need it.                |
+| Web review loop        | Tenant-scoped project/report detail pages show evidence sections, annotations, readiness, and private original download links. | Cloud report PDF archival, branded report management, and share links.          |
 
 ## Active P1 Backlog
 
@@ -35,7 +36,7 @@ follow-up is listed below.
 | P1       | CORE VALUE     | Add retake/replace flow that preserves immutable originals and records replacement metadata | M          | Yes         | No               | Yes                 |
 | P1       | CORE VALUE     | Add native document scanning path for signed/job documents                                  | L          | Yes         | Yes              | No                  |
 | P1       | CORE VALUE     | Render scanned/imported document pages or previews into Proof Packet PDFs                   | M          | Yes         | Yes              | Yes                 |
-| P1       | RETENTION      | Build web project detail and report detail/download views backed by Neon                    | M          | Yes         | No               | Yes                 |
+| P1       | RETENTION      | Add cloud report PDF archival and report-version downloads backed by private storage        | M          | Yes         | No               | Yes                 |
 | P1       | GROWTH         | Add secure report share links with expiration/access controls                               | M          | Yes         | No               | Yes                 |
 | P1       | RELIABILITY    | Add server pull sync and local reconciliation                                               | L          | Yes         | No               | Yes                 |
 | P1       | TRUST/SECURITY | Add tenant-isolation tests for sync, workspace reads, and media signing                     | M          | Yes         | Yes              | Yes                 |
@@ -67,34 +68,32 @@ follow-up is listed below.
 
 ## Recommended Next Sprint
 
-Build the report/detail web review loop next.
+Build cloud report archival and secure delivery next.
 
 ### Why
 
-The core mobile-to-cloud evidence path now works and verifies uploaded
-originals before accepting them. The biggest remaining customer-visible gap is
-that web review still stops at list-level workspace screens instead of detailed
-project/report inspection and delivery.
+The core mobile-to-cloud evidence path now works, verifies uploaded originals,
+and exposes tenant-scoped project/report detail pages on web. The biggest
+remaining customer-visible gap is that generated Proof Packet PDFs still live
+primarily on-device instead of becoming durable cloud report versions that can
+be downloaded or shared from web.
 
 ### Scope
 
-1. Build a tenant-scoped web project detail page with evidence sections,
-   uploaded originals, important flags, annotations, and report readiness.
-2. Build a tenant-scoped report detail page that can inspect generated local
-   report metadata and prepare for cloud report archival.
-3. Add download affordances that use the existing private media redirect.
-4. Add tenant-isolation tests for project/report detail queries and routes.
-5. Add manual QA steps for mobile capture, sync, web detail review, and private
-   original download.
+1. Store generated Proof Packet PDFs as private cloud report-version objects.
+2. Add a canonical report export/version record with checksum, size, generated
+   timestamp, report draft ID, and storage object key.
+3. Add authenticated web download for cloud report PDFs.
+4. Add expiring share-link model and guarded redirect route for report delivery.
+5. Add audit events for report generation, download, and share-link access.
 
 ### Explicitly Out Of Scope
 
-- Share links.
 - RevenueCat.
 - OCR.
 - Native scanner.
 - Pull sync/conflict UI.
-- Cloud PDF report archival.
+- Report branding editor.
 
 ## Deferred Until Validation
 

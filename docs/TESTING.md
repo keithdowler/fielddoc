@@ -130,3 +130,15 @@ Manual coverage should repeat the live signed-in upload flow with a real image,
 then confirm the web download still opens the uploaded original. Storage
 policies should be validated by confirming uploaded originals are not publicly
 readable without a signed URL.
+
+## Sprint 20 Web Review Loop Tests
+
+Sprint 20 adds unit coverage for tenant workspace detail read models. Tests
+verify project detail assembly by evidence section, uploaded-original
+attachment, report detail assembly from included sections, and null returns for
+project/report IDs outside the loaded workspace.
+
+Manual coverage should sign into the web app, open Projects, drill into a
+project detail page, inspect Before/Work/After/Documents/Other sections, open a
+private original download, then open the related report detail page from Reports
+or the project detail report list.

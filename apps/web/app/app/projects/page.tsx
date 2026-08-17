@@ -37,7 +37,11 @@ export default async function ProjectsPage() {
                 {workspace.projects.map((project) => (
                   <tr key={project.id}>
                     <td>
-                      <strong>{project.name}</strong>
+                      <strong>
+                        <Link href={`/app/projects/${project.id}`}>
+                          {project.name}
+                        </Link>
+                      </strong>
                       <span>
                         {project.workOrderReference ?? project.status}
                       </span>
@@ -59,7 +63,12 @@ export default async function ProjectsPage() {
                     <td>
                       {project.uploadedMediaCount}/{project.mediaCount} uploaded
                     </td>
-                    <td>{project.reportDraftCount}</td>
+                    <td>
+                      {project.reportDraftCount}
+                      <span>
+                        <Link href={`/app/projects/${project.id}`}>Review</Link>
+                      </span>
+                    </td>
                     <td>{formatDate(project.updatedAt)}</td>
                   </tr>
                 ))}

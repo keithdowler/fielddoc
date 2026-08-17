@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import Link from "next/link";
 import { ProvisionAccountButton } from "./provision-account-button";
 import { getWorkspaceData } from "./workspace-data";
 
@@ -63,7 +64,11 @@ export default async function AppPage() {
             {latestProjects.map((project) => (
               <article className="dataRow" key={project.id}>
                 <div>
-                  <h3>{project.name}</h3>
+                  <h3>
+                    <Link href={`/app/projects/${project.id}`}>
+                      {project.name}
+                    </Link>
+                  </h3>
                   <p className="compactText">
                     {[project.customerCompany, project.siteAddress]
                       .filter(Boolean)

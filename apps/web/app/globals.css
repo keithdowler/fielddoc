@@ -143,6 +143,11 @@ p {
   justify-content: space-between;
 }
 
+.detailHeader {
+  align-items: flex-start;
+  margin-top: 18px;
+}
+
 .metricGrid {
   display: grid;
   gap: 14px;
@@ -326,6 +331,86 @@ p {
   text-align: center;
 }
 
+.sectionGrid {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.reviewSection {
+  border-top: 2px solid #d8d3ca;
+  padding-top: 18px;
+}
+
+.reviewSection h3,
+.evidenceCard h4 {
+  margin: 0 0 6px;
+}
+
+.evidenceCard {
+  border: 1px solid #d8d3ca;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.noteText {
+  color: #2f3a3e;
+  font-size: 1rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.mediaGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mediaTile {
+  border: 1px solid #d8d3ca;
+  display: grid;
+  gap: 6px;
+  min-height: 136px;
+  padding: 12px;
+}
+
+.mediaTile span {
+  color: #536166;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.annotationList {
+  color: #3e494d;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.smallPill {
+  border: 1px solid #b58100;
+  color: #5f3f00;
+  font-size: 0.78rem;
+  font-weight: 800;
+  min-width: 88px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.inlineMetrics {
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+  text-align: left;
+  white-space: normal;
+}
+
+.linkRow.tight {
+  margin: 0;
+}
+
 .statusText {
   font-size: 0.95rem;
   margin: 0;
@@ -359,5 +444,14 @@ p {
   .rowMetrics {
     align-items: flex-start;
     text-align: left;
+  }
+
+  .sectionTitleRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mediaGrid {
+    grid-template-columns: 1fr;
   }
 }

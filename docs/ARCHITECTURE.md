@@ -235,3 +235,16 @@ trustworthy at the first cloud boundary and prevents a stale or corrupted
 object from becoming the canonical uploaded original. If synchronous byte
 verification becomes too slow for larger files, a future Vercel Workflow can
 move the same checks to an asynchronous quarantine-to-accepted lifecycle.
+
+### ADR 0025: Web Review Details Before Share Links
+
+Status: Accepted
+
+Sprint 20 adds tenant-scoped web project and report detail pages before
+building external share links. The web app resolves the active Clerk
+organization to the internal FieldDoc tenant, then renders project evidence
+sections, annotations, uploaded originals, and report readiness from the
+canonical Neon read model. Detail pages are read-only and reuse the existing
+private media download redirect, so evidence originals remain non-public.
+Cloud PDF archival, report version downloads, branded delivery pages, and
+expiring share links remain future work.

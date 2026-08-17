@@ -1,4 +1,5 @@
 import { getWorkspaceData } from "../workspace-data";
+import Link from "next/link";
 
 export default async function ReportsPage() {
   const workspace = await getWorkspaceData();
@@ -22,7 +23,9 @@ export default async function ReportsPage() {
           {workspace.reports.map((report) => (
             <article className="dataRow" key={report.id}>
               <div>
-                <h3>{report.title}</h3>
+                <h3>
+                  <Link href={`/app/reports/${report.id}`}>{report.title}</Link>
+                </h3>
                 <p className="compactText">
                   {report.projectName} / updated {formatDate(report.updatedAt)}
                 </p>
