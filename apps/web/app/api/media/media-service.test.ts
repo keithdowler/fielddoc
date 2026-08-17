@@ -11,6 +11,7 @@ import type {
   SyncAuthPrincipal,
   SyncMutationAuthVerifier,
 } from "../sync/mutations/sync-service";
+import type { AuditEventInput } from "../audit/audit-log";
 
 const organizationId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
@@ -39,8 +40,9 @@ describe("media service", () => {
   });
 
   it("prepares organization-scoped private upload URLs", async () => {
+    const auditEvents: AuditEventInput[] = [];
     const response = await createMediaUploadPrepareHandler(
-      createDependencies(),
+      createDependencies({ auditEvents }),
     )(
       jsonRequest("/api/media/uploads/prepare", {
         mediaAssetId,
@@ -63,6 +65,19 @@ describe("media service", () => {
       },
       expiresAt: "2026-08-16T14:10:00.000Z",
     });
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({
+        organizationId,
+        actorUserId: userId,
+        eventType: "media_upload_prepare",
+        entityType: "MediaAsset",
+        entityId: mediaAssetId,
+        metadata: expect.objectContaining({
+          evidenceItemId,
+          sizeBytes: 1024,
+        }),
+      }),
+    );
   });
 
   it("does not sign upload URLs for evidence outside the organization", async () => {
@@ -89,8 +104,9 @@ describe("media service", () => {
 
   it("records upload completion for canonical media", async () => {
     const repository = createRepository();
+    const auditEvents: AuditEventInput[] = [];
     const response = await createMediaUploadCompleteHandler(
-      createDependencies({ repository }),
+      createDependencies({ repository, auditEvents }),
     )(
       jsonRequest("/api/media/uploads/complete", {
         mediaAssetId,
@@ -111,6 +127,20 @@ describe("media service", () => {
       mediaAssetId,
       storageObjectKey: expectedObjectKey,
     });
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({
+        organizationId,
+        actorUserId: userId,
+        eventType: "media_upload_complete",
+        entityType: "MediaAsset",
+        entityId: mediaAssetId,
+        metadata: expect.objectContaining({
+          evidenceItemId,
+          storageObjectKey: expectedObjectKey,
+          sha256,
+        }),
+      }),
+    );
   });
 
   it("refuses completion when object storage integrity verification fails", async () => {
@@ -227,12 +257,18 @@ function createDependencies(
   input: {
     repository?: ReturnType<typeof createRepository>;
     storage?: PrivateObjectStorage;
+    auditEvents?: AuditEventInput[];
   } = {},
 ) {
   return {
     createAuthVerifier: () => createAuthVerifier(),
     createRepository: () => input.repository ?? createRepository(),
     createStorage: () => input.storage ?? createStorage(),
+    createAuditWriter: () => ({
+      record: async (event: AuditEventInput) => {
+        input.auditEvents?.push(event);
+      },
+    }),
     now: () => new Date("2026-08-16T14:00:00.000Z"),
   };
 }

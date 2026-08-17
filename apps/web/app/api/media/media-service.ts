@@ -9,6 +9,11 @@ import {
 import { z } from "zod";
 
 import {
+  getRequestId,
+  safelyRecordAuditEvent,
+  type AuditEventWriter,
+} from "../audit/audit-log";
+import {
   SyncConfigurationError,
   type SyncMembership,
   type SyncMutationAuthVerifier,
@@ -23,6 +28,7 @@ type MediaApiDependencies = {
   createAuthVerifier: () => SyncMutationAuthVerifier;
   createRepository: () => MediaUploadRepository;
   createStorage: () => PrivateObjectStorage;
+  createAuditWriter?: () => AuditEventWriter;
   now?: () => Date;
 };
 
@@ -103,6 +109,20 @@ export function createMediaUploadPrepareHandler(
       expiresInSeconds: uploadUrlExpiresInSeconds,
       signedHeaders: requiredHeaders,
       now,
+    });
+
+    await recordMediaAuditEvent(dependencies, request, {
+      organizationId: auth.membership.organizationId,
+      actorUserId: auth.membership.userId,
+      eventType: "media_upload_prepare",
+      entityType: "MediaAsset",
+      entityId: parsed.mediaAssetId,
+      metadata: {
+        evidenceItemId: parsed.evidenceItemId,
+        mimeType: parsed.mimeType,
+        sizeBytes: parsed.sizeBytes,
+        expiresAt,
+      },
     });
 
     return Response.json(
@@ -199,6 +219,21 @@ export function createMediaUploadCompleteHandler(
       );
     }
 
+    await recordMediaAuditEvent(dependencies, request, {
+      organizationId: auth.membership.organizationId,
+      actorUserId: auth.membership.userId,
+      eventType: "media_upload_complete",
+      entityType: "MediaAsset",
+      entityId: parsed.mediaAssetId,
+      metadata: {
+        evidenceItemId: mediaAsset.evidenceItemId,
+        storageObjectKey: parsed.storageObjectKey,
+        sha256: parsed.sha256,
+        sizeBytes: parsed.sizeBytes,
+        uploadedAt: parsed.uploadedAt,
+      },
+    });
+
     return Response.json(
       mediaUploadCompleteResponseSchema.parse({
         mediaAssetId: parsed.mediaAssetId,
@@ -252,6 +287,19 @@ export function createMediaDownloadPrepareHandler(
       objectKey: mediaAsset.storageObjectKey,
       expiresInSeconds: downloadUrlExpiresInSeconds,
       now,
+    });
+
+    await recordMediaAuditEvent(dependencies, request, {
+      organizationId: auth.membership.organizationId,
+      actorUserId: auth.membership.userId,
+      eventType: "media_download_prepare",
+      entityType: "MediaAsset",
+      entityId: parsed.mediaAssetId,
+      metadata: {
+        evidenceItemId: mediaAsset.evidenceItemId,
+        storageObjectKey: mediaAsset.storageObjectKey,
+        expiresAt,
+      },
     });
 
     return Response.json(
@@ -394,4 +442,15 @@ function errorResponse(
   status: 400 | 401 | 403 | 404 | 409 | 501 | 502 | 503,
 ): Response {
   return Response.json({ error: { code, message } }, { status });
+}
+
+async function recordMediaAuditEvent(
+  dependencies: MediaApiDependencies,
+  request: Request,
+  event: Parameters<typeof safelyRecordAuditEvent>[1],
+): Promise<void> {
+  await safelyRecordAuditEvent(dependencies.createAuditWriter?.(), {
+    ...event,
+    requestId: getRequestId(request),
+  });
 }

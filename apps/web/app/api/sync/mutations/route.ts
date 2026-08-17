@@ -1,6 +1,7 @@
 import { webServerEnvSchema } from "@fielddoc/config";
 import { initialSyncMigrationId } from "@fielddoc/database";
 
+import { createNeonAuditEventWriter } from "../../audit/audit-log";
 import {
   createClerkSyncAuthVerifier,
   parseAuthorizedParties,
@@ -22,6 +23,7 @@ export async function POST(request: Request): Promise<Response> {
       }),
     createPersistence: () =>
       createNeonSyncMutationPersistence(env.DATABASE_URL),
+    createAuditWriter: () => createNeonAuditEventWriter(env.DATABASE_URL),
   });
 
   return handler(request);

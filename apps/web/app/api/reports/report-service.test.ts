@@ -17,6 +17,7 @@ import type {
   SyncAuthPrincipal,
   SyncMutationAuthVerifier,
 } from "../sync/mutations/sync-service";
+import type { AuditEventInput } from "../audit/audit-log";
 
 const organizationId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
@@ -133,9 +134,11 @@ describe("report service", () => {
 
   it("creates expiring share links without exposing object storage keys", async () => {
     const repository = createRepository();
+    const auditEvents: AuditEventInput[] = [];
     const response = await createReportShareLinkCreateHandler(
       createDependencies({
         repository,
+        auditEvents,
         tokenFactory: () => "share_token_12345678901234567890",
       }),
     )(
@@ -157,15 +160,39 @@ describe("report service", () => {
     expect(repository.lastShareLink?.tokenHash).toBe(
       hashShareToken("share_token_12345678901234567890"),
     );
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({
+        organizationId,
+        actorUserId: userId,
+        eventType: "report_share_link_create",
+        entityType: "ReportShareLink",
+        entityId: shareLinkId,
+        metadata: expect.objectContaining({
+          reportDraftId,
+          reportExportId,
+        }),
+      }),
+    );
   });
 
   it("redirects valid public share links to short-lived private URLs", async () => {
     const repository = createRepository();
+    const auditEvents: AuditEventInput[] = [];
     const response = await createPublicReportShareRedirectHandler({
       createRepository: () => repository,
       createStorage: () => createStorage(),
+      createAuditWriter: () => ({
+        record: async (event) => {
+          auditEvents.push(event);
+        },
+      }),
       now: () => new Date("2026-08-17T15:00:00.000Z"),
-    })("share_token_12345678901234567890");
+    })(
+      "share_token_12345678901234567890",
+      new Request("https://example.test/share/reports/token", {
+        headers: { "x-request-id": "req-share" },
+      }),
+    );
 
     expect(response.status).toBe(302);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -176,6 +203,19 @@ describe("report service", () => {
       shareLinkId,
       accessedAt: new Date("2026-08-17T15:00:00.000Z"),
     });
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({
+        organizationId,
+        eventType: "report_share_link_access",
+        entityType: "ReportShareLink",
+        entityId: shareLinkId,
+        requestId: "req-share",
+        metadata: expect.objectContaining({
+          reportDraftId,
+          reportExportId,
+        }),
+      }),
+    );
   });
 });
 
@@ -194,6 +234,7 @@ function createDependencies(
   input: {
     repository?: ReturnType<typeof createRepository>;
     storage?: PrivateObjectStorage;
+    auditEvents?: AuditEventInput[];
     tokenFactory?: () => string;
   } = {},
 ) {
@@ -201,6 +242,11 @@ function createDependencies(
     createAuthVerifier: () => createAuthVerifier(),
     createRepository: () => input.repository ?? createRepository(),
     createStorage: () => input.storage ?? createStorage(),
+    createAuditWriter: () => ({
+      record: async (event: AuditEventInput) => {
+        input.auditEvents?.push(event);
+      },
+    }),
     tokenFactory: input.tokenFactory,
     now: () => new Date("2026-08-17T15:00:00.000Z"),
   };
@@ -263,6 +309,7 @@ function createRepository() {
     },
     getShareLinkByTokenHash: async () => ({
       id: shareLinkId,
+      organizationId,
       reportExport: exportRow,
       expiresAt: new Date("2026-08-24T15:00:00.000Z"),
       revokedAt: null,

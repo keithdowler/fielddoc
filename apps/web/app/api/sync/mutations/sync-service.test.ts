@@ -7,6 +7,7 @@ import {
   type SyncAuthResult,
   type SyncMutationPersistence,
 } from "./sync-service";
+import type { AuditEventInput } from "../../audit/audit-log";
 
 const principal: SyncAuthPrincipal = {
   externalAuthId: "user_123",
@@ -42,7 +43,9 @@ const validUpload = {
 describe("createSyncMutationPostHandler", () => {
   it("records accepted mutations after auth and membership checks", async () => {
     const writes: RecordReceivedMutationInput[] = [];
+    const auditEvents: AuditEventInput[] = [];
     const handler = createTestHandler({
+      auditEvents,
       persistence: {
         resolveMembership: async () => membership,
         recordReceivedMutation: async (input) => {
@@ -68,6 +71,24 @@ describe("createSyncMutationPostHandler", () => {
       membership,
       mutation: validMutation,
     });
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({
+        organizationId: membership.organizationId,
+        actorUserId: membership.userId,
+        actorExternalId: principal.externalAuthId,
+        eventType: "sync_mutation_upload",
+        entityType: "LocalMutationBatch",
+        entityId: "simulator-17-pro",
+        metadata: expect.objectContaining({
+          clientId: "ios-app",
+          deviceId: "simulator-17-pro",
+          attemptedCount: 1,
+          acceptedCount: 1,
+          duplicateCount: 0,
+          rejectedCount: 0,
+        }),
+      }),
+    );
   });
 
   it("classifies duplicate mutation ids without treating them as errors", async () => {
@@ -182,6 +203,7 @@ function createTestHandler(
   options: {
     auth?: SyncAuthResult;
     persistence?: SyncMutationPersistence;
+    auditEvents?: AuditEventInput[];
   } = {},
 ) {
   return createSyncMutationPostHandler({
@@ -193,6 +215,11 @@ function createTestHandler(
         resolveMembership: async () => membership,
         recordReceivedMutation: async () => ({ status: "accepted" }),
       },
+    createAuditWriter: () => ({
+      record: async (event: AuditEventInput) => {
+        options.auditEvents?.push(event);
+      },
+    }),
     now: () => new Date("2026-08-15T15:01:00.000Z"),
   });
 }

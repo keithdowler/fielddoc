@@ -1,5 +1,10 @@
 import type { ReportArchiveRepository } from "../../api/reports/neon-report-repository";
 import {
+  getRequestId,
+  safelyRecordAuditEvent,
+  type AuditEventWriter,
+} from "../../api/audit/audit-log";
+import {
   MediaConfigurationError,
   type MediaConfigurationErrorCode,
 } from "../../api/media/media-service";
@@ -15,6 +20,7 @@ type WebReportDownloadDependencies = {
   getAuthContext: () => Promise<WebAuthContext>;
   createRepository: () => ReportArchiveRepository;
   createStorage: () => PrivateObjectStorage;
+  createAuditWriter?: () => AuditEventWriter;
   now?: () => Date;
 };
 
@@ -22,8 +28,8 @@ const downloadUrlExpiresInSeconds = 5 * 60;
 
 export function createWebReportDownloadRedirectHandler(
   dependencies: WebReportDownloadDependencies,
-): (reportDraftId: string) => Promise<Response> {
-  return async function handleWebReportDownload(reportDraftId) {
+): (reportDraftId: string, request?: Request) => Promise<Response> {
+  return async function handleWebReportDownload(reportDraftId, request) {
     if (!isUuid(reportDraftId)) {
       return errorResponse(
         "INVALID_REPORT_DRAFT_ID",
@@ -100,6 +106,20 @@ export function createWebReportDownloadRedirectHandler(
       objectKey: reportExport.storageObjectKey,
       expiresInSeconds: downloadUrlExpiresInSeconds,
       now: dependencies.now?.() ?? new Date(),
+    });
+
+    await safelyRecordAuditEvent(dependencies.createAuditWriter?.(), {
+      organizationId: membership.organizationId,
+      actorUserId: membership.userId,
+      actorExternalId: authContext.userId,
+      eventType: "web_report_download_redirect",
+      entityType: "ReportExport",
+      entityId: reportExport.id,
+      metadata: {
+        reportDraftId,
+        storageObjectKey: reportExport.storageObjectKey,
+      },
+      requestId: request ? getRequestId(request) : null,
     });
 
     return new Response(null, {

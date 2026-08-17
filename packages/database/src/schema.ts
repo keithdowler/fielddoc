@@ -407,6 +407,32 @@ export const reportShareLinks = pgTable(
   ],
 );
 
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id").references(() => organizations.id),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    actorExternalId: text("actor_external_id"),
+    eventType: text("event_type").notNull(),
+    entityType: text("entity_type"),
+    entityId: text("entity_id"),
+    metadataJson: jsonb("metadata_json").notNull().default({}),
+    requestId: text("request_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("idx_audit_events_org_created").on(
+      table.organizationId,
+      table.createdAt,
+    ),
+    index("idx_audit_events_entity").on(table.entityType, table.entityId),
+    index("idx_audit_events_type_created").on(table.eventType, table.createdAt),
+  ],
+);
+
 export const receivedLocalMutations = pgTable(
   "received_local_mutations",
   {

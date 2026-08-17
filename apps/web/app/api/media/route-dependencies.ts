@@ -1,5 +1,6 @@
 import { webServerEnvSchema } from "@fielddoc/config";
 
+import { createNeonAuditEventWriter } from "../audit/audit-log";
 import {
   createClerkSyncAuthVerifier,
   parseAuthorizedParties,
@@ -20,6 +21,7 @@ export function createMediaRouteDependencies() {
         authorizedParties: parseAuthorizedParties(env.CLERK_AUTHORIZED_PARTIES),
       }),
     createRepository: () => createNeonMediaUploadRepository(env.DATABASE_URL),
+    createAuditWriter: () => createNeonAuditEventWriter(env.DATABASE_URL),
     createStorage: () => {
       if (
         !env.R2_ACCOUNT_ID ||

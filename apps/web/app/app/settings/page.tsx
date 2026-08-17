@@ -67,6 +67,18 @@ export default async function SettingsPage() {
             {workspace.rejectedSyncReceiptCount} rejected
           </dd>
         </div>
+        <div>
+          <dt>Report exports</dt>
+          <dd>{workspace.reportExportCount} archived PDFs</dd>
+        </div>
+        <div>
+          <dt>Share links</dt>
+          <dd>{workspace.reportShareLinkCount} issued links</dd>
+        </div>
+        <div>
+          <dt>Audit events</dt>
+          <dd>{workspace.auditEventCount} recorded events</dd>
+        </div>
       </dl>
 
       <div className="dataList">
@@ -79,6 +91,31 @@ export default async function SettingsPage() {
             <span className={item.ready ? "statusPill ready" : "statusPill"}>
               {item.ready ? "Ready" : "Not configured"}
             </span>
+          </article>
+        ))}
+      </div>
+
+      <div className="dataList">
+        <article className="dataRow">
+          <div>
+            <h3>Recent audit activity</h3>
+            <p className="compactText">
+              Last ten tenant-scoped operational events recorded by the API.
+            </p>
+          </div>
+          <span className="statusPill ready">
+            {workspace.recentAuditEvents.length} shown
+          </span>
+        </article>
+        {workspace.recentAuditEvents.map((event) => (
+          <article className="dataRow" key={event.id}>
+            <div>
+              <h3>{event.eventType}</h3>
+              <p className="compactText">
+                {event.entityType ?? "Workspace"} {event.entityId ?? ""} |{" "}
+                {event.createdAt.toISOString()}
+              </p>
+            </div>
           </article>
         ))}
       </div>

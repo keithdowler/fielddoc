@@ -40,6 +40,7 @@ export type StoredReportExport = {
 
 export type StoredReportShareLink = {
   id: string;
+  organizationId: string;
   reportExport: StoredReportExport;
   expiresAt: Date;
   revokedAt: Date | null;
@@ -259,6 +260,7 @@ export function createNeonReportArchiveRepository(
       const rows = await db
         .select({
           id: reportShareLinks.id,
+          organizationId: reportShareLinks.organizationId,
           expiresAt: reportShareLinks.expiresAt,
           revokedAt: reportShareLinks.revokedAt,
           reportExportId: reportExports.id,
@@ -289,6 +291,7 @@ export function createNeonReportArchiveRepository(
 
       return {
         id: row.id,
+        organizationId: row.organizationId,
         expiresAt: row.expiresAt,
         revokedAt: row.revokedAt,
         reportExport: {

@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Last groomed: 2026-08-17 after pull reconciliation sprint
+Last groomed: 2026-08-17 after audit and tenant-isolation sprint
 
 Priority legend: P0 critical, P1 high, P2 medium, P3 low.
 
@@ -30,32 +30,32 @@ follow-up is listed below.
 | Web review loop        | Tenant-scoped project/report detail pages show evidence sections, annotations, readiness, and private original download links. | Branded report management and delivery pages.                                   |
 | Report archive         | Generated PDFs upload to private storage as verified report exports with authenticated downloads and expiring share links.     | Branded delivery pages and full audit-event rows.                               |
 | Pull reconciliation    | Authenticated mobile pull sync downloads tenant-scoped canonical metadata, stores cursors, and preserves local conflicts.      | Stable tuple cursors, conflict review UI, automatic background sync.            |
+| Audit trail            | Server writes tenant-scoped audit events for account provisioning, sync, media/report uploads/downloads, and share links.      | Denied-access/failure audit policy, retention tooling, admin event search.      |
 
 ## Active P1 Backlog
 
-| Priority | Category       | Item                                                                                        | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
-| -------- | -------------- | ------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
-| P1       | CORE VALUE     | Add retake/replace flow that preserves immutable originals and records replacement metadata | M          | Yes         | No               | Yes                 |
-| P1       | CORE VALUE     | Add native document scanning path for signed/job documents                                  | L          | Yes         | Yes              | No                  |
-| P1       | CORE VALUE     | Render scanned/imported document pages or previews into Proof Packet PDFs                   | M          | Yes         | Yes              | Yes                 |
-| P1       | TRUST/SECURITY | Add tenant-isolation tests for sync, workspace reads, and media signing                     | M          | Yes         | Yes              | Yes                 |
-| P1       | MONETIZATION   | Implement RevenueCat SDK, entitlement checks, paywall, restore purchases, and webhook       | L          | No          | Yes              | Yes                 |
+| Priority | Category     | Item                                                                                        | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
+| -------- | ------------ | ------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
+| P1       | CORE VALUE   | Add retake/replace flow that preserves immutable originals and records replacement metadata | M          | Yes         | No               | Yes                 |
+| P1       | CORE VALUE   | Add native document scanning path for signed/job documents                                  | L          | Yes         | Yes              | No                  |
+| P1       | CORE VALUE   | Render scanned/imported document pages or previews into Proof Packet PDFs                   | M          | Yes         | Yes              | Yes                 |
+| P1       | MONETIZATION | Implement RevenueCat SDK, entitlement checks, paywall, restore purchases, and webhook       | L          | No          | Yes              | Yes                 |
 
 ## Active P2 Backlog
 
-| Priority | Category       | Item                                                                                             | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
-| -------- | -------------- | ------------------------------------------------------------------------------------------------ | ---------- | ----------- | ---------------- | ------------------- |
-| P2       | TRUST/SECURITY | Add malware-scan integration point or explicit quarantine placeholder for uploaded docs          | M          | No          | Yes              | No                  |
-| P2       | TRUST/SECURITY | Add full audit event rows for report generation, share, delete, sync, account, and admin actions | M          | No          | No               | No                  |
-| P2       | PRIVACY        | Implement Export My Data and Delete Account flows                                                | M          | No          | Yes              | No                  |
-| P2       | RELIABILITY    | Add user-facing conflict review and resolution after preserved pull conflicts                    | M          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add report branding controls for company name, logo, colors, and footer text                     | M          | No          | No               | Yes                 |
-| P2       | RELIABILITY    | Generate thumbnail/preview derivatives for web and reports                                       | M          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add OCR extraction for scanned/imported documents                                                | L          | No          | No               | No                  |
-| P2       | PRODUCTION     | Exercise EAS production build, review notes, screenshots, privacy manifest, legal URLs           | M          | No          | Yes              | No                  |
-| P2       | PRODUCTION     | Add Sentry and privacy-safe analytics event taxonomy                                             | S          | No          | No               | No                  |
-| P2       | RETENTION      | Add activation metrics for project created, evidence captured, packet generated, synced          | S          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add template model for vertical report sections without building a large template pack           | M          | No          | No               | No                  |
+| Priority | Category       | Item                                                                                    | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
+| -------- | -------------- | --------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
+| P2       | TRUST/SECURITY | Add malware-scan integration point or explicit quarantine placeholder for uploaded docs | M          | No          | Yes              | No                  |
+| P2       | TRUST/SECURITY | Add denied-access/failure audit policy, retention controls, and admin audit search      | M          | No          | No               | No                  |
+| P2       | PRIVACY        | Implement Export My Data and Delete Account flows                                       | M          | No          | Yes              | No                  |
+| P2       | RELIABILITY    | Add user-facing conflict review and resolution after preserved pull conflicts           | M          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add report branding controls for company name, logo, colors, and footer text            | M          | No          | No               | Yes                 |
+| P2       | RELIABILITY    | Generate thumbnail/preview derivatives for web and reports                              | M          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add OCR extraction for scanned/imported documents                                       | L          | No          | No               | No                  |
+| P2       | PRODUCTION     | Exercise EAS production build, review notes, screenshots, privacy manifest, legal URLs  | M          | No          | Yes              | No                  |
+| P2       | PRODUCTION     | Add Sentry and privacy-safe analytics event taxonomy                                    | S          | No          | No               | No                  |
+| P2       | RETENTION      | Add activation metrics for project created, evidence captured, packet generated, synced | S          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add template model for vertical report sections without building a large template pack  | M          | No          | No               | No                  |
 
 ## P3 Cleanup
 
@@ -67,33 +67,28 @@ follow-up is listed below.
 
 ## Recommended Next Sprint
 
-Build tenant-isolation hardening and audit-event coverage next.
+Build RevenueCat monetization and entitlement enforcement next.
 
 ### Why
 
-The core evidence and report archive paths now upload, verify private storage,
-and pull canonical metadata back to mobile. The largest remaining production
-trust gap is broadening tenant isolation and audit logging across sync,
-workspace reads, media signing, report downloads, share links, and account
-actions.
+The core evidence/report loop now syncs metadata, uploads verified private
+media/PDF assets, pulls canonical data back to mobile, and leaves an audit trail
+for high-value actions. The largest remaining App Store and revenue blocker is
+subscription entitlement.
 
 ### Scope
 
-1. Add explicit tenant-isolation tests for every authenticated API read/write
-   route.
-2. Add audit event schema and write paths for sync, media/report upload,
-   download preparation, share-link creation/access, and account provisioning.
-3. Add web diagnostics for recent sync receipts, rejected mutations, and audit
-   event counts.
-4. Add no-store/cache assertions where private download and share redirect
-   routes issue temporary URLs.
-5. Document production audit-retention and privacy boundaries.
+1. Add RevenueCat SDK wiring in mobile.
+2. Add entitlement-aware access gates around report generation/export and cloud
+   sync affordances.
+3. Add restore purchases and subscription diagnostics in Settings.
+4. Add webhook route and database fields for server-side entitlement receipts.
+5. Document App Store review, privacy, and failure-mode behavior.
 
 ### Explicitly Out Of Scope
 
-- RevenueCat.
-- OCR.
 - Native scanner.
+- OCR.
 - Report branding editor.
 
 ## Deferred Until Validation

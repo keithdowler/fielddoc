@@ -158,6 +158,10 @@ function createWorkspaceData(): WorkspaceData {
     annotations,
     syncReceiptCount: 4,
     rejectedSyncReceiptCount: 0,
+    reportExportCount: 1,
+    reportShareLinkCount: 1,
+    auditEventCount: 2,
+    recentAuditEvents: [],
   };
 }
 

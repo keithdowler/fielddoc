@@ -4,7 +4,7 @@ import { createMediaRouteDependencies } from "../../../../api/media/route-depend
 import { createWebMediaDownloadRedirectHandler } from "../../media-download-route";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ mediaAssetId: string }> },
 ) {
   const { mediaAssetId } = await params;
@@ -21,5 +21,6 @@ export async function GET(
     },
     createRepository: dependencies.createRepository,
     createStorage: dependencies.createStorage,
-  })(mediaAssetId);
+    createAuditWriter: dependencies.createAuditWriter,
+  })(mediaAssetId, request);
 }

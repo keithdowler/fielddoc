@@ -4,6 +4,12 @@ import {
   type SyncMutationEnvelope,
 } from "@fielddoc/validation";
 
+import {
+  getRequestId,
+  safelyRecordAuditEvent,
+  type AuditEventWriter,
+} from "../../audit/audit-log";
+
 export type SyncApiErrorCode =
   | "UNAUTHORIZED"
   | "INVALID_JSON"
@@ -78,6 +84,7 @@ export type SyncMutationPersistence = {
 export type SyncMutationPostHandlerDependencies = {
   createAuthVerifier: () => SyncMutationAuthVerifier;
   createPersistence: () => SyncMutationPersistence;
+  createAuditWriter?: () => AuditEventWriter;
   now?: () => Date;
 };
 
@@ -211,6 +218,24 @@ export function createSyncMutationPostHandler(
       duplicateMutationIds,
       rejectedMutations,
       pullCursor: null,
+    });
+
+    await safelyRecordAuditEvent(dependencies.createAuditWriter?.(), {
+      organizationId: membership.organizationId,
+      actorUserId: membership.userId,
+      actorExternalId: authResult.principal.externalAuthId,
+      eventType: "sync_mutation_upload",
+      entityType: "LocalMutationBatch",
+      entityId: parsed.data.deviceId,
+      metadata: {
+        clientId: parsed.data.clientId,
+        deviceId: parsed.data.deviceId,
+        attemptedCount: parsed.data.mutations.length,
+        acceptedCount: acceptedMutationIds.length,
+        duplicateCount: duplicateMutationIds.length,
+        rejectedCount: rejectedMutations.length,
+      },
+      requestId: getRequestId(request),
     });
 
     return Response.json(responseBody);

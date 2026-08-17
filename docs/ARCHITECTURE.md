@@ -280,3 +280,16 @@ preserves pending local edits by marking rows `CONFLICT` and writing
 `local_sync_conflicts` entries. The first cursor is timestamp-based; high-volume
 production sync should upgrade to a stable `(updatedAt, id)` tuple cursor and
 add user-facing conflict resolution.
+
+### ADR 0028: Audit Ledger Before Advanced Admin Workflows
+
+Status: Accepted
+
+Sprint 23 adds an append-only `audit_events` table and writes privacy-reviewed
+audit events from account provisioning, sync upload/pull, media/report storage
+preparation, authenticated download redirects, report share-link creation, and
+public share-link access before building advanced admin dashboards or delivery
+workflows. This gives production support a tenant-scoped trail for high-value
+actions without treating logs as the source of truth. Canonical records,
+received mutation receipts, report exports, and share-link rows remain the
+authoritative business state; audit rows provide operational accountability.

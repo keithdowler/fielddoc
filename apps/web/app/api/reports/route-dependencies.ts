@@ -1,5 +1,6 @@
 import { webServerEnvSchema } from "@fielddoc/config";
 
+import { createNeonAuditEventWriter } from "../audit/audit-log";
 import { MediaConfigurationError } from "../media/media-service";
 import { createR2PrivateObjectStorage } from "../media/private-object-storage";
 import {
@@ -20,6 +21,7 @@ export function createReportRouteDependencies() {
         authorizedParties: parseAuthorizedParties(env.CLERK_AUTHORIZED_PARTIES),
       }),
     createRepository: () => createNeonReportArchiveRepository(env.DATABASE_URL),
+    createAuditWriter: () => createNeonAuditEventWriter(env.DATABASE_URL),
     createStorage: () => {
       if (
         !env.R2_ACCOUNT_ID ||

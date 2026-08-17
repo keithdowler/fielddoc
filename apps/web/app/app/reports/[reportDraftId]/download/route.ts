@@ -4,7 +4,7 @@ import { createReportRouteDependencies } from "../../../../api/reports/route-dep
 import { createWebReportDownloadRedirectHandler } from "../../report-download-route";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ reportDraftId: string }> },
 ) {
   const { reportDraftId } = await params;
@@ -21,5 +21,6 @@ export async function GET(
     },
     createRepository: dependencies.createRepository,
     createStorage: dependencies.createStorage,
-  })(reportDraftId);
+    createAuditWriter: dependencies.createAuditWriter,
+  })(reportDraftId, request);
 }

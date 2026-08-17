@@ -157,3 +157,19 @@ Sprint 21 adds cloud report archival metadata:
 Generated report PDF bytes remain outside Postgres in private object storage.
 Share links are delivery metadata, not authorization bypasses for tenant
 management APIs.
+
+Sprint 23 adds `audit_events` as a server-side operational ledger:
+
+- `organization_id`: nullable tenant scope for events where a tenant is known.
+- `actor_user_id`: nullable internal user ID for authenticated actions.
+- `actor_external_id`: nullable external auth provider user ID for diagnostics.
+- `event_type`: stable machine-readable event name.
+- `entity_type` and `entity_id`: optional target record reference.
+- `metadata_json`: privacy-reviewed structured metadata such as counts, hashes,
+  object keys, and expiration timestamps.
+- `request_id`: optional Vercel/request correlation ID.
+- `created_at`: server timestamp.
+
+Audit events do not replace canonical business records, sync receipts, report
+exports, or share-link rows. They are an append-only diagnostic layer for
+security review and operational support.

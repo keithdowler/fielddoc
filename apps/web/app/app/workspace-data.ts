@@ -10,7 +10,9 @@ import {
 import {
   and,
   annotations,
+  auditEvents,
   createNeonDatabase,
+  desc,
   eq,
   evidenceItems,
   isNull,
@@ -20,6 +22,8 @@ import {
   projects,
   receivedLocalMutations,
   reportDrafts,
+  reportExports,
+  reportShareLinks,
   sql,
   users,
 } from "@fielddoc/database";
@@ -159,6 +163,18 @@ export type WorkspaceData = {
   annotations: WorkspaceAnnotation[];
   syncReceiptCount: number;
   rejectedSyncReceiptCount: number;
+  reportExportCount: number;
+  reportShareLinkCount: number;
+  auditEventCount: number;
+  recentAuditEvents: WorkspaceAuditEvent[];
+};
+
+export type WorkspaceAuditEvent = {
+  id: string;
+  eventType: string;
+  entityType: string | null;
+  entityId: string | null;
+  createdAt: Date;
 };
 
 export async function getWorkspaceData(): Promise<WorkspaceData> {
@@ -220,6 +236,10 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     annotationRows,
     reportRows,
     receiptRows,
+    reportExportRows,
+    reportShareLinkRows,
+    auditEventCountRows,
+    auditEventRows,
   ] = await Promise.all([
     db
       .select({
@@ -343,6 +363,30 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       .where(
         eq(receivedLocalMutations.organizationId, membership.organizationId),
       ),
+    db
+      .select({ id: reportExports.id })
+      .from(reportExports)
+      .where(eq(reportExports.organizationId, membership.organizationId)),
+    db
+      .select({ id: reportShareLinks.id })
+      .from(reportShareLinks)
+      .where(eq(reportShareLinks.organizationId, membership.organizationId)),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(auditEvents)
+      .where(eq(auditEvents.organizationId, membership.organizationId)),
+    db
+      .select({
+        id: auditEvents.id,
+        eventType: auditEvents.eventType,
+        entityType: auditEvents.entityType,
+        entityId: auditEvents.entityId,
+        createdAt: auditEvents.createdAt,
+      })
+      .from(auditEvents)
+      .where(eq(auditEvents.organizationId, membership.organizationId))
+      .orderBy(desc(auditEvents.createdAt))
+      .limit(10),
   ]);
 
   const evidenceByProject = countBy(evidenceRows, (row) => row.projectId);
@@ -438,6 +482,10 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     rejectedSyncReceiptCount: receiptRows.filter(
       (receipt) => receipt.status === "rejected",
     ).length,
+    reportExportCount: reportExportRows.length,
+    reportShareLinkCount: reportShareLinkRows.length,
+    auditEventCount: auditEventCountRows[0]?.count ?? 0,
+    recentAuditEvents: auditEventRows,
   };
 }
 
@@ -455,6 +503,10 @@ function emptyWorkspaceData(
     annotations: [],
     syncReceiptCount: 0,
     rejectedSyncReceiptCount: 0,
+    reportExportCount: 0,
+    reportShareLinkCount: 0,
+    auditEventCount: 0,
+    recentAuditEvents: [],
   };
 }
 

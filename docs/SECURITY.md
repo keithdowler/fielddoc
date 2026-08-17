@@ -42,6 +42,10 @@ Sprint 19 hardens original-media acceptance. Upload preparation signs required `
 
 Sprint 17 adds Clerk Expo native sign-in and secure mobile session caching. The mobile app stores Clerk session tokens through the Clerk Expo token cache backed by Expo secure storage and passes tokens only at request time to metadata sync and media upload services. Clerk publishable keys and API base URLs are public configuration; Clerk secret keys, JWT keys, database URLs, and object storage credentials must remain server-only.
 
+Sprint 23 adds a server-side audit event ledger for account provisioning, sync upload/pull, media upload/download preparation, report PDF upload/download preparation, authenticated download redirects, report share-link creation, and public share-link access. Audit events are tenant-scoped when a tenant is known and store stable entity identifiers plus privacy-reviewed metadata. Audit insert failures are isolated from user-facing success paths so a temporary logging outage does not break field work; monitoring and future workflows should surface and repair failures.
+
+Temporary signed media/report redirects remain `Cache-Control: no-store`. Signed URLs are transport credentials and must not be cached, logged, copied into audit metadata, or exposed as durable share links.
+
 ## Secrets
 
 Secrets belong in Vercel, Expo/EAS, or local uncommitted environment files. `.env.example` contains placeholders only.
@@ -67,3 +71,5 @@ Signed upload and download URLs include credentials in query parameters. Do not 
 Mobile auth errors may include provider details. Surface short user-facing errors in the UI, but do not log bearer tokens, refresh tokens, Clerk session claims, or auth callback URLs.
 
 Media integrity errors should be surfaced as short stable user-facing status messages. Do not log or display signed URLs, raw object bodies, full customer filenames, or storage credentials while diagnosing upload failures.
+
+Audit events must avoid raw request bodies, bearer tokens, signed URLs, local file URIs, captions, notes, addresses, OCR text, image bytes, and Clerk secret material. Use stable IDs, counts, object keys, hashes, and short status codes only.

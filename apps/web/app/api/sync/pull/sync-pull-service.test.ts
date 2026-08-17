@@ -6,6 +6,7 @@ import {
   type PullChangesInput,
   type SyncPullPersistence,
 } from "./sync-pull-service";
+import type { AuditEventInput } from "../../audit/audit-log";
 
 const principal = {
   externalAuthId: "user_123",
@@ -29,7 +30,9 @@ const validPull = {
 describe("createSyncPullPostHandler", () => {
   it("returns tenant-scoped canonical changes after auth and membership checks", async () => {
     const pulls: PullChangesInput[] = [];
+    const auditEvents: AuditEventInput[] = [];
     const handler = createTestHandler({
+      auditEvents,
       persistence: {
         resolveMembership: async () => membership,
         pullChanges: async (input) => {
@@ -83,6 +86,21 @@ describe("createSyncPullPostHandler", () => {
       cursor: null,
       limit: 250,
     });
+    expect(auditEvents).toContainEqual(
+      expect.objectContaining({
+        organizationId: membership.organizationId,
+        actorUserId: membership.userId,
+        actorExternalId: principal.externalAuthId,
+        eventType: "sync_pull",
+        entityType: "SyncCursor",
+        entityId: "simulator-17-pro",
+        metadata: expect.objectContaining({
+          clientId: "fielddoc-mobile",
+          deviceId: "simulator-17-pro",
+          pulledCount: 1,
+        }),
+      }),
+    );
   });
 
   it("requires active organization context from auth", async () => {
@@ -126,6 +144,7 @@ function createTestHandler(
   options: {
     auth?: SyncAuthResult;
     persistence?: SyncPullPersistence;
+    auditEvents?: AuditEventInput[];
   } = {},
 ) {
   return createSyncPullPostHandler({
@@ -141,6 +160,11 @@ function createTestHandler(
           changes: emptyChanges(),
         }),
       },
+    createAuditWriter: () => ({
+      record: async (event: AuditEventInput) => {
+        options.auditEvents?.push(event);
+      },
+    }),
     now: () => new Date("2026-08-17T15:01:00.000Z"),
   });
 }

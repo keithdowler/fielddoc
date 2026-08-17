@@ -12,6 +12,11 @@ import {
 } from "@fielddoc/validation";
 import { z } from "zod";
 
+import {
+  getRequestId,
+  safelyRecordAuditEvent,
+  type AuditEventWriter,
+} from "../audit/audit-log";
 import { MediaConfigurationError } from "../media/media-service";
 import {
   createReportPdfObjectKey,
@@ -28,6 +33,7 @@ type ReportApiDependencies = {
   createAuthVerifier: () => SyncMutationAuthVerifier;
   createRepository: () => ReportArchiveRepository;
   createStorage: () => PrivateObjectStorage;
+  createAuditWriter?: () => AuditEventWriter;
   now?: () => Date;
   tokenFactory?: () => string;
 };
@@ -88,6 +94,21 @@ export function createReportPdfUploadPrepareHandler(
       "Content-Type": parsed.mimeType,
       "x-amz-meta-sha256": parsed.sha256,
     };
+
+    await recordReportAuditEvent(dependencies, request, {
+      organizationId: auth.membership.organizationId,
+      actorUserId: auth.membership.userId,
+      eventType: "report_pdf_upload_prepare",
+      entityType: "ReportDraft",
+      entityId: parsed.reportDraftId,
+      metadata: {
+        projectId: reportDraft.projectId,
+        storageObjectKey,
+        sizeBytes: parsed.sizeBytes,
+        sha256: parsed.sha256,
+        expiresAt,
+      },
+    });
 
     return Response.json(
       reportPdfUploadPrepareResponseSchema.parse({
@@ -181,6 +202,21 @@ export function createReportPdfUploadCompleteHandler(
       uploadedAt: parsed.uploadedAt,
     });
 
+    await recordReportAuditEvent(dependencies, request, {
+      organizationId: auth.membership.organizationId,
+      actorUserId: auth.membership.userId,
+      eventType: "report_pdf_upload_complete",
+      entityType: "ReportExport",
+      entityId: reportExport.id,
+      metadata: {
+        reportDraftId: parsed.reportDraftId,
+        storageObjectKey: reportExport.storageObjectKey,
+        sha256: reportExport.sha256,
+        sizeBytes: reportExport.sizeBytes,
+        uploadedAt: reportExport.uploadedAt.toISOString(),
+      },
+    });
+
     return Response.json(
       reportPdfUploadCompleteResponseSchema.parse({
         reportDraftId: parsed.reportDraftId,
@@ -230,18 +266,32 @@ export function createReportPdfDownloadPrepareHandler(
     const expiresAt = new Date(
       now.getTime() + downloadUrlExpiresInSeconds * 1000,
     ).toISOString();
+    const downloadUrl = storage.createPresignedUrl({
+      method: "GET",
+      objectKey: reportExport.storageObjectKey,
+      expiresInSeconds: downloadUrlExpiresInSeconds,
+      now,
+    });
+
+    await recordReportAuditEvent(dependencies, request, {
+      organizationId: auth.membership.organizationId,
+      actorUserId: auth.membership.userId,
+      eventType: "report_pdf_download_prepare",
+      entityType: "ReportExport",
+      entityId: reportExport.id,
+      metadata: {
+        reportDraftId: parsed.reportDraftId,
+        storageObjectKey: reportExport.storageObjectKey,
+        expiresAt,
+      },
+    });
 
     return Response.json(
       reportPdfDownloadPrepareResponseSchema.parse({
         reportDraftId: parsed.reportDraftId,
         reportExportId: reportExport.id,
         storageObjectKey: reportExport.storageObjectKey,
-        downloadUrl: storage.createPresignedUrl({
-          method: "GET",
-          objectKey: reportExport.storageObjectKey,
-          expiresInSeconds: downloadUrlExpiresInSeconds,
-          now,
-        }),
+        downloadUrl,
         expiresAt,
       }),
     );
@@ -291,6 +341,19 @@ export function createReportShareLinkCreateHandler(
     });
     const shareUrl = new URL(`/share/reports/${token}`, request.url);
 
+    await recordReportAuditEvent(dependencies, request, {
+      organizationId: auth.membership.organizationId,
+      actorUserId: auth.membership.userId,
+      eventType: "report_share_link_create",
+      entityType: "ReportShareLink",
+      entityId: shareLink.id,
+      metadata: {
+        reportDraftId: parsed.reportDraftId,
+        reportExportId: reportExport.id,
+        expiresAt: shareLink.expiresAt.toISOString(),
+      },
+    });
+
     return Response.json(
       reportShareLinkCreateResponseSchema.parse({
         reportDraftId: parsed.reportDraftId,
@@ -306,10 +369,10 @@ export function createReportShareLinkCreateHandler(
 export function createPublicReportShareRedirectHandler(
   dependencies: Pick<
     ReportApiDependencies,
-    "createRepository" | "createStorage" | "now"
+    "createRepository" | "createStorage" | "createAuditWriter" | "now"
   >,
-): (token: string) => Promise<Response> {
-  return async function handlePublicReportShareRedirect(token) {
+): (token: string, request?: Request) => Promise<Response> {
+  return async function handlePublicReportShareRedirect(token, request) {
     if (!/^[A-Za-z0-9_-]{24,256}$/.test(token)) {
       return errorResponse(
         "REPORT_SHARE_LINK_NOT_FOUND",
@@ -367,6 +430,19 @@ export function createPublicReportShareRedirectHandler(
       objectKey: shareLink.reportExport.storageObjectKey,
       expiresInSeconds: downloadUrlExpiresInSeconds,
       now,
+    });
+
+    await safelyRecordAuditEvent(dependencies.createAuditWriter?.(), {
+      organizationId: shareLink.organizationId,
+      eventType: "report_share_link_access",
+      entityType: "ReportShareLink",
+      entityId: shareLink.id,
+      metadata: {
+        reportExportId: shareLink.reportExport.id,
+        reportDraftId: shareLink.reportExport.reportDraftId,
+        expiresAt: shareLink.expiresAt.toISOString(),
+      },
+      requestId: request ? getRequestId(request) : null,
     });
 
     return new Response(null, {
@@ -500,4 +576,15 @@ function errorResponse(
   status: 400 | 401 | 403 | 404 | 409 | 410 | 501 | 502 | 503,
 ): Response {
   return Response.json({ error: { code, message } }, { status });
+}
+
+async function recordReportAuditEvent(
+  dependencies: ReportApiDependencies,
+  request: Request,
+  event: Parameters<typeof safelyRecordAuditEvent>[1],
+): Promise<void> {
+  await safelyRecordAuditEvent(dependencies.createAuditWriter?.(), {
+    ...event,
+    requestId: getRequestId(request),
+  });
 }

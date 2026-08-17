@@ -170,3 +170,16 @@ Cloud Changes in Settings, confirm no changes are waiting, then sign into a
 fresh simulator/device and tap Download Cloud Changes to confirm canonical
 project metadata appears locally. Conflict review remains future UI work; tests
 verify conflicting local rows are preserved and marked `CONFLICT`.
+
+## Sprint 23 Audit And Tenant-Isolation Tests
+
+Sprint 23 adds unit coverage for audit-event creation across media upload,
+report share-link creation/access, sync mutation upload, sync pull, and
+authenticated media/report download redirects. Redirect tests assert private
+temporary URLs continue to use `Cache-Control: no-store`.
+
+Tenant-isolation coverage now explicitly verifies authenticated media/report
+routes deny missing organization context, missing server-side membership, and
+resources outside the active organization. Live audit-event insertion remains a
+Neon integration concern because it requires production credentials and applied
+migrations.

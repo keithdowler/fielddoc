@@ -1,5 +1,10 @@
 import type { MediaUploadRepository } from "../../api/media/neon-media-repository";
 import {
+  getRequestId,
+  safelyRecordAuditEvent,
+  type AuditEventWriter,
+} from "../../api/audit/audit-log";
+import {
   MediaConfigurationError,
   type MediaConfigurationErrorCode,
 } from "../../api/media/media-service";
@@ -15,6 +20,7 @@ type WebMediaDownloadDependencies = {
   getAuthContext: () => Promise<WebAuthContext>;
   createRepository: () => MediaUploadRepository;
   createStorage: () => PrivateObjectStorage;
+  createAuditWriter?: () => AuditEventWriter;
   now?: () => Date;
 };
 
@@ -22,8 +28,8 @@ const downloadUrlExpiresInSeconds = 5 * 60;
 
 export function createWebMediaDownloadRedirectHandler(
   dependencies: WebMediaDownloadDependencies,
-): (mediaAssetId: string) => Promise<Response> {
-  return async function handleWebMediaDownload(mediaAssetId) {
+): (mediaAssetId: string, request?: Request) => Promise<Response> {
+  return async function handleWebMediaDownload(mediaAssetId, request) {
     if (!isUuid(mediaAssetId)) {
       return errorResponse(
         "INVALID_MEDIA_ASSET_ID",
@@ -100,6 +106,20 @@ export function createWebMediaDownloadRedirectHandler(
       objectKey: mediaAsset.storageObjectKey,
       expiresInSeconds: downloadUrlExpiresInSeconds,
       now: dependencies.now?.() ?? new Date(),
+    });
+
+    await safelyRecordAuditEvent(dependencies.createAuditWriter?.(), {
+      organizationId: membership.organizationId,
+      actorUserId: membership.userId,
+      actorExternalId: authContext.userId,
+      eventType: "web_media_download_redirect",
+      entityType: "MediaAsset",
+      entityId: mediaAssetId,
+      metadata: {
+        evidenceItemId: mediaAsset.evidenceItemId,
+        storageObjectKey: mediaAsset.storageObjectKey,
+      },
+      requestId: request ? getRequestId(request) : null,
     });
 
     return new Response(null, {

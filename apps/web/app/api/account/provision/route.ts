@@ -2,6 +2,11 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { webServerEnvSchema } from "@fielddoc/config";
 
 import {
+  createNeonAuditEventWriter,
+  getRequestId,
+  safelyRecordAuditEvent,
+} from "../../audit/audit-log";
+import {
   normalizeMembershipRole,
   normalizeOrganizationName,
 } from "./account-provisioning";
@@ -9,7 +14,7 @@ import { createNeonAccountProvisioner } from "./neon-account-provisioner";
 
 export const runtime = "nodejs";
 
-export async function POST(): Promise<Response> {
+export async function POST(request: Request): Promise<Response> {
   const env = webServerEnvSchema.parse(process.env);
 
   if (!env.DATABASE_URL) {
@@ -42,6 +47,20 @@ export async function POST(): Promise<Response> {
     organizationName: normalizeOrganizationName(authContext.orgSlug),
     email: clerkUser?.primaryEmailAddress?.emailAddress ?? null,
     role: normalizeMembershipRole(authContext.orgRole),
+  });
+
+  await safelyRecordAuditEvent(createNeonAuditEventWriter(env.DATABASE_URL), {
+    organizationId: result.organizationId,
+    actorUserId: result.userId,
+    actorExternalId: authContext.userId,
+    eventType: "account_provision",
+    entityType: "Organization",
+    entityId: result.organizationId,
+    metadata: {
+      clerkOrganizationId: authContext.orgId,
+      role: result.role,
+    },
+    requestId: getRequestId(request),
   });
 
   return Response.json({

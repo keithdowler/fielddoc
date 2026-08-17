@@ -5,6 +5,11 @@ import {
 } from "@fielddoc/validation";
 
 import {
+  getRequestId,
+  safelyRecordAuditEvent,
+  type AuditEventWriter,
+} from "../../audit/audit-log";
+import {
   SyncConfigurationError,
   type SyncApiErrorCode,
   type SyncAuthPrincipal,
@@ -36,6 +41,7 @@ export type SyncPullPersistence = {
 export type SyncPullPostHandlerDependencies = {
   createAuthVerifier: () => SyncMutationAuthVerifier;
   createPersistence: () => SyncPullPersistence;
+  createAuditWriter?: () => AuditEventWriter;
   now?: () => Date;
 };
 
@@ -128,8 +134,37 @@ export function createSyncPullPostHandler(
       changes: result.changes,
     });
 
+    await safelyRecordAuditEvent(dependencies.createAuditWriter?.(), {
+      organizationId: membership.organizationId,
+      actorUserId: membership.userId,
+      actorExternalId: authResult.principal.externalAuthId,
+      eventType: "sync_pull",
+      entityType: "SyncCursor",
+      entityId: parsed.data.deviceId,
+      metadata: {
+        clientId: parsed.data.clientId,
+        deviceId: parsed.data.deviceId,
+        cursor: parsed.data.cursor,
+        nextCursor: result.cursor,
+        hasMore: result.hasMore,
+        pulledCount: countPullChanges(result.changes),
+      },
+      requestId: getRequestId(request),
+    });
+
     return Response.json(responseBody);
   };
+}
+
+function countPullChanges(changes: SyncPullChanges): number {
+  return (
+    changes.projects.length +
+    changes.evidenceItems.length +
+    changes.mediaAssets.length +
+    changes.annotations.length +
+    changes.documents.length +
+    changes.reportDrafts.length
+  );
 }
 
 function errorResponse(
