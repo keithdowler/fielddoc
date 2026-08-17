@@ -1,8 +1,9 @@
 # Cloud Media Foundation
 
-FieldDoc stores immutable original evidence locally first, then syncs metadata to
-the canonical Neon tenant model. Cloud media upload is a separate authenticated
-path so large files do not travel through the metadata outbox.
+FieldDoc stores immutable original evidence and generated report PDFs locally
+first, then syncs metadata to the canonical Neon tenant model. Cloud binary
+upload is a separate authenticated path so large files do not travel through the
+metadata outbox.
 
 ## Implemented
 
@@ -41,6 +42,23 @@ path so large files do not travel through the metadata outbox.
 - Authenticated web users can download uploaded originals through
   `/app/media/{mediaAssetId}/download`, which resolves Clerk organization
   membership and redirects to a short-lived private storage URL.
+- Generated report PDFs use the same private storage boundary:
+  - `POST /api/reports/uploads/prepare`
+  - `POST /api/reports/uploads/complete`
+  - `POST /api/reports/downloads/prepare`
+  - `POST /api/reports/share-links`
+  - `GET /share/reports/{token}`
+- Report object keys are tenant scoped:
+  `organizations/{organizationId}/reports/{reportDraftId}/exports/{sha256}.pdf`.
+- Report upload completion verifies object existence, size, `application/pdf`
+  content type, optional stored SHA-256 metadata, and downloaded byte SHA-256
+  before recording the export.
+- Mobile Settings Upload All Pending Changes now uploads metadata, original
+  media, and generated report PDFs in that order.
+- Web Reports exposes authenticated PDF downloads when a report export exists.
+- External report share links store only a hashed token, expiration, access
+  count, and report export reference. The public route redirects to a
+  short-lived private object URL and never exposes a durable bucket URL.
 
 ## Manual Verification Flow
 
@@ -49,13 +67,16 @@ path so large files do not travel through the metadata outbox.
 2. Create or select a project.
 3. Capture or import one image in Capture.
 4. Open Settings and tap Upload All Pending Changes.
-5. Confirm the result reports metadata accepted and originals uploaded.
-6. If upload completion fails, confirm the Settings result includes the server
+5. Generate a Proof Packet PDF in Reports.
+6. Confirm the result reports metadata accepted, originals uploaded, and report
+   PDFs uploaded.
+7. If upload completion fails, confirm the Settings result includes the server
    rejection reason so storage/header/hash issues can be diagnosed.
-7. Open the web app, select the same Clerk organization, and visit Projects.
-8. Confirm the project media count shows uploaded originals.
-9. Use Download original from the Uploaded originals section and verify a
-   temporary private-storage URL opens the original file.
+8. Open the web app, select the same Clerk organization, and visit Projects.
+9. Confirm the project media count shows uploaded originals.
+10. Use Download original from the Uploaded originals section and verify a
+    temporary private-storage URL opens the original file.
+11. Visit Reports and use Download PDF for the generated report export.
 
 ## Required Production Environment
 
@@ -77,4 +98,7 @@ evidence originals.
 - Background upload retry policy with Wi-Fi/battery controls.
 - Async/streaming verification path for very large files if synchronous byte
   hashing becomes too slow for completion requests.
-- Report PDF cloud archival through the same private storage boundary.
+- Branded customer-facing report delivery pages on top of share-link redirects.
+- First-class audit event rows for report generation, download, share creation,
+  and share access. Sprint 21 tracks share access count and last accessed time
+  but does not add a general audit log.

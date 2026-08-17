@@ -24,6 +24,10 @@ import {
   runMobileMediaUpload,
   type MobileMediaUploadResult,
 } from "@/infrastructure/sync/mobile-media-upload";
+import {
+  runMobileReportUpload,
+  type MobileReportUploadResult,
+} from "@/infrastructure/sync/mobile-report-upload";
 
 const settingsSections = [
   "Profile",
@@ -43,6 +47,9 @@ export default function SettingsScreen() {
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [mediaUploadResult, setMediaUploadResult] =
     useState<MobileMediaUploadResult | null>(null);
+  const [reportUploadResult, setReportUploadResult] =
+    useState<MobileReportUploadResult | null>(null);
+  const [uploadingReports, setUploadingReports] = useState(false);
   const [cloudSyncResult, setCloudSyncResult] =
     useState<MobileCloudSyncResult | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
@@ -86,6 +93,18 @@ export default function SettingsScreen() {
     setUploadingMedia(false);
   }, [mobileAuth]);
 
+  const uploadReportPdfs = useCallback(async () => {
+    setUploadingReports(true);
+    const repositories = await getLocalRepositories();
+    const result = await runMobileReportUpload({
+      repositories,
+      tokenProvider: mobileAuth,
+    });
+
+    setReportUploadResult(result);
+    setUploadingReports(false);
+  }, [mobileAuth]);
+
   const uploadAllPendingChanges = useCallback(async () => {
     setSyncingAll(true);
 
@@ -99,6 +118,7 @@ export default function SettingsScreen() {
       setCloudSyncResult(result);
       setSyncResult(result.metadata);
       setMediaUploadResult(result.media);
+      setReportUploadResult(result.reports);
     } finally {
       setSyncingAll(false);
     }
@@ -153,7 +173,7 @@ export default function SettingsScreen() {
       <Card>
         <SectionHeader
           title="Upload All Pending Changes"
-          detail="Sends metadata first, then uploads original files."
+          detail="Sends metadata first, then uploads originals and report PDFs."
         />
         {cloudSyncResult ? (
           <StatusBanner
@@ -180,6 +200,11 @@ export default function SettingsScreen() {
               Originals uploaded {cloudSyncResult.media?.uploadedCount ?? 0} |
               failed {cloudSyncResult.media?.failedCount ?? 0} | pending{" "}
               {cloudSyncResult.media?.pendingCount ?? 0}
+            </AppText>
+            <AppText variant="small" muted>
+              Report PDFs uploaded {cloudSyncResult.reports?.uploadedCount ?? 0}{" "}
+              | failed {cloudSyncResult.reports?.failedCount ?? 0} | pending{" "}
+              {cloudSyncResult.reports?.pendingCount ?? 0}
             </AppText>
           </View>
         ) : null}
@@ -266,6 +291,42 @@ export default function SettingsScreen() {
       </Card>
 
       <Card>
+        <SectionHeader
+          title="Report PDF Upload"
+          detail="Archives generated Proof Packets in private storage."
+        />
+        {reportUploadResult ? (
+          <StatusBanner
+            tone={statusToneByReportStatus[reportUploadResult.status]}
+            title={statusTitleByReportStatus[reportUploadResult.status]}
+            message={reportUploadResult.message}
+          />
+        ) : (
+          <AppText muted>
+            Generated PDFs stay on this device until cloud sign-in can prepare a
+            private upload URL.
+          </AppText>
+        )}
+        {reportUploadResult ? (
+          <View style={styles.metrics}>
+            <AppText variant="small" muted>
+              Attempted {reportUploadResult.attemptedCount} | uploaded{" "}
+              {reportUploadResult.uploadedCount} | failed{" "}
+              {reportUploadResult.failedCount} | pending{" "}
+              {reportUploadResult.pendingCount}
+            </AppText>
+          </View>
+        ) : null}
+        <AppButton
+          label={uploadingReports ? "Checking..." : "Upload Report PDFs"}
+          icon="doc.richtext"
+          accessibilityLabel="Upload generated report PDFs to private cloud storage"
+          onPress={uploadReportPdfs}
+          disabled={uploadingReports || syncingAll || !mobileAuth.isSignedIn}
+        />
+      </Card>
+
+      <Card>
         <SectionHeader title="Account & Workspace" />
         {settingsSections.map((section) => (
           <View key={section} style={styles.row}>
@@ -340,6 +401,24 @@ const statusTitleByMediaStatus = {
   success: "Originals uploaded",
   partial: "Some originals uploaded",
   failed: "Media upload failed",
+} as const;
+
+const statusToneByReportStatus = {
+  not_configured: "warning",
+  auth_required: "warning",
+  idle: "info",
+  success: "success",
+  partial: "warning",
+  failed: "error",
+} as const;
+
+const statusTitleByReportStatus = {
+  not_configured: "Report upload not configured",
+  auth_required: "Cloud sign-in required",
+  idle: "No PDFs waiting",
+  success: "Report PDFs uploaded",
+  partial: "Some PDFs uploaded",
+  failed: "Report upload failed",
 } as const;
 
 const statusToneByCloudStatus = {

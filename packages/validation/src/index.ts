@@ -132,6 +132,65 @@ export const mediaDownloadPrepareResponseSchema = z.object({
   expiresAt: isoDateTimeSchema,
 });
 
+export const reportPdfUploadPrepareRequestSchema = z.object({
+  reportDraftId: uuidSchema,
+  mimeType: z.literal("application/pdf"),
+  sizeBytes: z.number().int().nonnegative(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  generatedAt: isoDateTimeSchema,
+  fileExtension: z.literal("pdf").optional(),
+});
+
+export const reportPdfUploadPrepareResponseSchema = z.object({
+  reportDraftId: uuidSchema,
+  storageObjectKey: z.string().trim().min(1),
+  uploadUrl: z.string().url(),
+  requiredHeaders: z.record(z.string(), z.string()),
+  expiresAt: isoDateTimeSchema,
+});
+
+export const reportPdfUploadCompleteRequestSchema = z.object({
+  reportDraftId: uuidSchema,
+  storageObjectKey: z.string().trim().min(1),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  sizeBytes: z.number().int().nonnegative(),
+  generatedAt: isoDateTimeSchema,
+  uploadedAt: isoDateTimeSchema,
+});
+
+export const reportPdfUploadCompleteResponseSchema = z.object({
+  reportDraftId: uuidSchema,
+  reportExportId: uuidSchema,
+  storageObjectKey: z.string().trim().min(1),
+  uploadedAt: isoDateTimeSchema,
+  status: z.literal("recorded"),
+});
+
+export const reportPdfDownloadPrepareRequestSchema = z.object({
+  reportDraftId: uuidSchema,
+});
+
+export const reportPdfDownloadPrepareResponseSchema = z.object({
+  reportDraftId: uuidSchema,
+  reportExportId: uuidSchema,
+  storageObjectKey: z.string().trim().min(1),
+  downloadUrl: z.string().url(),
+  expiresAt: isoDateTimeSchema,
+});
+
+export const reportShareLinkCreateRequestSchema = z.object({
+  reportDraftId: uuidSchema,
+  expiresAt: isoDateTimeSchema.optional(),
+});
+
+export const reportShareLinkCreateResponseSchema = z.object({
+  reportDraftId: uuidSchema,
+  reportExportId: uuidSchema,
+  shareLinkId: uuidSchema,
+  shareUrl: z.string().url(),
+  expiresAt: isoDateTimeSchema,
+});
+
 export type SyncMutationEnvelope = z.infer<typeof syncMutationEnvelopeSchema>;
 export type SyncMutationUploadRequest = z.infer<
   typeof syncMutationUploadRequestSchema
@@ -156,4 +215,28 @@ export type MediaDownloadPrepareRequest = z.infer<
 >;
 export type MediaDownloadPrepareResponse = z.infer<
   typeof mediaDownloadPrepareResponseSchema
+>;
+export type ReportPdfUploadPrepareRequest = z.infer<
+  typeof reportPdfUploadPrepareRequestSchema
+>;
+export type ReportPdfUploadPrepareResponse = z.infer<
+  typeof reportPdfUploadPrepareResponseSchema
+>;
+export type ReportPdfUploadCompleteRequest = z.infer<
+  typeof reportPdfUploadCompleteRequestSchema
+>;
+export type ReportPdfUploadCompleteResponse = z.infer<
+  typeof reportPdfUploadCompleteResponseSchema
+>;
+export type ReportPdfDownloadPrepareRequest = z.infer<
+  typeof reportPdfDownloadPrepareRequestSchema
+>;
+export type ReportPdfDownloadPrepareResponse = z.infer<
+  typeof reportPdfDownloadPrepareResponseSchema
+>;
+export type ReportShareLinkCreateRequest = z.infer<
+  typeof reportShareLinkCreateRequestSchema
+>;
+export type ReportShareLinkCreateResponse = z.infer<
+  typeof reportShareLinkCreateResponseSchema
 >;

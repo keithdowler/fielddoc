@@ -342,6 +342,71 @@ export const reportDrafts = pgTable(
   ],
 );
 
+export const reportExports = pgTable(
+  "report_exports",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    reportDraftId: uuid("report_draft_id")
+      .notNull()
+      .references(() => reportDrafts.id),
+    storageObjectKey: text("storage_object_key").notNull(),
+    mimeType: text("mime_type").notNull().default("application/pdf"),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ...timestampColumns,
+  },
+  (table) => [
+    index("idx_report_exports_org_created").on(
+      table.organizationId,
+      table.createdAt,
+    ),
+    index("idx_report_exports_draft_uploaded").on(
+      table.reportDraftId,
+      table.uploadedAt,
+    ),
+    uniqueIndex("uniq_report_exports_draft_sha").on(
+      table.reportDraftId,
+      table.sha256,
+    ),
+  ],
+);
+
+export const reportShareLinks = pgTable(
+  "report_share_links",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    reportExportId: uuid("report_export_id")
+      .notNull()
+      .references(() => reportExports.id),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+    accessCount: integer("access_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uniq_report_share_links_token_hash").on(table.tokenHash),
+    index("idx_report_share_links_export").on(table.reportExportId),
+    index("idx_report_share_links_org_created").on(
+      table.organizationId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const receivedLocalMutations = pgTable(
   "received_local_mutations",
   {

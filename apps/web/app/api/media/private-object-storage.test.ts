@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createEvidenceObjectKey,
+  createReportPdfObjectKey,
   createR2PrivateObjectStorage,
 } from "./private-object-storage";
 
@@ -24,6 +25,18 @@ describe("private object storage", () => {
       }),
     ).toBe(
       "organizations/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222/originals/33333333-3333-4333-8333-333333333333-9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08.jpg",
+    );
+  });
+
+  it("scopes generated report PDFs by organization and report draft", () => {
+    expect(
+      createReportPdfObjectKey({
+        organizationId: "11111111-1111-4111-8111-111111111111",
+        reportDraftId: "33333333-3333-4333-8333-333333333333",
+        sha256: testSha256,
+      }),
+    ).toBe(
+      "organizations/11111111-1111-4111-8111-111111111111/reports/33333333-3333-4333-8333-333333333333/exports/9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08.pdf",
     );
   });
 

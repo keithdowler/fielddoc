@@ -9,9 +9,8 @@ export default async function ReportsPage() {
       <p className="eyebrow">Reports</p>
       <h1>Proof Packet archive</h1>
       <p>
-        Synced report drafts appear here as cloud metadata. Downloadable
-        generated PDFs will activate after private storage and report-version
-        uploads are implemented.
+        Synced report drafts appear here as cloud metadata. Generated PDFs are
+        delivered through private, short-lived storage URLs when available.
       </p>
 
       {workspace.status !== "ready" ? (
@@ -40,6 +39,15 @@ export default async function ReportsPage() {
                 <span>
                   {report.hasGeneratedPdf ? "PDF stored" : "PDF local"}
                 </span>
+                {report.hasGeneratedPdf ? (
+                  <Link
+                    className="downloadLink"
+                    href={`/app/reports/${report.id}/download`}
+                    prefetch={false}
+                  >
+                    Download PDF
+                  </Link>
+                ) : null}
               </div>
             </article>
           ))}

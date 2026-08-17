@@ -9,6 +9,10 @@ import {
   type UploadBinary,
 } from "./mobile-media-upload";
 import {
+  runMobileReportUpload,
+  type MobileReportUploadResult,
+} from "./mobile-report-upload";
+import {
   runMobileOutboxSync,
   type MobileSyncResult,
   type MobileSyncTokenProvider,
@@ -27,11 +31,16 @@ export type MobileCloudSyncResult = {
   message: string;
   metadata: MobileSyncResult;
   media: MobileMediaUploadResult | null;
+  reports: MobileReportUploadResult | null;
 };
 
 type MobileCloudSyncApiClient = Pick<
   FieldDocApiClient,
-  "uploadLocalMutations" | "prepareMediaUpload" | "completeMediaUpload"
+  | "uploadLocalMutations"
+  | "prepareMediaUpload"
+  | "completeMediaUpload"
+  | "prepareReportPdfUpload"
+  | "completeReportPdfUpload"
 >;
 
 export type RunMobileCloudSyncInput = {
@@ -66,6 +75,7 @@ export async function runMobileCloudSync({
       message: metadata.message,
       metadata,
       media: null,
+      reports: null,
     };
   }
 
@@ -77,12 +87,21 @@ export async function runMobileCloudSync({
     uploadBinary,
     now,
   });
+  const reports = await runMobileReportUpload({
+    repositories,
+    tokenProvider,
+    apiBaseUrl,
+    apiClient,
+    uploadBinary,
+    now,
+  });
 
   return {
-    status: combineCloudSyncStatus(metadata, media),
-    message: createCloudSyncMessage(metadata, media),
+    status: combineCloudSyncStatus(metadata, media, reports),
+    message: createCloudSyncMessage(metadata, media, reports),
     metadata,
     media,
+    reports,
   };
 }
 
@@ -93,20 +112,36 @@ function canUploadMediaAfterMetadata(status: MobileSyncResult["status"]) {
 function combineCloudSyncStatus(
   metadata: MobileSyncResult,
   media: MobileMediaUploadResult,
+  reports: MobileReportUploadResult,
 ): MobileCloudSyncStatus {
-  if (media.status === "not_configured" || media.status === "auth_required") {
-    return media.status;
+  if (
+    media.status === "not_configured" ||
+    reports.status === "not_configured"
+  ) {
+    return "not_configured";
   }
 
-  if (media.status === "failed") {
+  if (media.status === "auth_required" || reports.status === "auth_required") {
+    return "auth_required";
+  }
+
+  if (media.status === "failed" || reports.status === "failed") {
     return "failed";
   }
 
-  if (media.status === "partial" || metadata.status === "partial") {
+  if (
+    media.status === "partial" ||
+    reports.status === "partial" ||
+    metadata.status === "partial"
+  ) {
     return "partial";
   }
 
-  if (metadata.status === "idle" && media.status === "idle") {
+  if (
+    metadata.status === "idle" &&
+    media.status === "idle" &&
+    reports.status === "idle"
+  ) {
     return "idle";
   }
 
@@ -116,18 +151,33 @@ function combineCloudSyncStatus(
 function createCloudSyncMessage(
   metadata: MobileSyncResult,
   media: MobileMediaUploadResult,
+  reports: MobileReportUploadResult,
 ): string {
-  if (metadata.status === "idle" && media.status === "idle") {
-    return "No metadata or original media is waiting for cloud upload.";
+  if (
+    metadata.status === "idle" &&
+    media.status === "idle" &&
+    reports.status === "idle"
+  ) {
+    return "No metadata, original media, or report PDFs are waiting for cloud upload.";
   }
 
-  if (media.status === "success") {
-    return "Metadata and original media are uploaded.";
+  if (media.status === "success" && reports.status === "success") {
+    return "Metadata, original media, and report PDFs are uploaded.";
   }
 
-  if (media.status === "idle") {
-    return "Metadata is current; no original media is waiting for upload.";
+  if (media.status === "success" && reports.status === "idle") {
+    return "Metadata and original media are uploaded; no report PDFs are waiting.";
   }
 
-  return media.message;
+  if (media.status === "idle" && reports.status === "success") {
+    return "Metadata and report PDFs are uploaded; no original media is waiting.";
+  }
+
+  if (media.status === "idle" && reports.status === "idle") {
+    return "Metadata is current; no original media or report PDFs are waiting.";
+  }
+
+  return media.status === "success" || media.status === "idle"
+    ? reports.message
+    : media.message;
 }

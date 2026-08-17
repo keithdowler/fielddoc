@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FieldDocApiClient } from "@fielddoc/api-client";
+import type { SyncMutationUploadRequest } from "@fielddoc/validation";
 
 import { createNodeSqliteDatabase } from "@/infrastructure/local-store/node-sqlite-database.test-helper";
 import { createLocalRepositories } from "@/infrastructure/local-store/repositories";
@@ -64,10 +64,8 @@ describe("runMobileOutboxSync", () => {
         name: "Syncable project",
       });
       const mutation = (await repositories.mutations.listUploadable())[0];
-      const requests: Parameters<
-        FieldDocApiClient["uploadLocalMutations"]
-      >[0][] = [];
-      const apiClient: FieldDocApiClient = {
+      const requests: SyncMutationUploadRequest[] = [];
+      const apiClient = {
         async uploadLocalMutations(input) {
           requests.push(input);
 
@@ -79,16 +77,7 @@ describe("runMobileOutboxSync", () => {
             pullCursor: null,
           };
         },
-        async prepareMediaUpload() {
-          throw new Error("Not used by mobile outbox sync.");
-        },
-        async completeMediaUpload() {
-          throw new Error("Not used by mobile outbox sync.");
-        },
-        async prepareMediaDownload() {
-          throw new Error("Not used by mobile outbox sync.");
-        },
-      };
+      } satisfies Parameters<typeof runMobileOutboxSync>[0]["apiClient"];
 
       const result = await runMobileOutboxSync({
         repositories,
@@ -125,7 +114,7 @@ describe("runMobileOutboxSync", () => {
     await withRepositories(async (repositories) => {
       await repositories.projects.create({ name: "Rejected project" });
       const mutation = (await repositories.mutations.listUploadable())[0];
-      const apiClient: FieldDocApiClient = {
+      const apiClient = {
         async uploadLocalMutations() {
           return {
             serverTime: "2026-08-16T14:00:00.000Z",
@@ -141,16 +130,7 @@ describe("runMobileOutboxSync", () => {
             pullCursor: null,
           };
         },
-        async prepareMediaUpload() {
-          throw new Error("Not used by mobile outbox sync.");
-        },
-        async completeMediaUpload() {
-          throw new Error("Not used by mobile outbox sync.");
-        },
-        async prepareMediaDownload() {
-          throw new Error("Not used by mobile outbox sync.");
-        },
-      };
+      } satisfies Parameters<typeof runMobileOutboxSync>[0]["apiClient"];
 
       const result = await runMobileOutboxSync({
         repositories,

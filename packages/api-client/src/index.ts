@@ -5,12 +5,28 @@ import {
   mediaUploadCompleteResponseSchema,
   mediaUploadPrepareRequestSchema,
   mediaUploadPrepareResponseSchema,
+  reportPdfDownloadPrepareRequestSchema,
+  reportPdfDownloadPrepareResponseSchema,
+  reportPdfUploadCompleteRequestSchema,
+  reportPdfUploadCompleteResponseSchema,
+  reportPdfUploadPrepareRequestSchema,
+  reportPdfUploadPrepareResponseSchema,
+  reportShareLinkCreateRequestSchema,
+  reportShareLinkCreateResponseSchema,
   type MediaDownloadPrepareRequest,
   type MediaDownloadPrepareResponse,
   type MediaUploadCompleteRequest,
   type MediaUploadCompleteResponse,
   type MediaUploadPrepareRequest,
   type MediaUploadPrepareResponse,
+  type ReportPdfDownloadPrepareRequest,
+  type ReportPdfDownloadPrepareResponse,
+  type ReportPdfUploadCompleteRequest,
+  type ReportPdfUploadCompleteResponse,
+  type ReportPdfUploadPrepareRequest,
+  type ReportPdfUploadPrepareResponse,
+  type ReportShareLinkCreateRequest,
+  type ReportShareLinkCreateResponse,
   syncMutationUploadRequestSchema,
   syncMutationUploadResponseSchema,
   type SyncMutationUploadRequest,
@@ -43,6 +59,18 @@ export type FieldDocApiClient = {
   prepareMediaDownload(
     input: MediaDownloadPrepareRequest,
   ): Promise<MediaDownloadPrepareResponse>;
+  prepareReportPdfUpload(
+    input: ReportPdfUploadPrepareRequest,
+  ): Promise<ReportPdfUploadPrepareResponse>;
+  completeReportPdfUpload(
+    input: ReportPdfUploadCompleteRequest,
+  ): Promise<ReportPdfUploadCompleteResponse>;
+  prepareReportPdfDownload(
+    input: ReportPdfDownloadPrepareRequest,
+  ): Promise<ReportPdfDownloadPrepareResponse>;
+  createReportShareLink(
+    input: ReportShareLinkCreateRequest,
+  ): Promise<ReportShareLinkCreateResponse>;
 };
 
 export class FieldDocApiError extends Error {
@@ -128,6 +156,50 @@ export function createFieldDocApiClient(
         path: "/api/media/downloads/prepare",
         body: mediaDownloadPrepareRequestSchema.parse(requestInput),
         responseSchema: mediaDownloadPrepareResponseSchema,
+      });
+    },
+
+    async prepareReportPdfUpload(requestInput) {
+      return postJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        path: "/api/reports/uploads/prepare",
+        body: reportPdfUploadPrepareRequestSchema.parse(requestInput),
+        responseSchema: reportPdfUploadPrepareResponseSchema,
+      });
+    },
+
+    async completeReportPdfUpload(requestInput) {
+      return postJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        path: "/api/reports/uploads/complete",
+        body: reportPdfUploadCompleteRequestSchema.parse(requestInput),
+        responseSchema: reportPdfUploadCompleteResponseSchema,
+      });
+    },
+
+    async prepareReportPdfDownload(requestInput) {
+      return postJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        path: "/api/reports/downloads/prepare",
+        body: reportPdfDownloadPrepareRequestSchema.parse(requestInput),
+        responseSchema: reportPdfDownloadPrepareResponseSchema,
+      });
+    },
+
+    async createReportShareLink(requestInput) {
+      return postJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        path: "/api/reports/share-links",
+        body: reportShareLinkCreateRequestSchema.parse(requestInput),
+        responseSchema: reportShareLinkCreateResponseSchema,
       });
     },
   };

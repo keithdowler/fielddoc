@@ -175,6 +175,10 @@ export type ReportDraft = {
   sectionsJson: string;
   status: ProofPacketStatus;
   generatedPdfUri: string | null;
+  generatedPdfStorageObjectKey: string | null;
+  generatedPdfSha256: string | null;
+  generatedPdfSizeBytes: number | null;
+  generatedPdfUploadedAt: string | null;
   generatedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -977,6 +981,13 @@ export type MarkReportDraftGeneratedInput = {
   generatedAt: string;
 };
 
+export type MarkReportDraftUploadedInput = {
+  storageObjectKey: string;
+  sha256: string;
+  sizeBytes: number;
+  uploadedAt: string;
+};
+
 export type ReportHistoryOptions = {
   projectId?: string;
   includeDrafts?: boolean;
@@ -1054,10 +1065,15 @@ export interface ReportDraftRepository {
     id: string,
     input: MarkReportDraftGeneratedInput,
   ): Promise<ReportDraft>;
+  markGeneratedPdfUploaded(
+    id: string,
+    input: MarkReportDraftUploadedInput,
+  ): Promise<ReportDraft>;
   getById(id: string): Promise<ReportDraft | null>;
   getLatestByProject(projectId: string): Promise<ReportDraft | null>;
   listByProject(projectId: string): Promise<ReportDraft[]>;
   listHistory(options?: ReportHistoryOptions): Promise<ReportHistoryItem[]>;
+  listPendingPdfUpload(limit?: number): Promise<ReportDraft[]>;
   delete(id: string): Promise<void>;
 }
 

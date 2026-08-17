@@ -79,6 +79,12 @@ describe("runMobileCloudSync", () => {
               status: "recorded",
             };
           },
+          async prepareReportPdfUpload() {
+            throw new Error("Report PDF upload should not start.");
+          },
+          async completeReportPdfUpload() {
+            throw new Error("Report PDF upload should not complete.");
+          },
         },
         uploadBinary: async () => {
           calls.push("binary");
@@ -95,6 +101,7 @@ describe("runMobileCloudSync", () => {
       expect(result.status).toBe("success");
       expect(result.metadata.acceptedCount).toBeGreaterThan(0);
       expect(result.media?.uploadedCount).toBe(1);
+      expect(result.reports?.status).toBe("idle");
       expect(
         (await repositories.media.listByEvidenceItem(evidence.id))[0],
       ).toMatchObject({
@@ -150,6 +157,12 @@ describe("runMobileCloudSync", () => {
           },
           async completeMediaUpload() {
             throw new Error("Media upload should not complete.");
+          },
+          async prepareReportPdfUpload() {
+            throw new Error("Report PDF upload should not start.");
+          },
+          async completeReportPdfUpload() {
+            throw new Error("Report PDF upload should not complete.");
           },
         },
       });

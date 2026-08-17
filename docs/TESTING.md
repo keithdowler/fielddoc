@@ -142,3 +142,18 @@ Manual coverage should sign into the web app, open Projects, drill into a
 project detail page, inspect Before/Work/After/Documents/Other sections, open a
 private original download, then open the related report detail page from Reports
 or the project detail report list.
+
+## Sprint 21 Report Archive Tests
+
+Sprint 21 adds unit coverage for tenant-scoped report PDF object keys,
+authenticated report upload preparation, verified report upload completion,
+private report download preparation, opaque expiring report share links, public
+share-link redirects, API-client report archive methods, SQLite generated-PDF
+upload state, mobile report PDF upload orchestration, and the ordered mobile
+cloud sync flow across metadata, original media, and report PDFs.
+
+Manual coverage should generate a PDF on mobile, tap Upload All Pending Changes,
+confirm the report PDF upload count succeeds, refresh web Reports, download the
+PDF from the authenticated web route, create a share link through the API route
+or a later UI, and confirm the share URL redirects to a short-lived private
+storage URL.

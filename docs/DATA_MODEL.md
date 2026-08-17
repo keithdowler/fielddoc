@@ -139,3 +139,21 @@ Sprint 15 adds cloud-media state to local and canonical media rows. `storage_obj
 Sprint 16 adds `is_important` to local and canonical evidence rows. Important
 evidence is mutable metadata, not a derivative of the original media file, and
 is represented in outbox mutations like other evidence metadata updates.
+
+Sprint 21 adds cloud report archival metadata:
+
+- Local `report_drafts` now track `generated_pdf_storage_object_key`,
+  `generated_pdf_sha256`, `generated_pdf_size_bytes`, and
+  `generated_pdf_uploaded_at` after the generated PDF has been uploaded and
+  verified.
+- Server `report_exports` records immutable generated PDF versions by
+  organization, report draft, object key, MIME type, size, SHA-256,
+  generated-at timestamp, and uploaded-at timestamp.
+- Server `report_share_links` stores opaque share tokens only as SHA-256 hashes
+  plus expiration, revocation, access count, and last-accessed timestamps.
+- The canonical `report_drafts.generated_pdf_object_key` points at the latest
+  verified private PDF export for workspace list/detail views.
+
+Generated report PDF bytes remain outside Postgres in private object storage.
+Share links are delivery metadata, not authorization bypasses for tenant
+management APIs.

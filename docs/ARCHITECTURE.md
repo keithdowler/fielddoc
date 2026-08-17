@@ -248,3 +248,19 @@ canonical Neon read model. Detail pages are read-only and reuse the existing
 private media download redirect, so evidence originals remain non-public.
 Cloud PDF archival, report version downloads, branded delivery pages, and
 expiring share links remain future work.
+
+### ADR 0026: Private Report Exports Before Branded Delivery Pages
+
+Status: Accepted
+
+Sprint 21 stores generated Proof Packet PDFs as private object-storage report
+exports before building branded customer delivery pages. Mobile uploads report
+metadata first, then generated PDFs through signed upload URLs, and the server
+verifies object size, content type, metadata hash, and byte hash before
+recording a canonical `report_exports` row. Authenticated web users download
+the latest report export through a short-lived redirect, while external
+delivery uses opaque, hashed, expiring share tokens that redirect to short-lived
+private storage URLs and increment access counts. This keeps PDF artifacts out
+of Postgres, avoids public bucket URLs, and gives FieldDoc a durable report
+version boundary before adding custom branding, customer-facing landing pages,
+or detailed audit-event streams.

@@ -1,6 +1,6 @@
 import type { LocalDatabase } from "./database";
 
-export const localDatabaseVersion = 8;
+export const localDatabaseVersion = 9;
 
 export const localMigrations = [
   {
@@ -211,6 +211,19 @@ export const localMigrations = [
 
       CREATE INDEX IF NOT EXISTS idx_evidence_project_important
         ON evidence_items(project_id, is_important, capture_timestamp);
+    `,
+  },
+  {
+    version: 9,
+    name: "report_draft_cloud_pdf_state",
+    sql: `
+      ALTER TABLE report_drafts ADD COLUMN generated_pdf_storage_object_key TEXT;
+      ALTER TABLE report_drafts ADD COLUMN generated_pdf_sha256 TEXT;
+      ALTER TABLE report_drafts ADD COLUMN generated_pdf_size_bytes INTEGER;
+      ALTER TABLE report_drafts ADD COLUMN generated_pdf_uploaded_at TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_report_drafts_pdf_upload_state
+        ON report_drafts(generated_pdf_uri, generated_pdf_uploaded_at, deleted_at, updated_at);
     `,
   },
 ] as const;

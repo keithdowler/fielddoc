@@ -213,7 +213,7 @@ async function uploadMediaAsset({
   });
 }
 
-async function uploadBinaryWithExpoFileSystem({
+export async function uploadBinaryWithExpoFileSystem({
   uploadUrl,
   localUri,
   mimeType,

@@ -169,4 +169,130 @@ describe("createFieldDocApiClient", () => {
     );
     expect(response.status).toBe("recorded");
   });
+
+  it("prepares report PDF uploads through the report API", async () => {
+    const requests: Request[] = [];
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      accessToken: "token",
+      fetchImpl: async (request) => {
+        requests.push(request);
+        return Response.json({
+          reportDraftId: "33333333-3333-4333-8333-333333333333",
+          storageObjectKey:
+            "organizations/org/reports/report/exports/report.pdf",
+          uploadUrl: "https://uploads.example.test/report.pdf",
+          requiredHeaders: {},
+          expiresAt: "2026-08-17T15:10:00.000Z",
+        });
+      },
+    });
+
+    const response = await client.prepareReportPdfUpload({
+      reportDraftId: "33333333-3333-4333-8333-333333333333",
+      mimeType: "application/pdf",
+      sizeBytes: 4096,
+      sha256:
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      generatedAt: "2026-08-17T15:00:00.000Z",
+      fileExtension: "pdf",
+    });
+
+    expect(requests[0]?.url).toBe(
+      "https://example.test/api/reports/uploads/prepare",
+    );
+    expect(requests[0]?.headers.get("authorization")).toBe("Bearer token");
+    expect(response.storageObjectKey).toContain("/reports/");
+  });
+
+  it("records report PDF upload completion through the report API", async () => {
+    const requests: Request[] = [];
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      fetchImpl: async (request) => {
+        requests.push(request);
+        return Response.json({
+          reportDraftId: "33333333-3333-4333-8333-333333333333",
+          reportExportId: "44444444-4444-4444-8444-444444444444",
+          storageObjectKey:
+            "organizations/org/reports/report/exports/report.pdf",
+          uploadedAt: "2026-08-17T15:02:00.000Z",
+          status: "recorded",
+        });
+      },
+    });
+
+    const response = await client.completeReportPdfUpload({
+      reportDraftId: "33333333-3333-4333-8333-333333333333",
+      storageObjectKey: "organizations/org/reports/report/exports/report.pdf",
+      sha256:
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      sizeBytes: 4096,
+      generatedAt: "2026-08-17T15:00:00.000Z",
+      uploadedAt: "2026-08-17T15:02:00.000Z",
+    });
+
+    expect(requests[0]?.url).toBe(
+      "https://example.test/api/reports/uploads/complete",
+    );
+    expect(response.reportExportId).toBe(
+      "44444444-4444-4444-8444-444444444444",
+    );
+  });
+
+  it("prepares report PDF downloads through the report API", async () => {
+    const requests: Request[] = [];
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      fetchImpl: async (request) => {
+        requests.push(request);
+        return Response.json({
+          reportDraftId: "33333333-3333-4333-8333-333333333333",
+          reportExportId: "44444444-4444-4444-8444-444444444444",
+          storageObjectKey:
+            "organizations/org/reports/report/exports/report.pdf",
+          downloadUrl: "https://downloads.example.test/report.pdf",
+          expiresAt: "2026-08-17T15:05:00.000Z",
+        });
+      },
+    });
+
+    const response = await client.prepareReportPdfDownload({
+      reportDraftId: "33333333-3333-4333-8333-333333333333",
+    });
+
+    expect(requests[0]?.url).toBe(
+      "https://example.test/api/reports/downloads/prepare",
+    );
+    expect(response.downloadUrl).toBe(
+      "https://downloads.example.test/report.pdf",
+    );
+  });
+
+  it("creates report share links through the report API", async () => {
+    const requests: Request[] = [];
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      fetchImpl: async (request) => {
+        requests.push(request);
+        return Response.json({
+          reportDraftId: "33333333-3333-4333-8333-333333333333",
+          reportExportId: "44444444-4444-4444-8444-444444444444",
+          shareLinkId: "55555555-5555-4555-8555-555555555555",
+          shareUrl:
+            "https://example.test/share/reports/share_token_12345678901234567890",
+          expiresAt: "2026-08-24T15:00:00.000Z",
+        });
+      },
+    });
+
+    const response = await client.createReportShareLink({
+      reportDraftId: "33333333-3333-4333-8333-333333333333",
+    });
+
+    expect(requests[0]?.url).toBe(
+      "https://example.test/api/reports/share-links",
+    );
+    expect(response.shareUrl).toContain("/share/reports/");
+  });
 });

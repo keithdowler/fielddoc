@@ -82,6 +82,24 @@ export function createEvidenceObjectKey(input: {
   ].join("/");
 }
 
+export function createReportPdfObjectKey(input: {
+  organizationId: string;
+  reportDraftId: string;
+  sha256: string;
+  fileExtension?: "pdf";
+}): string {
+  const extension = input.fileExtension ? `.${input.fileExtension}` : ".pdf";
+
+  return [
+    "organizations",
+    input.organizationId,
+    "reports",
+    input.reportDraftId,
+    "exports",
+    `${input.sha256}${extension}`,
+  ].join("/");
+}
+
 function createR2PresignedUrl(
   config: PrivateObjectStorageConfig,
   input: PresignedObjectUrlInput,

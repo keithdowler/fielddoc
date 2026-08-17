@@ -205,7 +205,10 @@ export function createNeonCanonicalMutationRepository(
             notes: payload.notes,
             sectionsJson: parseSectionsJson(payload.sectionsJson),
             status: payload.status,
-            generatedPdfObjectKey: null,
+            generatedPdfObjectKey:
+              payload.generatedPdfStorageObjectKey === undefined
+                ? sql`${reportDrafts.generatedPdfObjectKey}`
+                : payload.generatedPdfStorageObjectKey,
             generatedAt: toDate(payload.generatedAt),
             updatedAt: new Date(payload.updatedAt),
             deletedAt: toDate(payload.deletedAt),
@@ -330,7 +333,7 @@ function toReportDraftValues(
     notes: payload.notes,
     sectionsJson: parseSectionsJson(payload.sectionsJson),
     status: payload.status,
-    generatedPdfObjectKey: null,
+    generatedPdfObjectKey: payload.generatedPdfStorageObjectKey ?? null,
     generatedAt: toDate(payload.generatedAt),
     createdAt: new Date(payload.createdAt),
     updatedAt: new Date(payload.updatedAt),

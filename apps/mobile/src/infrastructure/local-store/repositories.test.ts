@@ -533,6 +533,10 @@ describe("SQLite local repositories", () => {
         id: draft.id,
         status: "ready",
         generatedPdfUri: "file:///fielddoc/proof-packets/generated-report.pdf",
+        generatedPdfStorageObjectKey: null,
+        generatedPdfSha256: null,
+        generatedPdfSizeBytes: null,
+        generatedPdfUploadedAt: null,
         generatedAt: "2026-08-15T15:00:00.000Z",
       });
 
@@ -545,10 +549,57 @@ describe("SQLite local repositories", () => {
 
       expect(edited.status).toBe("draft");
       expect(edited.generatedPdfUri).toBeNull();
+      expect(edited.generatedPdfStorageObjectKey).toBeNull();
+      expect(edited.generatedPdfSha256).toBeNull();
+      expect(edited.generatedPdfSizeBytes).toBeNull();
+      expect(edited.generatedPdfUploadedAt).toBeNull();
       expect(edited.generatedAt).toBeNull();
       expect(
         (await mutations.listPending()).map((mutation) => mutation.operation),
       ).toEqual(["CREATE", "CREATE", "UPDATE", "UPDATE"]);
+    });
+  });
+
+  it("marks generated report PDFs as uploaded and tracks pending PDF upload order", async () => {
+    await withRepositories(async ({ projects, reportDrafts, mutations }) => {
+      const project = await projects.create({ name: "Uploaded report" });
+      const draft = await reportDrafts.save({
+        projectId: project.id,
+        sections: defaultReportSectionConfigs,
+      });
+      const generated = await reportDrafts.markGeneratedPdf(draft.id, {
+        localUri: "file:///fielddoc/proof-packets/generated-report.pdf",
+        generatedAt: "2026-08-15T15:00:00.000Z",
+      });
+
+      expect(await reportDrafts.listPendingPdfUpload()).toMatchObject([
+        { id: generated.id },
+      ]);
+
+      const uploaded = await reportDrafts.markGeneratedPdfUploaded(
+        generated.id,
+        {
+          storageObjectKey:
+            "organizations/org/reports/report/exports/generated-report.pdf",
+          sha256:
+            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+          sizeBytes: 4096,
+          uploadedAt: "2026-08-15T15:05:00.000Z",
+        },
+      );
+
+      expect(uploaded).toMatchObject({
+        generatedPdfStorageObjectKey:
+          "organizations/org/reports/report/exports/generated-report.pdf",
+        generatedPdfSha256:
+          "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+        generatedPdfSizeBytes: 4096,
+        generatedPdfUploadedAt: "2026-08-15T15:05:00.000Z",
+      });
+      expect(await reportDrafts.listPendingPdfUpload()).toEqual([]);
+      expect(
+        (await mutations.listPending()).map((mutation) => mutation.entityType),
+      ).toEqual(["Project", "ReportDraft", "ReportDraft", "ReportDraft"]);
     });
   });
 

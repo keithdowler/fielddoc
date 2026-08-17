@@ -1,6 +1,7 @@
 import {
   type ProofPacketStatus,
   type MarkReportDraftGeneratedInput,
+  type MarkReportDraftUploadedInput,
   type ReportHistoryItem,
   type ReportHistoryOptions,
   type ReportDraft,
@@ -23,6 +24,10 @@ type ReportDraftRow = {
   sections_json: string;
   status: ProofPacketStatus;
   generated_pdf_uri: string | null;
+  generated_pdf_storage_object_key: string | null;
+  generated_pdf_sha256: string | null;
+  generated_pdf_size_bytes: number | null;
+  generated_pdf_uploaded_at: string | null;
   generated_at: string | null;
   created_at: string;
   updated_at: string;
@@ -52,6 +57,10 @@ function mapReportDraft(row: ReportDraftRow): ReportDraft {
     sectionsJson: row.sections_json,
     status: row.status,
     generatedPdfUri: row.generated_pdf_uri,
+    generatedPdfStorageObjectKey: row.generated_pdf_storage_object_key,
+    generatedPdfSha256: row.generated_pdf_sha256,
+    generatedPdfSizeBytes: row.generated_pdf_size_bytes,
+    generatedPdfUploadedAt: row.generated_pdf_uploaded_at,
     generatedAt: row.generated_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -99,6 +108,10 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
       sectionsJson,
       status: "draft",
       generatedPdfUri: null,
+      generatedPdfStorageObjectKey: null,
+      generatedPdfSha256: null,
+      generatedPdfSizeBytes: null,
+      generatedPdfUploadedAt: null,
       generatedAt: null,
       createdAt: existing?.created_at ?? now,
       updatedAt: now,
@@ -117,6 +130,10 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
                 sections_json = ?,
                 status = ?,
                 generated_pdf_uri = ?,
+                generated_pdf_storage_object_key = ?,
+                generated_pdf_sha256 = ?,
+                generated_pdf_size_bytes = ?,
+                generated_pdf_uploaded_at = ?,
                 generated_at = ?,
                 updated_at = ?,
                 sync_state = ?
@@ -128,6 +145,10 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
             reportDraft.sectionsJson,
             reportDraft.status,
             reportDraft.generatedPdfUri,
+            reportDraft.generatedPdfStorageObjectKey,
+            reportDraft.generatedPdfSha256,
+            reportDraft.generatedPdfSizeBytes,
+            reportDraft.generatedPdfUploadedAt,
             reportDraft.generatedAt,
             reportDraft.updatedAt,
             reportDraft.syncState,
@@ -145,12 +166,16 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
               sections_json,
               status,
               generated_pdf_uri,
+              generated_pdf_storage_object_key,
+              generated_pdf_sha256,
+              generated_pdf_size_bytes,
+              generated_pdf_uploaded_at,
               generated_at,
               created_at,
               updated_at,
               deleted_at,
               sync_state
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
             reportDraft.id,
@@ -160,6 +185,10 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
             reportDraft.sectionsJson,
             reportDraft.status,
             reportDraft.generatedPdfUri,
+            reportDraft.generatedPdfStorageObjectKey,
+            reportDraft.generatedPdfSha256,
+            reportDraft.generatedPdfSizeBytes,
+            reportDraft.generatedPdfUploadedAt,
             reportDraft.generatedAt,
             reportDraft.createdAt,
             reportDraft.updatedAt,
@@ -201,6 +230,10 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
       ...mapReportDraft(existing),
       status: "ready",
       generatedPdfUri: input.localUri,
+      generatedPdfStorageObjectKey: null,
+      generatedPdfSha256: null,
+      generatedPdfSizeBytes: null,
+      generatedPdfUploadedAt: null,
       generatedAt: input.generatedAt,
       updatedAt: now,
       syncState: "PENDING",
@@ -212,6 +245,10 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
           UPDATE report_drafts
           SET status = ?,
               generated_pdf_uri = ?,
+              generated_pdf_storage_object_key = ?,
+              generated_pdf_sha256 = ?,
+              generated_pdf_size_bytes = ?,
+              generated_pdf_uploaded_at = ?,
               generated_at = ?,
               updated_at = ?,
               sync_state = ?
@@ -220,6 +257,10 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
         [
           reportDraft.status,
           reportDraft.generatedPdfUri,
+          reportDraft.generatedPdfStorageObjectKey,
+          reportDraft.generatedPdfSha256,
+          reportDraft.generatedPdfSizeBytes,
+          reportDraft.generatedPdfUploadedAt,
           reportDraft.generatedAt,
           reportDraft.updatedAt,
           reportDraft.syncState,
@@ -228,6 +269,66 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
       );
       await new SqliteLocalMutationRepository(tx).enqueue({
         mutationId: `report:${id}:generated-pdf:${reportDraft.updatedAt}`,
+        entityType: "ReportDraft",
+        entityId: id,
+        operation: "UPDATE",
+        payloadRef: reportDraft.updatedAt,
+        payloadJson: JSON.stringify(reportDraft),
+        createdAt: now,
+      });
+    });
+
+    return reportDraft;
+  }
+
+  async markGeneratedPdfUploaded(
+    id: string,
+    input: MarkReportDraftUploadedInput,
+  ): Promise<ReportDraft> {
+    const existing = await this.database.getFirst<ReportDraftRow>(
+      "SELECT * FROM report_drafts WHERE id = ? AND deleted_at IS NULL",
+      [id],
+    );
+
+    if (!existing) {
+      throw new Error("Report draft not found.");
+    }
+
+    const now = new Date().toISOString();
+    const reportDraft: ReportDraft = {
+      ...mapReportDraft(existing),
+      generatedPdfStorageObjectKey: input.storageObjectKey,
+      generatedPdfSha256: input.sha256,
+      generatedPdfSizeBytes: input.sizeBytes,
+      generatedPdfUploadedAt: input.uploadedAt,
+      updatedAt: now,
+      syncState: "PENDING",
+    };
+
+    await this.database.transaction(async (tx) => {
+      await tx.run(
+        `
+          UPDATE report_drafts
+          SET generated_pdf_storage_object_key = ?,
+              generated_pdf_sha256 = ?,
+              generated_pdf_size_bytes = ?,
+              generated_pdf_uploaded_at = ?,
+              updated_at = ?,
+              sync_state = ?
+          WHERE id = ? AND deleted_at IS NULL
+        `,
+        [
+          reportDraft.generatedPdfStorageObjectKey,
+          reportDraft.generatedPdfSha256,
+          reportDraft.generatedPdfSizeBytes,
+          reportDraft.generatedPdfUploadedAt,
+          reportDraft.updatedAt,
+          reportDraft.syncState,
+          id,
+        ],
+      );
+      await new SqliteLocalMutationRepository(tx).enqueue({
+        mutationId: `report:${id}:cloud-pdf:${reportDraft.updatedAt}`,
         entityType: "ReportDraft",
         entityId: id,
         operation: "UPDATE",
@@ -311,6 +412,22 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
     );
 
     return rows.map(mapReportHistory);
+  }
+
+  async listPendingPdfUpload(limit = 10): Promise<ReportDraft[]> {
+    const rows = await this.database.getAll<ReportDraftRow>(
+      `
+        SELECT * FROM report_drafts
+        WHERE generated_pdf_uri IS NOT NULL
+          AND generated_pdf_uploaded_at IS NULL
+          AND deleted_at IS NULL
+        ORDER BY COALESCE(generated_at, updated_at) ASC
+        LIMIT ?
+      `,
+      [limit],
+    );
+
+    return rows.map(mapReportDraft);
   }
 
   async delete(id: string): Promise<void> {

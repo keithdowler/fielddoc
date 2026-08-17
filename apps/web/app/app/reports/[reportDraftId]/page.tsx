@@ -83,7 +83,19 @@ export default async function ReportDetailPage({
           </div>
           <div>
             <dt>Cloud PDF</dt>
-            <dd>{report.hasGeneratedPdf ? "Stored" : "Not uploaded yet"}</dd>
+            <dd>
+              {report.hasGeneratedPdf ? (
+                <Link
+                  className="downloadLink"
+                  href={`/app/reports/${report.id}/download`}
+                  prefetch={false}
+                >
+                  Download private PDF
+                </Link>
+              ) : (
+                "Not uploaded yet"
+              )}
+            </dd>
           </div>
           <div>
             <dt>Updated</dt>

@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Last groomed: 2026-08-17 after web review loop sprint
+Last groomed: 2026-08-17 after cloud report archive sprint
 
 Priority legend: P0 critical, P1 high, P2 medium, P3 low.
 
@@ -27,7 +27,8 @@ follow-up is listed below.
 | Mobile cloud auth      | Expo app has Clerk native sign-in, secure token cache, Settings sign-in/out UI, and real token providers for sync/upload.      | Production/preview env hardening and App Store credential validation.           |
 | Live cloud media loop  | Signed-in simulator/device metadata sync, R2 original upload, web original count, and private download were manually verified. | Background retry controls and larger-file performance verification.             |
 | Media integrity        | Upload completion verifies private object existence, size, type, optional metadata hash, and downloaded byte SHA-256.          | Async quarantine/verification workflow if large uploads need it.                |
-| Web review loop        | Tenant-scoped project/report detail pages show evidence sections, annotations, readiness, and private original download links. | Cloud report PDF archival, branded report management, and share links.          |
+| Web review loop        | Tenant-scoped project/report detail pages show evidence sections, annotations, readiness, and private original download links. | Branded report management and delivery pages.                                   |
+| Report archive         | Generated PDFs upload to private storage as verified report exports with authenticated downloads and expiring share links.     | Branded delivery pages and full audit-event rows.                               |
 
 ## Active P1 Backlog
 
@@ -36,27 +37,25 @@ follow-up is listed below.
 | P1       | CORE VALUE     | Add retake/replace flow that preserves immutable originals and records replacement metadata | M          | Yes         | No               | Yes                 |
 | P1       | CORE VALUE     | Add native document scanning path for signed/job documents                                  | L          | Yes         | Yes              | No                  |
 | P1       | CORE VALUE     | Render scanned/imported document pages or previews into Proof Packet PDFs                   | M          | Yes         | Yes              | Yes                 |
-| P1       | RETENTION      | Add cloud report PDF archival and report-version downloads backed by private storage        | M          | Yes         | No               | Yes                 |
-| P1       | GROWTH         | Add secure report share links with expiration/access controls                               | M          | Yes         | No               | Yes                 |
 | P1       | RELIABILITY    | Add server pull sync and local reconciliation                                               | L          | Yes         | No               | Yes                 |
 | P1       | TRUST/SECURITY | Add tenant-isolation tests for sync, workspace reads, and media signing                     | M          | Yes         | Yes              | Yes                 |
 | P1       | MONETIZATION   | Implement RevenueCat SDK, entitlement checks, paywall, restore purchases, and webhook       | L          | No          | Yes              | Yes                 |
 
 ## Active P2 Backlog
 
-| Priority | Category       | Item                                                                                    | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
-| -------- | -------------- | --------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
-| P2       | TRUST/SECURITY | Add malware-scan integration point or explicit quarantine placeholder for uploaded docs | M          | No          | Yes              | No                  |
-| P2       | TRUST/SECURITY | Add audit events for report generation, share, delete, sync, account, and admin actions | M          | No          | No               | No                  |
-| P2       | PRIVACY        | Implement Export My Data and Delete Account flows                                       | M          | No          | Yes              | No                  |
-| P2       | RELIABILITY    | Implement conflict detection using server versions and preserve conflicting edits       | L          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add report branding controls for company name, logo, colors, and footer text            | M          | No          | No               | Yes                 |
-| P2       | RELIABILITY    | Generate thumbnail/preview derivatives for web and reports                              | M          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add OCR extraction for scanned/imported documents                                       | L          | No          | No               | No                  |
-| P2       | PRODUCTION     | Exercise EAS production build, review notes, screenshots, privacy manifest, legal URLs  | M          | No          | Yes              | No                  |
-| P2       | PRODUCTION     | Add Sentry and privacy-safe analytics event taxonomy                                    | S          | No          | No               | No                  |
-| P2       | RETENTION      | Add activation metrics for project created, evidence captured, packet generated, synced | S          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add template model for vertical report sections without building a large template pack  | M          | No          | No               | No                  |
+| Priority | Category       | Item                                                                                             | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
+| -------- | -------------- | ------------------------------------------------------------------------------------------------ | ---------- | ----------- | ---------------- | ------------------- |
+| P2       | TRUST/SECURITY | Add malware-scan integration point or explicit quarantine placeholder for uploaded docs          | M          | No          | Yes              | No                  |
+| P2       | TRUST/SECURITY | Add full audit event rows for report generation, share, delete, sync, account, and admin actions | M          | No          | No               | No                  |
+| P2       | PRIVACY        | Implement Export My Data and Delete Account flows                                                | M          | No          | Yes              | No                  |
+| P2       | RELIABILITY    | Implement conflict detection using server versions and preserve conflicting edits                | L          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add report branding controls for company name, logo, colors, and footer text                     | M          | No          | No               | Yes                 |
+| P2       | RELIABILITY    | Generate thumbnail/preview derivatives for web and reports                                       | M          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add OCR extraction for scanned/imported documents                                                | L          | No          | No               | No                  |
+| P2       | PRODUCTION     | Exercise EAS production build, review notes, screenshots, privacy manifest, legal URLs           | M          | No          | Yes              | No                  |
+| P2       | PRODUCTION     | Add Sentry and privacy-safe analytics event taxonomy                                             | S          | No          | No               | No                  |
+| P2       | RETENTION      | Add activation metrics for project created, evidence captured, packet generated, synced          | S          | No          | No               | No                  |
+| P2       | CORE VALUE     | Add template model for vertical report sections without building a large template pack           | M          | No          | No               | No                  |
 
 ## P3 Cleanup
 
@@ -68,31 +67,30 @@ follow-up is listed below.
 
 ## Recommended Next Sprint
 
-Build cloud report archival and secure delivery next.
+Build server pull sync and local reconciliation next.
 
 ### Why
 
-The core mobile-to-cloud evidence path now works, verifies uploaded originals,
-and exposes tenant-scoped project/report detail pages on web. The biggest
-remaining customer-visible gap is that generated Proof Packet PDFs still live
-primarily on-device instead of becoming durable cloud report versions that can
-be downloaded or shared from web.
+The core mobile-to-cloud evidence and report archive paths now work in one
+direction. The largest remaining reliability gap is that devices can upload but
+cannot yet pull canonical server changes, reconcile remote updates, or preserve
+conflicting local edits after another device changes the same project.
 
 ### Scope
 
-1. Store generated Proof Packet PDFs as private cloud report-version objects.
-2. Add a canonical report export/version record with checksum, size, generated
-   timestamp, report draft ID, and storage object key.
-3. Add authenticated web download for cloud report PDFs.
-4. Add expiring share-link model and guarded redirect route for report delivery.
-5. Add audit events for report generation, download, and share-link access.
+1. Add a pull cursor response shape for canonical project, evidence, media,
+   annotation, document, and report draft changes.
+2. Add local application of pulled canonical metadata into SQLite.
+3. Preserve local conflicting edits instead of overwriting them silently.
+4. Expose Settings diagnostics for last pull cursor, pulled row counts, and
+   conflict count.
+5. Add tenant-isolation and conflict tests around the sync read side.
 
 ### Explicitly Out Of Scope
 
 - RevenueCat.
 - OCR.
 - Native scanner.
-- Pull sync/conflict UI.
 - Report branding editor.
 
 ## Deferred Until Validation

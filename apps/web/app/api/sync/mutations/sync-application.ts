@@ -305,6 +305,14 @@ export const reportDraftPayloadSchema = baseLocalPayloadSchema.extend({
   sectionsJson: z.string().trim().min(1),
   status: z.string().trim().min(1),
   generatedPdfUri: nullableTextSchema,
+  generatedPdfStorageObjectKey: nullableTextSchema.optional(),
+  generatedPdfSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable()
+    .optional(),
+  generatedPdfSizeBytes: z.number().int().nonnegative().nullable().optional(),
+  generatedPdfUploadedAt: nullableDateTimeSchema.optional(),
   generatedAt: nullableDateTimeSchema,
 });
 
