@@ -173,3 +173,18 @@ Sprint 23 adds `audit_events` as a server-side operational ledger:
 Audit events do not replace canonical business records, sync receipts, report
 exports, or share-link rows. They are an append-only diagnostic layer for
 security review and operational support.
+
+Sprint 24 adds server-side monetization state:
+
+- `revenuecat_webhook_events` stores idempotent raw RevenueCat webhook receipts
+  by provider event ID, event type, RevenueCat app user ID, product ID,
+  entitlement IDs, raw payload JSON, and receipt timestamp.
+- `subscription_entitlements` stores the canonical provider/user entitlement
+  state by provider, provider customer ID, entitlement ID, status, product ID,
+  store/environment, original transaction ID, purchase/expiration/revocation
+  timestamps, last event timestamp, and raw provider payload JSON.
+
+RevenueCat `app_user_id` maps to the Clerk external user ID already stored in
+`users.external_auth_id`. Entitlements may remain webhook-only when a provider
+event arrives before the matching user has been provisioned into Neon; those
+events are not discarded.

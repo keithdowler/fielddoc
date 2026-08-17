@@ -293,3 +293,19 @@ workflows. This gives production support a tenant-scoped trail for high-value
 actions without treating logs as the source of truth. Canonical records,
 received mutation receipts, report exports, and share-link rows remain the
 authoritative business state; audit rows provide operational accountability.
+
+### ADR 0029: RevenueCat Entitlements Before Paywall Polish
+
+Status: Accepted
+
+Sprint 24 adds RevenueCat as the subscription entitlement provider before
+building a branded paywall or App Store product catalog UI. Mobile configures
+the RevenueCat SDK with the signed-in Clerk user ID as the RevenueCat app user
+ID, refreshes/restores customer info, and gates cloud sync, private original
+uploads, and report PDF archive uploads on the `fielddoc_pro` entitlement. The
+server accepts RevenueCat webhooks only with the configured bearer secret,
+stores idempotent raw webhook receipts, and upserts canonical subscription
+entitlement rows mapped back to the provisioned Clerk user. The mobile app does
+not fake purchases or grant access when RevenueCat is missing; App Store
+products, paywall copy, and sandbox purchase validation remain external setup
+work.

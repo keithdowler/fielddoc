@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   originalEvidenceMetadataSchema,
+  revenueCatWebhookRequestSchema,
   syncMutationUploadRequestSchema,
   syncMutationUploadResponseSchema,
 } from "./index";
@@ -81,5 +82,26 @@ describe("sync mutation schemas", () => {
     });
 
     expect(parsed.acceptedMutationIds).toEqual(["mutation-1"]);
+  });
+});
+
+describe("revenueCatWebhookRequestSchema", () => {
+  it("preserves RevenueCat event metadata while requiring core identity fields", () => {
+    const parsed = revenueCatWebhookRequestSchema.parse({
+      api_version: "1.0",
+      event: {
+        id: "event_123",
+        type: "INITIAL_PURCHASE",
+        app_user_id: "user_abc",
+        product_id: "fielddoc_pro_monthly",
+        entitlement_ids: ["fielddoc_pro"],
+        purchased_at_ms: 1786996800000,
+        store: "APP_STORE",
+        unknown_future_field: "kept",
+      },
+    });
+
+    expect(parsed.event.entitlement_ids).toEqual(["fielddoc_pro"]);
+    expect(parsed.event.unknown_future_field).toBe("kept");
   });
 });

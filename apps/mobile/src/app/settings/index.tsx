@@ -1,4 +1,5 @@
 import { AuthView } from "@clerk/expo/native";
+import { getCloudFeatureGate } from "@fielddoc/domain";
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -32,11 +33,12 @@ import {
   runMobileReportUpload,
   type MobileReportUploadResult,
 } from "@/infrastructure/sync/mobile-report-upload";
+import { useRevenueCatEntitlements } from "@/infrastructure/revenuecat/revenuecat";
+import { getRevenueCatStatusCopy } from "@/infrastructure/revenuecat/revenuecat-state";
 
 const settingsSections = [
   "Profile",
   "Cloud Backup",
-  "Subscription",
   "Default Report Branding",
   "Privacy",
   "Export My Data",
@@ -64,9 +66,30 @@ export default function SettingsScreen() {
     status: "success" | "canceled" | "failed";
     message: string;
   } | null>(null);
+  const [subscriptionActionResult, setSubscriptionActionResult] = useState<{
+    status: "success" | "canceled" | "failed";
+    message: string;
+  } | null>(null);
   const [authActionRunning, setAuthActionRunning] = useState(false);
 
   const authStatusCopy = getMobileAuthStatusCopy(mobileAuth.status);
+  const revenueCat = useRevenueCatEntitlements({
+    isSignedIn: mobileAuth.isSignedIn,
+    userId: mobileAuth.userId,
+  });
+  const revenueCatStatusCopy = getRevenueCatStatusCopy(revenueCat);
+  const cloudFeatureGate = getCloudFeatureGate({
+    isSignedIn: mobileAuth.isSignedIn,
+    entitlementConfigured: revenueCat.isConfigured,
+    entitlements: revenueCat.entitlements,
+  });
+  const cloudActionsDisabled =
+    syncingAll ||
+    syncing ||
+    uploadingMedia ||
+    uploadingReports ||
+    pullingChanges ||
+    !cloudFeatureGate.allowed;
 
   const signOut = useCallback(async () => {
     setAuthActionRunning(true);
@@ -75,6 +98,18 @@ export default function SettingsScreen() {
     setAuthActionResult(result);
     setAuthActionRunning(false);
   }, [mobileAuth]);
+
+  const refreshSubscription = useCallback(async () => {
+    const result = await revenueCat.refresh();
+
+    setSubscriptionActionResult(result);
+  }, [revenueCat]);
+
+  const restorePurchases = useCallback(async () => {
+    const result = await revenueCat.restore();
+
+    setSubscriptionActionResult(result);
+  }, [revenueCat]);
 
   const uploadPendingMetadata = useCallback(async () => {
     setSyncing(true);
@@ -195,6 +230,47 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
+          title="Subscription"
+          detail="Controls access to cloud sync, private media archive, and report upload."
+        />
+        <StatusBanner
+          tone={revenueCatStatusCopy.tone}
+          title={revenueCatStatusCopy.title}
+          message={
+            subscriptionActionResult?.message ?? revenueCatStatusCopy.message
+          }
+        />
+        {cloudFeatureGate.reason ? (
+          <AppText variant="small" muted>
+            {cloudFeatureGate.reason}
+          </AppText>
+        ) : null}
+        <View style={styles.actionRow}>
+          <AppButton
+            label="Refresh"
+            icon="arrow.clockwise"
+            accessibilityLabel="Refresh subscription entitlements"
+            onPress={refreshSubscription}
+            disabled={revenueCat.status === "checking"}
+            loading={revenueCat.status === "checking"}
+            variant="secondary"
+            style={styles.actionButton}
+          />
+          <AppButton
+            label="Restore"
+            icon="arrow.down.circle"
+            accessibilityLabel="Restore app store purchases"
+            onPress={restorePurchases}
+            disabled={revenueCat.status === "checking"}
+            loading={revenueCat.status === "checking"}
+            variant="secondary"
+            style={styles.actionButton}
+          />
+        </View>
+      </Card>
+
+      <Card>
+        <SectionHeader
           title="Upload All Pending Changes"
           detail="Sends metadata first, then uploads originals and report PDFs."
         />
@@ -236,7 +312,7 @@ export default function SettingsScreen() {
           icon="icloud.and.arrow.up"
           accessibilityLabel="Upload all pending metadata and original media"
           onPress={uploadAllPendingChanges}
-          disabled={syncingAll || !mobileAuth.isSignedIn}
+          disabled={cloudActionsDisabled}
           loading={syncingAll}
         />
       </Card>
@@ -273,7 +349,7 @@ export default function SettingsScreen() {
           icon="arrow.triangle.2.circlepath"
           accessibilityLabel="Upload pending local metadata changes"
           onPress={uploadPendingMetadata}
-          disabled={syncing || syncingAll || !mobileAuth.isSignedIn}
+          disabled={cloudActionsDisabled}
         />
       </Card>
 
@@ -313,7 +389,7 @@ export default function SettingsScreen() {
           icon="icloud.and.arrow.down"
           accessibilityLabel="Download cloud metadata changes"
           onPress={downloadCloudChanges}
-          disabled={pullingChanges || syncingAll || !mobileAuth.isSignedIn}
+          disabled={cloudActionsDisabled}
           loading={pullingChanges}
         />
       </Card>
@@ -350,7 +426,7 @@ export default function SettingsScreen() {
           icon="icloud.and.arrow.up"
           accessibilityLabel="Upload original media files to private cloud storage"
           onPress={uploadOriginalMedia}
-          disabled={uploadingMedia || syncingAll || !mobileAuth.isSignedIn}
+          disabled={cloudActionsDisabled}
         />
       </Card>
 
@@ -386,7 +462,7 @@ export default function SettingsScreen() {
           icon="doc.richtext"
           accessibilityLabel="Upload generated report PDFs to private cloud storage"
           onPress={uploadReportPdfs}
-          disabled={uploadingReports || syncingAll || !mobileAuth.isSignedIn}
+          disabled={cloudActionsDisabled}
         />
       </Card>
 
@@ -428,6 +504,13 @@ const styles = StyleSheet.create({
   authFrame: {
     minHeight: 520,
     overflow: "hidden",
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  actionButton: {
+    flex: 1,
   },
 });
 

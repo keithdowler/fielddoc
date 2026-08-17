@@ -21,8 +21,9 @@ This project now has reproducible EAS build profiles in `apps/mobile/eas.json` a
 - Privacy Policy URL in `NEXT_PUBLIC_PRIVACY_POLICY_URL` and `EXPO_PUBLIC_PRIVACY_POLICY_URL`.
 - Terms URL in `NEXT_PUBLIC_TERMS_URL` and `EXPO_PUBLIC_TERMS_URL`.
 - Account deletion flow.
-- Restore purchases flow if subscriptions are offered.
-- RevenueCat production API key and webhook secret.
+- RevenueCat products, entitlements, production mobile API keys, and webhook
+  secret.
+- Sandbox purchase/restore validation for `fielddoc_pro`.
 - Subscription disclosure copy if subscriptions are offered.
 - Sign in with Apple decision if mobile account creation uses third-party/social auth.
 - App Review demo account or review notes if authenticated features are gated.
@@ -30,4 +31,7 @@ This project now has reproducible EAS build profiles in `apps/mobile/eas.json` a
 
 ## Not Yet Ready
 
-The app should not be submitted for public App Store review until the Proof Packet embeds visual evidence, account deletion exists, subscription/restoration behavior is implemented if monetization is enabled, and privacy/terms URLs point to reviewed legal documents.
+The app should not be submitted for public App Store review until account
+deletion exists, subscription products and restoration are validated against
+RevenueCat/App Store sandbox, and privacy/terms URLs point to reviewed legal
+documents.

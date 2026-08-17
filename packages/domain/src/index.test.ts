@@ -4,8 +4,10 @@ import {
   assembleProofPacketPreview,
   evidenceCategories,
   getIncludedReportSections,
+  getCloudFeatureGate,
   getReportDraftReadiness,
   getReportReadiness,
+  hasActiveFieldDocProEntitlement,
   normalizeReportSections,
   projectStatuses,
   renderProofPacketHtml,
@@ -31,6 +33,43 @@ describe("domain constants", () => {
 
   it("starts projects in an explicit draft-capable lifecycle", () => {
     expect(projectStatuses).toContain("draft");
+  });
+
+  it("gates paid cloud features on a current RevenueCat entitlement", () => {
+    expect(
+      hasActiveFieldDocProEntitlement([
+        {
+          entitlementId: "fielddoc_pro",
+          status: "active",
+          productId: "fielddoc_pro_monthly",
+          expiresAt: "2026-09-01T00:00:00.000Z",
+          lastCheckedAt: "2026-08-17T00:00:00.000Z",
+        },
+      ]),
+    ).toBe(true);
+
+    expect(
+      hasActiveFieldDocProEntitlement(
+        [
+          {
+            entitlementId: "fielddoc_pro",
+            status: "active",
+            productId: "fielddoc_pro_monthly",
+            expiresAt: "2026-08-01T00:00:00.000Z",
+            lastCheckedAt: "2026-08-17T00:00:00.000Z",
+          },
+        ],
+        "2026-08-17T00:00:00.000Z",
+      ),
+    ).toBe(false);
+
+    expect(
+      getCloudFeatureGate({
+        isSignedIn: true,
+        entitlementConfigured: true,
+        entitlements: [],
+      }),
+    ).toMatchObject({ allowed: false });
   });
 
   it("requires only a project name for local project creation", () => {

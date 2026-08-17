@@ -287,6 +287,36 @@ export const reportShareLinkCreateResponseSchema = z.object({
   expiresAt: isoDateTimeSchema,
 });
 
+export const revenueCatWebhookEventSchema = z
+  .object({
+    id: z.string().trim().min(1),
+    type: z.string().trim().min(1),
+    app_user_id: z.string().trim().min(1),
+    product_id: z.string().trim().min(1).nullish(),
+    entitlement_id: z.string().trim().min(1).nullish(),
+    entitlement_ids: z.array(z.string().trim().min(1)).nullish(),
+    store: z.string().trim().min(1).nullish(),
+    environment: z.string().trim().min(1).nullish(),
+    original_transaction_id: z.string().trim().min(1).nullish(),
+    transaction_id: z.string().trim().min(1).nullish(),
+    purchased_at_ms: z.number().int().nonnegative().nullish(),
+    expiration_at_ms: z.number().int().nonnegative().nullish(),
+  })
+  .passthrough();
+
+export const revenueCatWebhookRequestSchema = z
+  .object({
+    event: revenueCatWebhookEventSchema,
+    api_version: z.string().trim().min(1).optional(),
+  })
+  .passthrough();
+
+export const revenueCatWebhookResponseSchema = z.object({
+  status: z.enum(["accepted", "duplicate"]),
+  eventId: z.string().trim().min(1),
+  entitlementsApplied: z.number().int().nonnegative(),
+});
+
 export type SyncMutationEnvelope = z.infer<typeof syncMutationEnvelopeSchema>;
 export type SyncMutationUploadRequest = z.infer<
   typeof syncMutationUploadRequestSchema
@@ -344,4 +374,13 @@ export type ReportShareLinkCreateRequest = z.infer<
 >;
 export type ReportShareLinkCreateResponse = z.infer<
   typeof reportShareLinkCreateResponseSchema
+>;
+export type RevenueCatWebhookEvent = z.infer<
+  typeof revenueCatWebhookEventSchema
+>;
+export type RevenueCatWebhookRequest = z.infer<
+  typeof revenueCatWebhookRequestSchema
+>;
+export type RevenueCatWebhookResponse = z.infer<
+  typeof revenueCatWebhookResponseSchema
 >;

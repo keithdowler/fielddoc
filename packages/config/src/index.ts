@@ -60,4 +60,5 @@ export const publicMobileEnvSchema = z.object({
   EXPO_PUBLIC_PRIVACY_POLICY_URL: optionalUrl,
   EXPO_PUBLIC_TERMS_URL: optionalUrl,
   EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: optionalSecret,
+  EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY: optionalSecret,
 });

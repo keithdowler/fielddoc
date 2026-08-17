@@ -70,6 +70,8 @@ describe("publicMobileEnvSchema", () => {
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_example",
       EXPO_PUBLIC_PRIVACY_POLICY_URL: "https://example.com/privacy",
       EXPO_PUBLIC_TERMS_URL: "https://example.com/terms",
+      EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: "appl_test_example",
+      EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY: "goog_test_example",
     });
 
     expect(parsed.EXPO_PUBLIC_FIELDDOC_API_BASE_URL).toBe(
@@ -80,5 +82,9 @@ describe("publicMobileEnvSchema", () => {
       "https://example.com/privacy",
     );
     expect(parsed.EXPO_PUBLIC_TERMS_URL).toBe("https://example.com/terms");
+    expect(parsed.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY).toBe("appl_test_example");
+    expect(parsed.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY).toBe(
+      "goog_test_example",
+    );
   });
 });

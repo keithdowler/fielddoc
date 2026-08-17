@@ -183,3 +183,19 @@ routes deny missing organization context, missing server-side membership, and
 resources outside the active organization. Live audit-event insertion remains a
 Neon integration concern because it requires production credentials and applied
 migrations.
+
+## Sprint 24 RevenueCat Entitlement Tests
+
+Sprint 24 adds unit coverage for shared entitlement gating, public mobile
+RevenueCat configuration parsing, mobile subscription state copy, RevenueCat
+webhook payload validation, webhook authorization failure, idempotent duplicate
+receipt handling, and applying active/inactive entitlement state from provider
+events.
+
+Manual coverage should configure RevenueCat public mobile keys, rebuild the
+development client after installing `react-native-purchases`, sign into mobile,
+confirm Settings shows subscription state, tap Refresh and Restore, and verify
+cloud upload controls remain disabled until RevenueCat reports `fielddoc_pro`
+active. Server coverage requires applying migration
+`0006_revenuecat_entitlements.sql`, setting `REVENUECAT_WEBHOOK_SECRET`, adding
+the webhook URL in RevenueCat, and sending a signed test event.

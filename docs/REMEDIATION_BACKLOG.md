@@ -31,6 +31,7 @@ follow-up is listed below.
 | Report archive         | Generated PDFs upload to private storage as verified report exports with authenticated downloads and expiring share links.     | Branded delivery pages and full audit-event rows.                               |
 | Pull reconciliation    | Authenticated mobile pull sync downloads tenant-scoped canonical metadata, stores cursors, and preserves local conflicts.      | Stable tuple cursors, conflict review UI, automatic background sync.            |
 | Audit trail            | Server writes tenant-scoped audit events for account provisioning, sync, media/report uploads/downloads, and share links.      | Denied-access/failure audit policy, retention tooling, admin event search.      |
+| Monetization base      | RevenueCat SDK wiring, subscription diagnostics, restore purchases, webhook receipts, and `fielddoc_pro` cloud gates exist.    | App Store products, sandbox purchase validation, and paywall polish.            |
 
 ## Active P1 Backlog
 
@@ -39,7 +40,7 @@ follow-up is listed below.
 | P1       | CORE VALUE   | Add retake/replace flow that preserves immutable originals and records replacement metadata | M          | Yes         | No               | Yes                 |
 | P1       | CORE VALUE   | Add native document scanning path for signed/job documents                                  | L          | Yes         | Yes              | No                  |
 | P1       | CORE VALUE   | Render scanned/imported document pages or previews into Proof Packet PDFs                   | M          | Yes         | Yes              | Yes                 |
-| P1       | MONETIZATION | Implement RevenueCat SDK, entitlement checks, paywall, restore purchases, and webhook       | L          | No          | Yes              | Yes                 |
+| P1       | MONETIZATION | Configure App Store products, RevenueCat offerings, sandbox purchase test, and paywall copy | M          | No          | Yes              | Yes                 |
 
 ## Active P2 Backlog
 
@@ -67,23 +68,24 @@ follow-up is listed below.
 
 ## Recommended Next Sprint
 
-Build RevenueCat monetization and entitlement enforcement next.
+Build document capture/rendering next.
 
 ### Why
 
 The core evidence/report loop now syncs metadata, uploads verified private
-media/PDF assets, pulls canonical data back to mobile, and leaves an audit trail
-for high-value actions. The largest remaining App Store and revenue blocker is
-subscription entitlement.
+media/PDF assets, pulls canonical data back to mobile, leaves an audit trail for
+high-value actions, and has RevenueCat entitlement enforcement. The largest
+remaining core-value blocker is handling signed documents and rendering them
+into customer-ready Proof Packets.
 
 ### Scope
 
-1. Add RevenueCat SDK wiring in mobile.
-2. Add entitlement-aware access gates around report generation/export and cloud
-   sync affordances.
-3. Add restore purchases and subscription diagnostics in Settings.
-4. Add webhook route and database fields for server-side entitlement receipts.
-5. Document App Store review, privacy, and failure-mode behavior.
+1. Add native document scanning/import metadata paths.
+2. Generate safe document-page previews and PDF rendering support.
+3. Preserve immutable originals and derivatives with clear source metadata.
+4. Add document-focused tests across SQLite, report assembly, and PDF output.
+5. Keep OCR and advanced document search out of scope until the document loop is
+   stable.
 
 ### Explicitly Out Of Scope
 

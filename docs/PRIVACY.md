@@ -27,3 +27,10 @@ Sprint 10 sync contracts are sensitive because mutation payloads may include the
 Sprint 11 stores mutation envelopes in Neon only after server-side authentication and organization membership checks. These rows may contain private customer and evidence metadata in `payload_json`; treat them as tenant data subject to the same privacy restrictions as canonical records. Duplicate and rejected responses must avoid echoing payload contents.
 
 Sprint 23 adds audit events for operational accountability. Audit rows are tenant data and should contain stable identifiers, event names, counts, timestamps, and non-secret object keys only. They must not include captions, notes, customer addresses, raw mutation payloads, signed URLs, bearer tokens, local file URIs, image bytes, document contents, or Clerk secret values.
+
+Sprint 24 stores RevenueCat webhook payloads and entitlement status in Neon for
+billing auditability. These payloads may include provider user IDs, product
+IDs, entitlement IDs, store/environment values, and transaction identifiers.
+They must not be sent to analytics or exposed to other tenants. Mobile uses
+public RevenueCat keys only; server-side webhook secrets and app-store billing
+credentials are not client data.

@@ -44,6 +44,14 @@ Sprint 17 adds Clerk Expo native sign-in and secure mobile session caching. The 
 
 Sprint 23 adds a server-side audit event ledger for account provisioning, sync upload/pull, media upload/download preparation, report PDF upload/download preparation, authenticated download redirects, report share-link creation, and public share-link access. Audit events are tenant-scoped when a tenant is known and store stable entity identifiers plus privacy-reviewed metadata. Audit insert failures are isolated from user-facing success paths so a temporary logging outage does not break field work; monitoring and future workflows should surface and repair failures.
 
+Sprint 24 adds RevenueCat entitlement enforcement. Mobile uses public
+RevenueCat API keys only and identifies the customer with the signed-in Clerk
+user ID. Server-side entitlement state is updated only from RevenueCat webhooks
+that pass the configured bearer secret. Webhook receipts are idempotent and raw
+payloads are retained for billing audit review. Cloud sync, private original
+uploads, and report PDF uploads must not be treated as paid-feature accessible
+unless `fielddoc_pro` is active.
+
 Temporary signed media/report redirects remain `Cache-Control: no-store`. Signed URLs are transport credentials and must not be cached, logged, copied into audit metadata, or exposed as durable share links.
 
 ## Secrets
@@ -73,3 +81,7 @@ Mobile auth errors may include provider details. Surface short user-facing error
 Media integrity errors should be surfaced as short stable user-facing status messages. Do not log or display signed URLs, raw object bodies, full customer filenames, or storage credentials while diagnosing upload failures.
 
 Audit events must avoid raw request bodies, bearer tokens, signed URLs, local file URIs, captions, notes, addresses, OCR text, image bytes, and Clerk secret material. Use stable IDs, counts, object keys, hashes, and short status codes only.
+
+RevenueCat webhook secrets, App Store shared secrets, and provider dashboard
+credentials must remain server-only. RevenueCat public mobile API keys are
+publishable configuration, but they do not grant server authorization.

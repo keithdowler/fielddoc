@@ -31,6 +31,83 @@ export const syncStates = [
 
 export type SyncState = (typeof syncStates)[number];
 
+export const subscriptionEntitlementStatuses = [
+  "active",
+  "inactive",
+  "unknown",
+] as const;
+
+export type SubscriptionEntitlementStatus =
+  (typeof subscriptionEntitlementStatuses)[number];
+
+export const fieldDocProEntitlementId = "fielddoc_pro";
+
+export type SubscriptionEntitlement = {
+  entitlementId: string;
+  status: SubscriptionEntitlementStatus;
+  productId: string | null;
+  expiresAt: string | null;
+  lastCheckedAt: string;
+};
+
+export function hasActiveFieldDocProEntitlement(
+  entitlements: readonly SubscriptionEntitlement[],
+  nowIso: string = new Date().toISOString(),
+): boolean {
+  const now = new Date(nowIso).getTime();
+
+  return entitlements.some((entitlement) => {
+    if (
+      entitlement.entitlementId !== fieldDocProEntitlementId ||
+      entitlement.status !== "active"
+    ) {
+      return false;
+    }
+
+    return (
+      entitlement.expiresAt === null ||
+      new Date(entitlement.expiresAt).getTime() > now
+    );
+  });
+}
+
+export function getCloudFeatureGate(input: {
+  isSignedIn: boolean;
+  entitlementConfigured: boolean;
+  entitlements: readonly SubscriptionEntitlement[];
+  nowIso?: string;
+}): { allowed: boolean; reason: string | null } {
+  if (!input.isSignedIn) {
+    return {
+      allowed: false,
+      reason: "Sign in before using cloud subscription features.",
+    };
+  }
+
+  if (!input.entitlementConfigured) {
+    return {
+      allowed: false,
+      reason:
+        "RevenueCat is not configured on this build, so paid cloud features are disabled.",
+    };
+  }
+
+  if (
+    !hasActiveFieldDocProEntitlement(
+      input.entitlements,
+      input.nowIso ?? new Date().toISOString(),
+    )
+  ) {
+    return {
+      allowed: false,
+      reason:
+        "An active Proof Packet subscription is required for cloud sync and report archive uploads.",
+    };
+  }
+
+  return { allowed: true, reason: null };
+}
+
 export const projectStatuses = ["draft", "active", "archived"] as const;
 
 export type ProjectStatus = (typeof projectStatuses)[number];

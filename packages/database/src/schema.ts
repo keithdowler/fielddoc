@@ -80,6 +80,11 @@ export const serverMutationStatusEnum = pgEnum("server_mutation_status", [
   "conflict",
 ]);
 
+export const subscriptionEntitlementStatusEnum = pgEnum(
+  "subscription_entitlement_status",
+  ["active", "inactive", "unknown"],
+);
+
 const timestampColumns = {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -430,6 +435,66 @@ export const auditEvents = pgTable(
     ),
     index("idx_audit_events_entity").on(table.entityType, table.entityId),
     index("idx_audit_events_type_created").on(table.eventType, table.createdAt),
+  ],
+);
+
+export const revenueCatWebhookEvents = pgTable(
+  "revenuecat_webhook_events",
+  {
+    id: uuid("id").primaryKey(),
+    providerEventId: text("provider_event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    appUserId: text("app_user_id").notNull(),
+    productId: text("product_id"),
+    entitlementIdsJson: jsonb("entitlement_ids_json").notNull().default([]),
+    payloadJson: jsonb("payload_json").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uniq_revenuecat_webhook_provider_event").on(
+      table.providerEventId,
+    ),
+    index("idx_revenuecat_webhook_app_user_received").on(
+      table.appUserId,
+      table.receivedAt,
+    ),
+  ],
+);
+
+export const subscriptionEntitlements = pgTable(
+  "subscription_entitlements",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id").references(() => organizations.id),
+    userId: uuid("user_id").references(() => users.id),
+    provider: text("provider").notNull().default("revenuecat"),
+    providerCustomerId: text("provider_customer_id").notNull(),
+    entitlementId: text("entitlement_id").notNull(),
+    status: subscriptionEntitlementStatusEnum("status").notNull(),
+    productId: text("product_id"),
+    store: text("store"),
+    environment: text("environment"),
+    originalTransactionId: text("original_transaction_id"),
+    purchasedAt: timestamp("purchased_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastEventAt: timestamp("last_event_at", { withTimezone: true }).notNull(),
+    payloadJson: jsonb("payload_json").notNull(),
+    ...timestampColumns,
+  },
+  (table) => [
+    uniqueIndex("uniq_subscription_entitlements_provider_customer").on(
+      table.provider,
+      table.providerCustomerId,
+      table.entitlementId,
+    ),
+    index("idx_subscription_entitlements_org_status").on(
+      table.organizationId,
+      table.status,
+    ),
+    index("idx_subscription_entitlements_user").on(table.userId),
   ],
 );
 
