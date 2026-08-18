@@ -7,6 +7,7 @@ import { SqliteMediaAssetRepository } from "./media-assets";
 import { SqliteProjectRepository } from "./projects";
 import { SqlitePullSyncRepository } from "./pull-sync";
 import { SqliteReportDraftRepository } from "./report-drafts";
+import { SqliteReportBrandingRepository } from "./report-branding";
 import { SqliteSyncClientStateRepository } from "./sync-client-state";
 
 export type LocalRepositories = {
@@ -16,6 +17,7 @@ export type LocalRepositories = {
   media: SqliteMediaAssetRepository;
   annotations: SqliteAnnotationRepository;
   reportDrafts: SqliteReportDraftRepository;
+  reportBranding: SqliteReportBrandingRepository;
   mutations: SqliteLocalMutationRepository;
   syncClientState: SqliteSyncClientStateRepository;
   pullSync: SqlitePullSyncRepository;
@@ -35,6 +37,7 @@ export async function createLocalRepositories(
     media: new SqliteMediaAssetRepository(database),
     annotations: new SqliteAnnotationRepository(database),
     reportDrafts: new SqliteReportDraftRepository(database),
+    reportBranding: new SqliteReportBrandingRepository(database),
     mutations: new SqliteLocalMutationRepository(database),
     syncClientState: new SqliteSyncClientStateRepository(database),
     pullSync: new SqlitePullSyncRepository(database),

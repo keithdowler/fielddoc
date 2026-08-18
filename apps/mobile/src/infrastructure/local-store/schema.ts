@@ -1,6 +1,6 @@
 import type { LocalDatabase } from "./database";
 
-export const localDatabaseVersion = 10;
+export const localDatabaseVersion = 11;
 
 export const localMigrations = [
   {
@@ -242,6 +242,17 @@ export const localMigrations = [
 
       CREATE INDEX IF NOT EXISTS idx_local_sync_conflicts_entity
         ON local_sync_conflicts(entity_type, entity_id, resolved_at);
+    `,
+  },
+  {
+    version: 11,
+    name: "local_settings",
+    sql: `
+      CREATE TABLE IF NOT EXISTS local_settings (
+        key TEXT PRIMARY KEY,
+        value_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `,
   },
 ] as const;

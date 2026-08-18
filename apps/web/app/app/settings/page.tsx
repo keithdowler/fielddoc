@@ -1,45 +1,17 @@
-import { webServerEnvSchema } from "@fielddoc/config";
+import {
+  getWebProductionReadiness,
+  publicWebEnvSchema,
+  webServerEnvSchema,
+} from "@fielddoc/config";
 import { getWorkspaceData } from "../workspace-data";
 
 export default async function SettingsPage() {
-  const [workspace, env] = await Promise.all([
+  const [workspace, env, publicEnv] = await Promise.all([
     getWorkspaceData(),
     Promise.resolve(webServerEnvSchema.parse(process.env)),
+    Promise.resolve(publicWebEnvSchema.parse(process.env)),
   ]);
-  const readiness = [
-    {
-      label: "Tenant provisioned",
-      ready: workspace.status === "ready",
-      detail: workspace.message,
-    },
-    {
-      label: "Private object storage",
-      ready: Boolean(
-        env.R2_ACCOUNT_ID &&
-        env.R2_ACCESS_KEY_ID &&
-        env.R2_SECRET_ACCESS_KEY &&
-        env.R2_BUCKET_NAME,
-      ),
-      detail:
-        "Required before originals and generated PDFs can leave device storage.",
-    },
-    {
-      label: "RevenueCat webhook",
-      ready: Boolean(env.REVENUECAT_WEBHOOK_SECRET),
-      detail:
-        "Required before subscription entitlements can be trusted server-side.",
-    },
-    {
-      label: "Email delivery",
-      ready: Boolean(env.RESEND_API_KEY),
-      detail: "Required before sending report links or account email flows.",
-    },
-    {
-      label: "Error reporting",
-      ready: Boolean(env.SENTRY_DSN),
-      detail: "Required before broad beta or App Store launch.",
-    },
-  ];
+  const readiness = getWebProductionReadiness({ ...env, ...publicEnv });
 
   return (
     <section className="workspaceSection">
@@ -91,11 +63,42 @@ export default async function SettingsPage() {
             <span className="statusPill">Needs Neon</span>
           </article>
         ) : null}
+        <article className="dataRow">
+          <div>
+            <h3>Tenant provisioned</h3>
+            <p className="compactText">{workspace.message}</p>
+            <p className="compactText">
+              <strong>Required for:</strong> Workspace data access
+            </p>
+          </div>
+          <span
+            className={
+              workspace.status === "ready" ? "statusPill ready" : "statusPill"
+            }
+          >
+            {workspace.status === "ready" ? "Ready" : "Needs setup"}
+          </span>
+        </article>
         {readiness.map((item) => (
           <article className="dataRow" key={item.label}>
             <div>
               <h3>{item.label}</h3>
               <p className="compactText">{item.detail}</p>
+              <p className="compactText">
+                <strong>Required for:</strong> {item.requiredFor}
+              </p>
+              {item.missingVariableNames.length ? (
+                <ul
+                  className="envList"
+                  aria-label={`${item.label} missing variables`}
+                >
+                  {item.missingVariableNames.map((variableName) => (
+                    <li key={variableName}>
+                      <code>{variableName}</code>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
             <span className={item.ready ? "statusPill ready" : "statusPill"}>
               {item.ready ? "Ready" : "Not configured"}

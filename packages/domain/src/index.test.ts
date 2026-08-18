@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   assembleProofPacketPreview,
+  defaultReportBranding,
   evidenceCategories,
   getIncludedReportSections,
   getCloudFeatureGate,
   getReportDraftReadiness,
   getReportReadiness,
   hasActiveFieldDocProEntitlement,
+  normalizeReportBranding,
   normalizeReportSections,
+  reportBrandingAccentColors,
   projectStatuses,
   renderProofPacketHtml,
   toProjectSummary,
@@ -70,6 +73,25 @@ describe("domain constants", () => {
         entitlements: [],
       }),
     ).toMatchObject({ allowed: false });
+  });
+
+  it("accepts current RevenueCat entitlement aliases for fielddoc_pro", () => {
+    for (const entitlementId of ["FieldDocPro", "FieldDoc Pro"]) {
+      expect(
+        hasActiveFieldDocProEntitlement(
+          [
+            {
+              entitlementId,
+              status: "active",
+              productId: "fielddoc_pro_monthly",
+              expiresAt: "2026-09-01T00:00:00.000Z",
+              lastCheckedAt: "2026-08-17T00:00:00.000Z",
+            },
+          ],
+          "2026-08-17T00:00:00.000Z",
+        ),
+      ).toBe(true);
+    }
   });
 
   it("requires only a project name for local project creation", () => {
@@ -163,6 +185,33 @@ describe("domain constants", () => {
         sections,
       ),
     ).toEqual({ ready: true, missing: [] });
+  });
+
+  it("normalizes local proof packet branding without requiring cloud state", () => {
+    expect(
+      normalizeReportBranding(
+        {
+          companyName: "  Rivergate Restoration  ",
+          preparedBy: "  Keith  ",
+          footerText: "",
+          accentColor: "#not-real",
+        },
+        {
+          existing: {
+            ...defaultReportBranding,
+            footerText: "Existing footer",
+            accentColor: reportBrandingAccentColors[1],
+          },
+          now: "2026-08-17T16:00:00.000Z",
+        },
+      ),
+    ).toEqual({
+      companyName: "Rivergate Restoration",
+      preparedBy: "Keith",
+      footerText: null,
+      accentColor: reportBrandingAccentColors[1],
+      updatedAt: "2026-08-17T16:00:00.000Z",
+    });
   });
 
   it("assembles a deterministic proof packet preview from local metadata", () => {
@@ -304,6 +353,100 @@ describe("domain constants", () => {
     expect(html).toContain("Important evidence");
     expect(html).not.toContain("metadata-only");
   });
+
+  it("renders branding and document metadata in proof packet HTML", () => {
+    const project: Project = {
+      id: "project-docs",
+      customerId: null,
+      siteId: null,
+      name: "Document closeout",
+      customerCompany: "Rivergate",
+      siteAddress: "12 Main Street",
+      workOrderReference: null,
+      scheduledDate: null,
+      notes: null,
+      status: "draft",
+      createdAt: "2026-08-17T14:00:00.000Z",
+      updatedAt: "2026-08-17T14:00:00.000Z",
+      archivedAt: null,
+      deletedAt: null,
+      syncState: "PENDING",
+    };
+    const documentEvidence = createEvidence({
+      id: "evidence-doc",
+      projectId: project.id,
+      category: "DOCUMENT",
+      title: "Permit packet",
+      caption: "Signed permit",
+      captureTimestamp: "2026-08-17T14:10:00.000Z",
+      sortOrder: 0,
+    });
+    const documentMedia = createMediaAsset({
+      id: "media-doc",
+      evidenceItemId: documentEvidence.id,
+      caption: "Permit PDF",
+      captureTimestamp: "2026-08-17T14:10:00.000Z",
+      mediaType: "DOCUMENT",
+      mimeType: "application/pdf",
+      sha256:
+        "11507a0e2f5e69d5c15a8e65b7ef464041602a06120573cd9f8021c3d1f2f4e7",
+    });
+    const draft: ReportDraft = {
+      id: "draft-docs",
+      projectId: project.id,
+      title: "Document closeout packet",
+      notes: null,
+      sectionsJson: JSON.stringify([
+        {
+          category: "DOCUMENT",
+          label: "Document appendix",
+          included: true,
+          sortOrder: 0,
+        },
+      ]),
+      status: "draft",
+      generatedPdfUri: null,
+      generatedPdfStorageObjectKey: null,
+      generatedPdfSha256: null,
+      generatedPdfSizeBytes: null,
+      generatedPdfUploadedAt: null,
+      generatedAt: null,
+      createdAt: "2026-08-17T14:00:00.000Z",
+      updatedAt: "2026-08-17T14:00:00.000Z",
+      deletedAt: null,
+      syncState: "PENDING",
+    };
+
+    const preview = assembleProofPacketPreview({
+      project,
+      draft,
+      evidenceItems: [documentEvidence],
+      mediaAssetsByEvidenceId: { [documentEvidence.id]: [documentMedia] },
+      annotationsByEvidenceId: {},
+    });
+
+    const html = renderProofPacketHtml(preview, {
+      generatedAt: "2026-08-17T15:00:00.000Z",
+      branding: {
+        companyName: "Rivergate Restoration",
+        preparedBy: "Keith Dowler",
+        footerText: "Generated for customer review.",
+        accentColor: reportBrandingAccentColors[2],
+        updatedAt: "2026-08-17T14:00:00.000Z",
+      },
+    });
+
+    expect(html).toContain("Rivergate Restoration");
+    expect(html).toContain("Prepared by");
+    expect(html).toContain("Keith Dowler");
+    expect(html).toContain("Document appendix");
+    expect(html).toContain("application/pdf");
+    expect(html).toContain(
+      "11507a0e2f5e69d5c15a8e65b7ef464041602a06120573cd9f8021c3d1f2f4e7",
+    );
+    expect(html).toContain("Generated for customer review.");
+    expect(html).toContain(reportBrandingAccentColors[2]);
+  });
 });
 
 function createEvidence(
@@ -334,16 +477,20 @@ function createMediaAsset(
   input: Pick<
     MediaAsset,
     "id" | "evidenceItemId" | "caption" | "captureTimestamp"
-  >,
+  > &
+    Partial<Pick<MediaAsset, "mediaType" | "mimeType" | "sha256">>,
 ): MediaAsset {
+  const mediaType = input.mediaType ?? "IMAGE";
+  const mimeType = input.mimeType ?? "image/jpeg";
+
   return {
     ...input,
-    localUri: `file:///fielddoc/${input.id}.jpg`,
+    localUri: `file:///fielddoc/${input.id}.${mediaType === "DOCUMENT" ? "pdf" : "jpg"}`,
     storageObjectKey: null,
-    mediaType: "IMAGE",
-    mimeType: "image/jpeg",
+    mediaType,
+    mimeType,
     sizeBytes: 1024,
-    sha256: "00",
+    sha256: input.sha256 ?? "00",
     width: 800,
     height: 600,
     notes: null,

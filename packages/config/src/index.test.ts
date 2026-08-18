@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getWebProductionReadiness,
   publicMobileEnvSchema,
   publicWebEnvSchema,
   resolvePublicProductName,
@@ -46,6 +47,36 @@ describe("webServerEnvSchema", () => {
     ).toBeUndefined();
     expect(parsed.DATABASE_URL).toBeUndefined();
     expect(parsed.SENTRY_DSN).toBeUndefined();
+  });
+});
+
+describe("getWebProductionReadiness", () => {
+  it("reports exact missing production variables without exposing values", () => {
+    const checks = getWebProductionReadiness({
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_live_example",
+      CLERK_SECRET_KEY: "sk_live_example",
+      DATABASE_URL: "postgres://user:pass@example.invalid/db",
+      R2_ACCOUNT_ID: "account",
+      R2_ACCESS_KEY_ID: "access-key",
+      R2_BUCKET_NAME: "fielddoc-prod",
+      NEXT_PUBLIC_PRIVACY_POLICY_URL: "https://example.com/privacy",
+      NEXT_PUBLIC_TERMS_URL: "https://example.com/terms",
+    });
+
+    expect(checks.find((check) => check.id === "web_auth")).toMatchObject({
+      ready: true,
+      missingVariableNames: [],
+    });
+    expect(
+      checks.find((check) => check.id === "private_storage"),
+    ).toMatchObject({
+      ready: false,
+      missingVariableNames: ["R2_SECRET_ACCESS_KEY"],
+    });
+    expect(checks.find((check) => check.id === "revenuecat")).toMatchObject({
+      ready: false,
+      missingVariableNames: ["REVENUECAT_WEBHOOK_SECRET"],
+    });
   });
 });
 

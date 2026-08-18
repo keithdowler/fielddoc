@@ -196,7 +196,9 @@ Manual coverage should configure RevenueCat public mobile keys, rebuild the
 development client after installing `react-native-purchases`, sign into mobile,
 confirm Settings shows subscription state, tap Refresh and Restore, and verify
 cloud upload controls remain disabled until RevenueCat reports `fielddoc_pro`
-active. Server coverage requires applying migration
+active. Current sandbox coverage may also use `FieldDocPro` or `FieldDoc Pro`
+while RevenueCat naming restrictions are being resolved. Server coverage requires
+applying migration
 `0006_revenuecat_entitlements.sql`, setting `REVENUECAT_WEBHOOK_SECRET`, adding
 the webhook URL in RevenueCat, and sending a signed test event.
 
@@ -213,3 +215,27 @@ clearing while preserving schema migrations. Manual coverage should export local
 data from Settings, confirm the native share sheet opens with a JSON archive,
 then use Delete Local Device Data on a simulator seeded with disposable data and
 confirm projects/evidence disappear after navigating away and back.
+
+## Sprint 26 Document Appendix And Branding Tests
+
+Sprint 26 adds domain coverage for local report branding normalization and
+Proof Packet HTML rendering with branded header/footer content plus document
+appendix metadata. Repository tests cover the local settings migration, local
+report branding persistence, malformed setting fallback, and the rule that
+branding is local-only and does not enqueue sync mutations.
+
+Manual coverage should import a PDF/file from Capture, confirm it is categorized
+as Document evidence, save local report branding in Settings, generate a Proof
+Packet, and inspect the generated PDF for company/prepared-by/footer text plus
+document MIME/size/SHA metadata.
+
+## Sprint 27 Production Readiness Tests
+
+Sprint 27 adds config-package coverage for production readiness diagnostics.
+Tests verify that readiness checks report exact missing environment variable
+names without exposing configured secret values. The web Settings page consumes
+the shared readiness model so Vercel production gaps are visible in the app.
+
+Manual coverage should redeploy the web app after provider setup changes, sign
+in, open `/app/settings`, and confirm each readiness row changes from Not
+configured to Ready only after the required provider value is present.

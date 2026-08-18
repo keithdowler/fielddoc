@@ -201,6 +201,26 @@ p {
   margin: 0;
 }
 
+.envList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.envList code {
+  background: #ebe7df;
+  border: 1px solid #d8d3ca;
+  color: #1d2528;
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+  padding: 6px 8px;
+}
+
 .rowMetrics {
   align-items: flex-end;
   color: #536166;

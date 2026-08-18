@@ -42,3 +42,10 @@ mutations, evidence-original files, and generated PDFs from the current device.
 It is not a cloud account deletion workflow and must not be represented as one
 until server-side account export/deletion, retention, and authorization policy
 are implemented.
+
+Sprint 26 adds local report branding and document appendix handling. Branding
+values can contain company names, staff names, and customer-facing footer text,
+so they are included in local metadata export and cleared by Delete Local Device
+Data. Imported document files remain sensitive originals; proof packets may show
+document MIME type, size, captions, notes, and SHA-256 metadata, but must not log
+document contents or local document URIs.

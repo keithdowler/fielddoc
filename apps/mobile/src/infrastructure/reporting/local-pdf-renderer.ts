@@ -23,6 +23,7 @@ export class ExpoProofPacketPdfRenderer implements ProofPacketRenderer {
       productName: resolvePublicProductName(
         process.env.EXPO_PUBLIC_PRODUCT_NAME,
       ),
+      branding: options.branding,
       embeddedMedia: await createEmbeddedMediaMap(preview),
     });
     const printed = await Print.printToFileAsync({

@@ -62,3 +62,96 @@ export const publicMobileEnvSchema = z.object({
   EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: optionalSecret,
   EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY: optionalSecret,
 });
+
+export type WebProductionReadinessRequirement = {
+  id: string;
+  label: string;
+  detail: string;
+  requiredFor: string;
+  variableNames: readonly string[];
+};
+
+export type WebProductionReadinessCheck = WebProductionReadinessRequirement & {
+  ready: boolean;
+  missingVariableNames: string[];
+};
+
+export const webProductionReadinessRequirements = [
+  {
+    id: "web_auth",
+    label: "Web authentication",
+    detail:
+      "Required before the Vercel app can protect organization workspace routes.",
+    requiredFor: "Production web login",
+    variableNames: ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"],
+  },
+  {
+    id: "database",
+    label: "Neon database",
+    detail:
+      "Required before synced metadata, tenant provisioning, audit events, and reports can persist.",
+    requiredFor: "Cloud metadata",
+    variableNames: ["DATABASE_URL"],
+  },
+  {
+    id: "private_storage",
+    label: "Private object storage",
+    detail:
+      "Required before originals and generated PDFs can leave device storage.",
+    requiredFor: "Media and report uploads",
+    variableNames: [
+      "R2_ACCOUNT_ID",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+      "R2_BUCKET_NAME",
+    ],
+  },
+  {
+    id: "revenuecat",
+    label: "RevenueCat webhook",
+    detail:
+      "Required before subscription entitlements can be trusted server-side.",
+    requiredFor: "Paid cloud gates",
+    variableNames: ["REVENUECAT_WEBHOOK_SECRET"],
+  },
+  {
+    id: "email",
+    label: "Email delivery",
+    detail: "Required before sending report links or account email flows.",
+    requiredFor: "Customer delivery",
+    variableNames: ["RESEND_API_KEY"],
+  },
+  {
+    id: "error_reporting",
+    label: "Error reporting",
+    detail: "Required before broad beta or App Store launch.",
+    requiredFor: "Production support",
+    variableNames: ["SENTRY_DSN"],
+  },
+  {
+    id: "legal_urls",
+    label: "Legal URLs",
+    detail:
+      "Required before App Store submission and customer-facing account flows.",
+    requiredFor: "App Store readiness",
+    variableNames: ["NEXT_PUBLIC_PRIVACY_POLICY_URL", "NEXT_PUBLIC_TERMS_URL"],
+  },
+] as const satisfies readonly WebProductionReadinessRequirement[];
+
+type EnvironmentLike = Record<string, string | undefined>;
+
+export function getWebProductionReadiness(
+  env: EnvironmentLike,
+): WebProductionReadinessCheck[] {
+  return webProductionReadinessRequirements.map((requirement) => {
+    const missingVariableNames = requirement.variableNames.filter(
+      (variableName) => !env[variableName],
+    );
+
+    return {
+      ...requirement,
+      ready: missingVariableNames.length === 0,
+      missingVariableNames,
+    };
+  });
+}

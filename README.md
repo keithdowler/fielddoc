@@ -22,3 +22,8 @@ pnpm build
 ```
 
 Use `pnpm dev:web` or `pnpm dev:mobile` to run one app at a time.
+
+## Operator Guides
+
+- `docs/REMOTE_SETUP_HIT_LIST.md`: provider-dashboard work that can be done
+  away from the development machine.

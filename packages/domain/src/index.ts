@@ -41,6 +41,15 @@ export type SubscriptionEntitlementStatus =
   (typeof subscriptionEntitlementStatuses)[number];
 
 export const fieldDocProEntitlementId = "fielddoc_pro";
+export const fieldDocProEntitlementAliases = [
+  fieldDocProEntitlementId,
+  "FieldDocPro",
+  "FieldDoc Pro",
+] as const;
+
+export function isFieldDocProEntitlementId(entitlementId: string): boolean {
+  return fieldDocProEntitlementAliases.some((alias) => alias === entitlementId);
+}
 
 export type SubscriptionEntitlement = {
   entitlementId: string;
@@ -58,7 +67,7 @@ export function hasActiveFieldDocProEntitlement(
 
   return entitlements.some((entitlement) => {
     if (
-      entitlement.entitlementId !== fieldDocProEntitlementId ||
+      !isFieldDocProEntitlementId(entitlement.entitlementId) ||
       entitlement.status !== "active"
     ) {
       return false;
@@ -505,6 +514,7 @@ export type ProofPacketPreviewInput = {
 export type ProofPacketHtmlOptions = {
   generatedAt: string;
   productName?: string;
+  branding?: ReportBranding;
   embeddedMedia?: Record<string, ProofPacketEmbeddedMedia>;
 };
 
@@ -525,7 +535,70 @@ export type GeneratedProofPacket = {
 
 export type ProofPacketRenderOptions = {
   generatedAt?: string;
+  branding?: ReportBranding;
 };
+
+export type ReportBranding = {
+  companyName: string | null;
+  preparedBy: string | null;
+  footerText: string | null;
+  accentColor: string;
+  updatedAt: string;
+};
+
+export type SaveReportBrandingInput = {
+  companyName?: string;
+  preparedBy?: string;
+  footerText?: string;
+  accentColor?: string;
+};
+
+export const reportBrandingAccentColors = [
+  "#0f5b78",
+  "#166534",
+  "#7c2d12",
+  "#3730a3",
+  "#11181c",
+] as const;
+
+export const defaultReportBranding: ReportBranding = {
+  companyName: null,
+  preparedBy: null,
+  footerText: null,
+  accentColor: reportBrandingAccentColors[0],
+  updatedAt: new Date(0).toISOString(),
+};
+
+export function normalizeReportBranding(
+  input: SaveReportBrandingInput,
+  options: { existing?: ReportBranding | null; now: string },
+): ReportBranding {
+  const existing = options.existing ?? defaultReportBranding;
+  const accentColor =
+    input.accentColor &&
+    reportBrandingAccentColors.includes(
+      input.accentColor as (typeof reportBrandingAccentColors)[number],
+    )
+      ? input.accentColor
+      : existing.accentColor;
+
+  return {
+    companyName:
+      input.companyName === undefined
+        ? existing.companyName
+        : normalizeOptionalText(input.companyName),
+    preparedBy:
+      input.preparedBy === undefined
+        ? existing.preparedBy
+        : normalizeOptionalText(input.preparedBy),
+    footerText:
+      input.footerText === undefined
+        ? existing.footerText
+        : normalizeOptionalText(input.footerText),
+    accentColor,
+    updatedAt: options.now,
+  };
+}
 
 export const defaultReportSectionConfigs: ReportSectionConfig[] = [
   { category: "BEFORE", label: "Before", included: true, sortOrder: 0 },
@@ -733,6 +806,8 @@ export function renderProofPacketHtml(
   options: ProofPacketHtmlOptions,
 ): string {
   const productName = escapeHtml(options.productName ?? "Proof Packet");
+  const branding = options.branding ?? defaultReportBranding;
+  const accentColor = escapeHtml(branding.accentColor);
   const generatedAt = escapeHtml(formatPacketTimestamp(options.generatedAt));
   const project = preview.project;
   const projectRows = [
@@ -741,6 +816,7 @@ export function renderProofPacketHtml(
     ["Site", project.siteAddress],
     ["Work order", project.workOrderReference],
     ["Scheduled", project.scheduledDate],
+    ["Prepared by", branding.preparedBy],
   ]
     .filter(([, value]) => value)
     .map(
@@ -789,7 +865,7 @@ export function renderProofPacketHtml(
         margin: 0;
       }
       header {
-        border-bottom: 2px solid #0f5b78;
+        border-bottom: 2px solid ${accentColor};
         margin-bottom: 20px;
         padding-bottom: 16px;
       }
@@ -874,6 +950,18 @@ export function renderProofPacketHtml(
         padding: 3px 8px;
         text-transform: uppercase;
       }
+      .document-card {
+        background: #f8faf9;
+        border: 1px solid #cbd3d3;
+        border-left: 4px solid ${accentColor};
+        border-radius: 6px;
+        margin: 8px 0;
+        padding: 9px 10px;
+      }
+      .document-card strong {
+        display: block;
+        margin-bottom: 2px;
+      }
       .media-list,
       .annotation-list {
         margin: 8px 0 0 18px;
@@ -915,6 +1003,11 @@ export function renderProofPacketHtml(
     <header>
       <div class="eyebrow">${productName}</div>
       <h1>${escapeHtml(preview.title)}</h1>
+      ${
+        branding.companyName
+          ? `<div class="muted">${escapeHtml(branding.companyName)}</div>`
+          : ""
+      }
       <div class="muted">Generated locally ${generatedAt}</div>
       ${preview.notes ? `<p>${escapeHtml(preview.notes)}</p>` : ""}
     </header>
@@ -930,6 +1023,7 @@ export function renderProofPacketHtml(
     ${sectionHtml}
     <footer>
       Generated from local offline evidence. Original evidence remains immutable; embedded visuals are report renderings of the stored originals and do not alter source files.
+      ${branding.footerText ? `<br />${escapeHtml(branding.footerText)}` : ""}
     </footer>
   </body>
 </html>`;
@@ -1162,6 +1256,11 @@ export interface ReportDraftRepository {
   delete(id: string): Promise<void>;
 }
 
+export interface ReportBrandingRepository {
+  get(): Promise<ReportBranding>;
+  save(input: SaveReportBrandingInput): Promise<ReportBranding>;
+}
+
 function renderEvidenceEntryHtml(
   entry: ProofPacketEvidenceEntry,
   sectionIndex: number,
@@ -1175,6 +1274,10 @@ function renderEvidenceEntryHtml(
       embedded: embeddedMedia[media.id],
     }))
     .filter(({ media, embedded }) => media.mediaType === "IMAGE" && embedded);
+  const documentMedia = entry.mediaAssets.filter(
+    (media) =>
+      media.mediaType === "DOCUMENT" || media.mimeType === "application/pdf",
+  );
   const visualMediaHtml = visualMedia
     .map(
       ({ media, embedded }) => `
@@ -1182,6 +1285,22 @@ function renderEvidenceEntryHtml(
           <img src="${escapeHtml(embedded?.dataUri ?? "")}" alt="${escapeHtml(embedded?.altText ?? media.caption ?? entry.caption ?? title)}" />
           <figcaption>${escapeHtml(media.caption ?? entry.caption ?? title)}</figcaption>
         </figure>
+      `,
+    )
+    .join("");
+  const documentCardsHtml = documentMedia
+    .map(
+      (media) => `
+        <div class="document-card">
+          <strong>${escapeHtml(media.caption ?? entry.caption ?? title)}</strong>
+          <div class="muted">${escapeHtml(media.mimeType)} - ${formatBytes(media.sizeBytes)}</div>
+          <div class="muted">SHA-256 ${escapeHtml(media.sha256)}</div>
+          ${
+            media.notes
+              ? `<div>${escapeHtml(media.notes)}</div>`
+              : '<div class="muted">Document referenced by metadata. Non-image document pages are not visually embedded in this packet.</div>'
+          }
+        </div>
       `,
     )
     .join("");
@@ -1204,6 +1323,7 @@ function renderEvidenceEntryHtml(
         ${escapeHtml(entry.caption ?? "Caption needed")}
       </p>
       ${visualMediaHtml ? `<div class="media-grid">${visualMediaHtml}</div>` : ""}
+      ${documentCardsHtml}
       ${
         mediaItems
           ? `<p class="muted">Media files</p><ul class="media-list">${mediaItems}</ul>`

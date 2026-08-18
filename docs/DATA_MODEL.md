@@ -111,6 +111,20 @@ Sprint 9 adds a derived local report-history model. It is read from existing `re
 
 The derived history model does not add a new migration or duplicate report data. By default it returns generated PDFs only; mobile screens can include drafts for local inspection and regeneration.
 
+Sprint 26 adds a local-only `local_settings` table for device preferences that
+are not yet canonical server tenant records. The first setting stores report
+branding:
+
+- company name
+- prepared-by name
+- footer text
+- report accent color
+- local updated timestamp
+
+These values are included in local metadata export and cleared by local device
+deletion. They do not generate outbox mutations until a future cloud branding
+model exists.
+
 ## Server Sync Foundation
 
 Sprint 10 adds the first Neon/Postgres schema for future synchronization. Server records use client-generated UUIDs as primary keys so offline-created records can become canonical without ID translation. Every tenant-owned business table carries `organization_id`, server versioning, timestamps, and soft-delete metadata.

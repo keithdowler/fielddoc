@@ -5,7 +5,7 @@ import Purchases, {
   type CustomerInfo,
 } from "react-native-purchases";
 import {
-  fieldDocProEntitlementId,
+  isFieldDocProEntitlementId,
   type SubscriptionEntitlement,
 } from "@fielddoc/domain";
 
@@ -28,6 +28,8 @@ type RevenueCatContext = RevenueCatState & {
 
 const apiKey = getRevenueCatApiKey();
 let configuredUserId: string | null = null;
+const nativeModuleUnavailableMessage =
+  "RevenueCat native module is not available in this installed development build. Rebuild the iOS or Android development app after installing react-native-purchases.";
 
 export function useRevenueCatEntitlements({
   isSignedIn,
@@ -44,9 +46,15 @@ export function useRevenueCatEntitlements({
 
     if (configuredUserId === userId) return true;
 
-    Purchases.setLogLevel(LOG_LEVEL.WARN);
-    Purchases.configure({ apiKey, appUserID: userId });
-    configuredUserId = userId;
+    try {
+      Purchases.setLogLevel(LOG_LEVEL.WARN);
+      Purchases.configure({ apiKey, appUserID: userId });
+      configuredUserId = userId;
+    } catch (error) {
+      setErrorMessage(getRevenueCatErrorMessage(error));
+
+      return false;
+    }
 
     return true;
   }, [isSignedIn, userId]);
@@ -70,7 +78,15 @@ export function useRevenueCatEntitlements({
     setErrorMessage(undefined);
 
     try {
-      await configure();
+      const configured = await configure();
+
+      if (!configured) {
+        return {
+          status: "failed",
+          message: nativeModuleUnavailableMessage,
+        };
+      }
+
       const customerInfo = await Purchases.getCustomerInfo();
       setEntitlements(mapCustomerInfoToEntitlements(customerInfo));
 
@@ -111,7 +127,15 @@ export function useRevenueCatEntitlements({
     setErrorMessage(undefined);
 
     try {
-      await configure();
+      const configured = await configure();
+
+      if (!configured) {
+        return {
+          status: "failed",
+          message: nativeModuleUnavailableMessage,
+        };
+      }
+
       const customerInfo = await Purchases.restorePurchases();
       setEntitlements(mapCustomerInfoToEntitlements(customerInfo));
 
@@ -139,7 +163,12 @@ export function useRevenueCatEntitlements({
       setErrorMessage(undefined);
 
       if (configuredUserId) {
-        Purchases.logOut().catch(() => undefined);
+        try {
+          Purchases.logOut().catch(() => undefined);
+        } catch {
+          // RevenueCat's native module appears only after rebuilding the dev app.
+        }
+
         configuredUserId = null;
       }
 
@@ -174,6 +203,22 @@ export function useRevenueCatEntitlements({
   };
 }
 
+function getRevenueCatErrorMessage(error: unknown): string {
+  if (
+    error instanceof Error &&
+    (error.message.includes("RNPurchases") ||
+      error.message.includes("native module") ||
+      error.message.includes("setLogLevel") ||
+      error.message.includes("null"))
+  ) {
+    return nativeModuleUnavailableMessage;
+  }
+
+  return error instanceof Error
+    ? error.message
+    : "Subscription entitlements could not be refreshed.";
+}
+
 function getRevenueCatApiKey(): string | undefined {
   if (Platform.OS === "ios") {
     return process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || undefined;
@@ -203,7 +248,7 @@ export function hasRevenueCatFieldDocPro(
 ): boolean {
   return entitlements.some(
     (entitlement) =>
-      entitlement.entitlementId === fieldDocProEntitlementId &&
+      isFieldDocProEntitlementId(entitlement.entitlementId) &&
       entitlement.status === "active",
   );
 }

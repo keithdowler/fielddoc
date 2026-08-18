@@ -204,9 +204,11 @@ export default function CaptureScreen() {
       }> = [];
 
       for (const [index, preparedMedia] of preparedMediaItems.entries()) {
+        const evidenceCategory =
+          preparedMedia.mediaType === "DOCUMENT" ? "DOCUMENT" : category;
         const evidence = await repositories.evidence.create({
           projectId,
-          category,
+          category: evidenceCategory,
           title:
             title ||
             (preparedMediaItems.length > 1
@@ -227,9 +229,16 @@ export default function CaptureScreen() {
       }
 
       const lastSaved = savedItems.at(-1);
+      const savedCategories = Array.from(
+        new Set(savedItems.map(({ evidence }) => evidence.category)),
+      );
+      const savedCategoryLabel =
+        savedCategories.length === 1
+          ? categoryLabels[savedCategories[0]]
+          : "Mixed";
 
       setStatusMessage(
-        `${savedItems.length} ${categoryLabels[category].toLowerCase()} evidence ${
+        `${savedItems.length} ${savedCategoryLabel.toLowerCase()} evidence ${
           savedItems.length === 1 ? "item" : "items"
         } saved from ${sourceLabels[sourceType]}.`,
       );

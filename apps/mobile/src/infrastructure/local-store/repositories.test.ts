@@ -59,6 +59,9 @@ describe("SQLite local repositories", () => {
       }>(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'local_sync_conflicts'",
       );
+      const localSettingsTable = await database.getFirst<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'local_settings'",
+      );
 
       expect(row?.version).toBe(localDatabaseVersion);
       expect(indexRow?.name).toBe("idx_media_assets_evidence");
@@ -71,6 +74,46 @@ describe("SQLite local repositories", () => {
       expect(mediaUploadedAtColumn?.name).toBe("uploaded_at");
       expect(importantEvidenceColumn?.name).toBe("is_important");
       expect(localSyncConflictsTable?.name).toBe("local_sync_conflicts");
+      expect(localSettingsTable?.name).toBe("local_settings");
+    });
+  });
+
+  it("persists local report branding without creating sync mutations", async () => {
+    await withRepositories(async ({ reportBranding, mutations }) => {
+      const saved = await reportBranding.save({
+        companyName: "  Rivergate Restoration  ",
+        preparedBy: "  Keith Dowler  ",
+        footerText: "",
+        accentColor: "#166534",
+      });
+
+      expect(saved).toMatchObject({
+        companyName: "Rivergate Restoration",
+        preparedBy: "Keith Dowler",
+        footerText: null,
+        accentColor: "#166534",
+      });
+      expect(await reportBranding.get()).toEqual(saved);
+      expect(await mutations.listPending()).toEqual([]);
+    });
+  });
+
+  it("falls back to safe report branding when local settings are malformed", async () => {
+    await withRepositories(async ({ database, reportBranding }) => {
+      await database.run(
+        "INSERT INTO local_settings (key, value_json, updated_at) VALUES (?, ?, ?)",
+        [
+          "report_branding",
+          '{"companyName":" Bad Store ","accentColor":"#not-real"}',
+          "2026-08-17T16:00:00.000Z",
+        ],
+      );
+
+      expect(await reportBranding.get()).toMatchObject({
+        companyName: "Bad Store",
+        accentColor: "#0f5b78",
+        updatedAt: "2026-08-17T16:00:00.000Z",
+      });
     });
   });
 

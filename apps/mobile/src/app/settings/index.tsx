@@ -1,12 +1,16 @@
 import { AuthView } from "@clerk/expo/native";
-import { getCloudFeatureGate } from "@fielddoc/domain";
-import { useCallback, useState } from "react";
+import {
+  getCloudFeatureGate,
+  reportBrandingAccentColors,
+} from "@fielddoc/domain";
+import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/app-button";
 import { AppScreen } from "@/components/app-screen";
 import { AppText } from "@/components/app-text";
 import { Card } from "@/components/card";
+import { FormField } from "@/components/form-field";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBanner } from "@/components/status-banner";
 import { spacing } from "@/design/tokens";
@@ -72,6 +76,14 @@ export default function SettingsScreen() {
   const [exportingData, setExportingData] = useState(false);
   const [deletingLocalData, setDeletingLocalData] = useState(false);
   const [deleteLocalDataArmed, setDeleteLocalDataArmed] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [preparedBy, setPreparedBy] = useState("");
+  const [footerText, setFooterText] = useState("");
+  const [accentColor, setAccentColor] = useState<
+    (typeof reportBrandingAccentColors)[number]
+  >(reportBrandingAccentColors[0]);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [brandingStatus, setBrandingStatus] = useState<string | null>(null);
 
   const authStatusCopy = getMobileAuthStatusCopy(mobileAuth.status);
   const revenueCat = useRevenueCatEntitlements({
@@ -91,6 +103,37 @@ export default function SettingsScreen() {
     uploadingReports ||
     pullingChanges ||
     !cloudFeatureGate.allowed;
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadBranding() {
+      const repositories = await getLocalRepositories();
+      const branding = await repositories.reportBranding.get();
+
+      if (!mounted) return;
+      setCompanyName(branding.companyName ?? "");
+      setPreparedBy(branding.preparedBy ?? "");
+      setFooterText(branding.footerText ?? "");
+      setAccentColor(
+        reportBrandingAccentColors.includes(
+          branding.accentColor as (typeof reportBrandingAccentColors)[number],
+        )
+          ? (branding.accentColor as (typeof reportBrandingAccentColors)[number])
+          : reportBrandingAccentColors[0],
+      );
+    }
+
+    void loadBranding().catch(() => {
+      if (mounted) {
+        setBrandingStatus("Report branding could not be loaded.");
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const signOut = useCallback(async () => {
     setAuthActionRunning(true);
@@ -232,10 +275,45 @@ export default function SettingsScreen() {
       setReportUploadResult(null);
       setCloudSyncResult(null);
       setPullSyncResult(null);
+      setCompanyName("");
+      setPreparedBy("");
+      setFooterText("");
+      setAccentColor(reportBrandingAccentColors[0]);
+      setBrandingStatus(null);
     } finally {
       setDeletingLocalData(false);
     }
   }, [deleteLocalDataArmed]);
+
+  const saveReportBranding = useCallback(async () => {
+    setSavingBranding(true);
+
+    try {
+      const repositories = await getLocalRepositories();
+      const branding = await repositories.reportBranding.save({
+        companyName,
+        preparedBy,
+        footerText,
+        accentColor,
+      });
+
+      setCompanyName(branding.companyName ?? "");
+      setPreparedBy(branding.preparedBy ?? "");
+      setFooterText(branding.footerText ?? "");
+      setAccentColor(
+        branding.accentColor as (typeof reportBrandingAccentColors)[number],
+      );
+      setBrandingStatus("Report branding saved locally.");
+    } catch (error) {
+      setBrandingStatus(
+        error instanceof Error
+          ? error.message
+          : "Report branding could not be saved.",
+      );
+    } finally {
+      setSavingBranding(false);
+    }
+  }, [accentColor, companyName, footerText, preparedBy]);
 
   return (
     <AppScreen>
@@ -523,6 +601,58 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
+          title="Default Report Branding"
+          detail="Applied to newly generated local Proof Packet PDFs."
+        />
+        {brandingStatus ? (
+          <StatusBanner
+            tone={brandingStatus.includes("saved") ? "success" : "warning"}
+            title="Report branding"
+            message={brandingStatus}
+          />
+        ) : null}
+        <FormField
+          label="Company name"
+          value={companyName}
+          onChangeText={setCompanyName}
+          placeholder="Acme Restoration"
+        />
+        <FormField
+          label="Prepared by"
+          value={preparedBy}
+          onChangeText={setPreparedBy}
+          placeholder="Keith Dowler"
+        />
+        <FormField
+          label="Footer text"
+          value={footerText}
+          onChangeText={setFooterText}
+          placeholder="Proof Packet generated from immutable local evidence."
+          multiline
+        />
+        <View style={styles.actionRow}>
+          {reportBrandingAccentColors.map((color) => (
+            <AppButton
+              key={color}
+              label={color === accentColor ? "Selected" : "Color"}
+              accessibilityLabel={`Select report accent color ${color}`}
+              variant={color === accentColor ? "primary" : "secondary"}
+              onPress={() => setAccentColor(color)}
+              style={[styles.swatchButton, { borderColor: color }]}
+            />
+          ))}
+        </View>
+        <AppButton
+          label={savingBranding ? "Saving..." : "Save Report Branding"}
+          icon="paintpalette"
+          accessibilityLabel="Save default report branding"
+          onPress={saveReportBranding}
+          loading={savingBranding}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader
           title="Privacy"
           detail="Local-first controls for data portability and device cleanup."
         />
@@ -599,8 +729,8 @@ export default function SettingsScreen() {
           <View style={styles.copy}>
             <AppText variant="label">Default Report Branding</AppText>
             <AppText variant="small" muted>
-              Not yet editable. Generated Proof Packets use the configured
-              product name.
+              Editable above. New local PDFs include company, prepared-by,
+              footer, and accent color settings.
             </AppText>
           </View>
         </View>
@@ -649,6 +779,11 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  swatchButton: {
+    borderWidth: 3,
+    flex: 1,
+    minWidth: 96,
   },
 });
 

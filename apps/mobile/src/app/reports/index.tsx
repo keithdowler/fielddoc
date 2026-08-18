@@ -10,6 +10,7 @@ import {
   type ProjectEvidenceSummary,
   type GeneratedProofPacket,
   type ProofPacketPreview,
+  type ReportBranding,
   type ReportHistoryItem,
   type ReportSectionConfig,
 } from "@fielddoc/domain";
@@ -57,6 +58,7 @@ export default function ReportsScreen() {
   const [draft, setDraft] = useState<ReportDraft | null>(null);
   const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
   const [preview, setPreview] = useState<ProofPacketPreview | null>(null);
+  const [branding, setBranding] = useState<ReportBranding | null>(null);
   const [generatedPacket, setGeneratedPacket] =
     useState<GeneratedProofPacket | null>(null);
   const [pdfActionState, setPdfActionState] =
@@ -90,6 +92,7 @@ export default function ReportsScreen() {
         }),
         repositories.reportDrafts.listHistory({ includeDrafts: true }),
       ]);
+      const nextBranding = await repositories.reportBranding.get();
       const selectedProject =
         rows.find((row) => row.id === projectId) ?? rows[0] ?? null;
       const nextProjectId = selectedProject?.id;
@@ -110,6 +113,7 @@ export default function ReportsScreen() {
       if (!mounted) return;
       setProjects(rows);
       setReportHistory(history);
+      setBranding(nextBranding);
       setProjectId(nextProjectId);
       setProject(selectedProject);
       setSummary(nextSummary);
@@ -247,8 +251,11 @@ export default function ReportsScreen() {
     setErrorMessage(undefined);
 
     try {
-      const output = await localProofPacketRenderer.render(preview);
       const repositories = await getLocalRepositories();
+      const nextBranding = await repositories.reportBranding.get();
+      const output = await localProofPacketRenderer.render(preview, {
+        branding: nextBranding,
+      });
       const updatedDraft = await repositories.reportDrafts.markGeneratedPdf(
         draft.id,
         {
@@ -264,6 +271,7 @@ export default function ReportsScreen() {
       });
 
       setDraft(updatedDraft);
+      setBranding(nextBranding);
       setPreview(nextPreview);
       setReportHistory(history);
       setGeneratedPacket(output);
@@ -517,6 +525,29 @@ export default function ReportsScreen() {
           label="Missing captions"
           value={summary.missingCaptionCount}
         />
+        {summary.documentCount > 0 ? (
+          <AppText variant="small" muted>
+            Supporting documents are included as a document appendix. Image
+            documents can render visually; non-image files are referenced with
+            metadata and SHA-256.
+          </AppText>
+        ) : null}
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="Report Branding"
+          detail="Managed in Settings and applied when a local PDF is generated."
+        />
+        <MetricRow
+          label="Company"
+          value={branding?.companyName ?? "Default product name"}
+        />
+        <MetricRow
+          label="Prepared by"
+          value={branding?.preparedBy ?? "Not set"}
+        />
+        <MetricRow label="Footer" value={branding?.footerText ?? "Standard"} />
       </Card>
 
       <Card>

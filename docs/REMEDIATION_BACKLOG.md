@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Last groomed: 2026-08-17 after audit and tenant-isolation sprint
+Last groomed: 2026-08-17 after document appendix and local branding sprint
 
 Priority legend: P0 critical, P1 high, P2 medium, P3 low.
 
@@ -16,7 +16,7 @@ follow-up is listed below.
 
 | Area                   | Closed Remediation                                                                                                                                                 | Remaining Follow-Up                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Proof Packet output    | Local Proof Packet PDFs embed available local image originals with captions/metadata.                                                                              | Document page rendering, visual QA, cloud report versions.                      |
+| Proof Packet output    | Local Proof Packet PDFs embed available local image originals with captions/metadata and include imported document metadata appendix cards.                        | Document page rendering, visual QA, cloud report versions.                      |
 | Capture speed          | Mobile Capture has sticky before/work/after stage controls, quick captioning, next-stage control, and batch photo import.                                          | Camera loop, retake/replace, scanner mode.                                      |
 | Web workspace          | Authenticated web dashboard/projects/reports/settings now read tenant-scoped Neon data instead of placeholder-only content.                                        | Project detail, report downloads, branding management, share links.             |
 | App build readiness    | EAS profiles, initial iOS/Android identifiers, build numbers, and privacy/terms env placeholders exist.                                                            | Real App Store review package, account deletion, restore purchases, legal URLs. |
@@ -34,6 +34,8 @@ follow-up is listed below.
 | Monetization base      | RevenueCat SDK wiring, subscription diagnostics, restore purchases, webhook receipts, and `fielddoc_pro` cloud gates exist.                                        | App Store products, sandbox purchase validation, and paywall polish.            |
 | Evidence replacement   | Mobile can retake/replace an active media asset while preserving the previous original row and queueing delete/create mutations.                                   | Visual replacement history polish and server-side replacement review filters.   |
 | Local privacy controls | Mobile can export local metadata to JSON and clear local projects, evidence metadata, originals, generated PDFs, sync state, and queued mutations from the device. | Full cloud account export/deletion workflow and retention policy automation.    |
+| Local report branding  | Mobile Settings can save local company name, prepared-by, footer text, and accent color, and local PDFs render those values without cloud APIs.                    | Logo upload, tenant-managed cloud branding, and web branding controls.          |
+| Setup visibility       | Web Settings shows exact missing production environment variable names and the repo includes a remote provider setup hit list.                                     | User must still configure RevenueCat, Resend, Sentry, legal URLs, and stores.   |
 
 ## Active P1 Backlog
 
@@ -51,7 +53,7 @@ follow-up is listed below.
 | P2       | TRUST/SECURITY | Add denied-access/failure audit policy, retention controls, and admin audit search      | M          | No          | No               | No                  |
 | P2       | PRIVACY        | Implement full cloud Export My Data and Delete Account flows                            | M          | No          | Yes              | No                  |
 | P2       | RELIABILITY    | Add user-facing conflict review and resolution after preserved pull conflicts           | M          | No          | No               | No                  |
-| P2       | CORE VALUE     | Add report branding controls for company name, logo, colors, and footer text            | M          | No          | No               | Yes                 |
+| P2       | CORE VALUE     | Add tenant-managed logo, cloud report branding, and web branding controls               | M          | No          | No               | Yes                 |
 | P2       | RELIABILITY    | Generate thumbnail/preview derivatives for web and reports                              | M          | No          | No               | No                  |
 | P2       | CORE VALUE     | Add OCR extraction for scanned/imported documents                                       | L          | No          | No               | No                  |
 | P2       | PRODUCTION     | Exercise EAS production build, review notes, screenshots, privacy manifest, legal URLs  | M          | No          | Yes              | No                  |
@@ -69,19 +71,20 @@ follow-up is listed below.
 
 ## Recommended Next Sprint
 
-Build document capture/rendering next.
+Build document preview/rendering and native scanning next.
 
 ### Why
 
 The core evidence/report loop now syncs metadata, uploads verified private
 media/PDF assets, pulls canonical data back to mobile, leaves an audit trail for
-high-value actions, and has RevenueCat entitlement enforcement. The largest
-remaining core-value blocker is handling signed documents and rendering them
-into customer-ready Proof Packets.
+high-value actions, has RevenueCat entitlement enforcement, and can reference
+imported documents in local Proof Packets. The largest remaining core-value
+blocker is rendering signed documents visually and capturing paper documents
+without leaving the app.
 
 ### Scope
 
-1. Add native document scanning/import metadata paths.
+1. Add native document scanning path for paper signed/job documents.
 2. Generate safe document-page previews and PDF rendering support.
 3. Preserve immutable originals and derivatives with clear source metadata.
 4. Add document-focused tests across SQLite, report assembly, and PDF output.
@@ -90,9 +93,8 @@ into customer-ready Proof Packets.
 
 ### Explicitly Out Of Scope
 
-- Native scanner.
 - OCR.
-- Report branding editor.
+- Cloud branding editor.
 
 ## Deferred Until Validation
 

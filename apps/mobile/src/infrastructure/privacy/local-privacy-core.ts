@@ -10,11 +10,13 @@ const exportableTables = [
   "local_mutations",
   "local_sync_conflicts",
   "sync_client_state",
+  "local_settings",
 ] as const;
 
 const deletionOrder = [
   "local_sync_conflicts",
   "sync_client_state",
+  "local_settings",
   "local_mutations",
   "annotations",
   "documents",
