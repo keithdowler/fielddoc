@@ -1,5 +1,5 @@
-import { createPublicReportShareRedirectHandler } from "../../../api/reports/report-service";
-import { createReportRouteDependencies } from "../../../api/reports/route-dependencies";
+import { createPublicReportShareRedirectHandler } from "../../../../api/reports/report-service";
+import { createReportRouteDependencies } from "../../../../api/reports/route-dependencies";
 
 export async function GET(
   request: Request,

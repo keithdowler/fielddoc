@@ -156,7 +156,7 @@ Sprint 6 introduces a shared domain-level Proof Packet preview model before choo
 
 Status: Accepted
 
-Sprint 7 uses Expo Print as the first local PDF renderer because it is compatible with the current Expo application and lets field workers generate an offline file without adding a server dependency. The renderer consumes sanitized HTML from the shared domain package and stores the output PDF in app-owned local document storage. Later remediation embeds available local image originals by converting them to data URIs before printing. Scanned documents, non-image previews, and richer cloud/server rendering remain future work.
+Sprint 7 uses Expo Print as the first local PDF renderer because it is compatible with the current Expo application and lets field workers generate an offline file without adding a server dependency. The renderer consumes sanitized HTML from the shared domain package and stores the output PDF in app-owned local document storage. Later remediation embeds available local image originals by converting them to data URIs before printing. Scanned documents render as visual page evidence when image pages exist. Imported PDFs and other non-image files are preserved as external originals with hash, MIME type, source, and size metadata rather than being visually embedded. PDF page rasterization, OCR, and richer cloud/server rendering remain future work.
 
 ### ADR 0015: Native Share Sheet Before Cloud Sharing
 
@@ -170,7 +170,7 @@ Status: Accepted
 
 Sprint 9 exposes report history as a derived read model over local `report_drafts` joined to local projects. No new history table is introduced yet because local report drafts already contain the draft title, lifecycle status, generated PDF URI, generation timestamp, and sync state needed for an offline archive. The mobile UI can load a historical draft from the archive for inspection or regeneration through the existing report-generation flow. Server export history, immutable generated-output versioning, delivery audit trails, and cloud share links remain future synchronized features.
 
-Sprint remediation on 2026-08-16 upgrades local PDF generation from metadata-only media references to embedded local image originals. The mobile renderer reads each available local image original, converts it to a data URI for Expo Print, and passes the result into the shared domain HTML renderer. The original evidence file is not modified. Non-image documents, scanned document pages, cloud report versions, and share-link delivery remain future work.
+Sprint remediation on 2026-08-16 upgrades local PDF generation from metadata-only media references to embedded local image originals. The mobile renderer reads each available local image original, converts it to a data URI for Expo Print, and passes the result into the shared domain HTML renderer. The original evidence file is not modified. Later document remediation adds visual multi-page scanned documents, imported-original classification for PDFs/files, verified cloud report exports, and branded public share delivery. Imported PDF page rasterization, OCR, and native crop/edge detection remain future work.
 
 Sprint 29 adds document records as a first-class local repository and canonical
 sync target. Imported files and camera-based document scans create `DOCUMENT`

@@ -110,6 +110,7 @@ export default async function ProjectDetailPage({
                     {section.evidenceCount} evidence / {section.mediaCount}{" "}
                     media / {section.documentCount} documents (
                     {section.visualDocumentCount} visual /{" "}
+                    {section.externalOriginalDocumentCount} original /{" "}
                     {section.metadataOnlyDocumentCount} metadata) /{" "}
                     {section.annotationCount} notes
                   </p>
@@ -210,16 +211,32 @@ function EvidenceCard({ evidence }: { evidence: WorkspaceEvidenceItem }) {
               </span>
               <span>
                 {evidence.visualDocumentCount} visual /{" "}
-                {evidence.metadataOnlyDocumentCount} metadata-only in this
-                evidence item
+                {evidence.externalOriginalDocumentCount} imported original /{" "}
+                {evidence.metadataOnlyDocumentCount} metadata-only
               </span>
+              <span>{document.proofSummary}</span>
+              <span>{document.detail}</span>
+              {document.recommendedAction ? (
+                <span>{document.recommendedAction}</span>
+              ) : null}
+              {document.missingMetadata.length ? (
+                <span className="warningText">
+                  Missing {document.missingMetadata.join(", ")}
+                </span>
+              ) : null}
               <span>
                 {[
+                  document.previewKind.replaceAll("_", " "),
+                  document.fileProfile.replaceAll("_", " "),
                   document.pageCount
                     ? `${document.pageCount} ${
                         document.pageCount === 1 ? "page" : "pages"
                       }`
-                    : null,
+                    : document.visualPageCount
+                      ? `${document.visualPageCount} ${
+                          document.visualPageCount === 1 ? "page" : "pages"
+                        }`
+                      : null,
                   document.sourceType === "DOCUMENT_SCAN"
                     ? "scanned"
                     : document.sourceType?.toLowerCase().replaceAll("_", " "),

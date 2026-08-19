@@ -422,6 +422,7 @@ describe("domain constants", () => {
       annotations: 1,
       documents: 0,
       visualDocuments: 0,
+      externalOriginalDocuments: 0,
       metadataOnlyDocuments: 0,
       missingCaptions: 1,
     });
@@ -549,7 +550,8 @@ describe("domain constants", () => {
     expect(html).toContain("Prepared by");
     expect(html).toContain("Keith Dowler");
     expect(html).toContain("Document appendix");
-    expect(html).toContain("Metadata-only document");
+    expect(html).toContain("Imported PDF original");
+    expect(html).toContain("imported originals preserved for external review");
     expect(html).toContain("application/pdf");
     expect(html).toContain(
       "11507a0e2f5e69d5c15a8e65b7ef464041602a06120573cd9f8021c3d1f2f4e7",
@@ -646,6 +648,34 @@ describe("domain constants", () => {
     });
   });
 
+  it("classifies imported PDFs as external originals with immutable metadata", () => {
+    const importedPdf = createDocument({
+      id: "document-imported-pdf",
+      projectId: "project-docs",
+      evidenceItemId: "evidence-imported-pdf",
+      mediaAssetId: "media-imported-pdf",
+      title: "Signed authorization PDF",
+      fileName: "signed-authorization.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 4096,
+      sha256:
+        "a4ebf8f18c8bd184221f6404d2dd9d77be4a27b29ecab2ae0e4ef5f7a1f42f3e",
+      sourceType: "FILE_IMPORT",
+    });
+
+    expect(getProofPacketDocumentEntry(importedPdf, [])).toMatchObject({
+      previewKind: "external_original",
+      fileProfile: "imported_pdf",
+      visualPageCount: 0,
+      missingMetadata: [],
+      label: "Imported PDF original",
+      proofSummary:
+        "Original file hash, size, MIME type, and source are preserved for delivery review.",
+      recommendedAction:
+        "Open the original PDF from private storage for full visual review until PDF page previews are available.",
+    });
+  });
+
   it("explains report delivery readiness with blockers and warnings", () => {
     expect(
       getReportDeliveryReadiness({
@@ -657,6 +687,7 @@ describe("domain constants", () => {
         missingCaptionCount: 0,
         documentCount: 1,
         visualDocumentCount: 0,
+        externalOriginalDocumentCount: 0,
         metadataOnlyDocumentCount: 1,
         privateStorageReady: true,
         subscriptionActive: true,
@@ -689,6 +720,32 @@ describe("domain constants", () => {
         "Generate the Proof Packet PDF.",
         "Upload 1 original media file.",
       ]),
+    });
+  });
+
+  it("treats imported originals as complete delivery evidence with warnings", () => {
+    expect(
+      getReportDeliveryReadiness({
+        reportReady: true,
+        hasGeneratedPdf: true,
+        reportPdfUploaded: true,
+        mediaCount: 1,
+        uploadedMediaCount: 1,
+        missingCaptionCount: 0,
+        documentCount: 1,
+        visualDocumentCount: 0,
+        externalOriginalDocumentCount: 1,
+        metadataOnlyDocumentCount: 0,
+        privateStorageReady: true,
+        subscriptionActive: true,
+        shareLinkCount: 1,
+      }),
+    ).toMatchObject({
+      ready: true,
+      status: "ready_to_share",
+      warnings: [
+        "1 imported document is available as original files but not visually embedded.",
+      ],
     });
   });
 });

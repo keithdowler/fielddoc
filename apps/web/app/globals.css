@@ -422,6 +422,68 @@ p {
   text-align: center;
 }
 
+.primaryLinkButton {
+  background: #0f6b85;
+  color: #fff;
+  display: inline-flex;
+  font-weight: 850;
+  min-height: 48px;
+  padding: 13px 18px;
+}
+
+.shareShell {
+  align-items: center;
+  display: flex;
+  min-height: 100vh;
+  padding: 32px 20px;
+}
+
+.sharePanel {
+  margin: 0 auto;
+  max-width: 860px;
+  width: 100%;
+}
+
+.shareMeta {
+  display: grid;
+  gap: 12px;
+  margin: 28px 0;
+}
+
+.shareMeta div {
+  border-left: 4px solid #0f6b85;
+  padding-left: 14px;
+}
+
+.shareMeta dt {
+  color: #536166;
+  font-size: 0.8rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.shareMeta dd {
+  font-weight: 750;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.shareNotice {
+  border: 1px solid #d8d3ca;
+  padding: 18px;
+}
+
+.shareNotice strong {
+  color: #1d2528;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.shareNotice p {
+  font-size: 0.98rem;
+  margin: 0;
+}
+
 .sectionGrid {
   display: grid;
   gap: 18px;

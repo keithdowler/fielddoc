@@ -154,25 +154,33 @@ export async function pickPhotoLibraryMediaBatch(): Promise<
 }
 
 export async function importLocalFile(): Promise<PreparedLocalMediaAsset | null> {
+  const assets = await importLocalFiles();
+  return assets[0] ?? null;
+}
+
+export async function importLocalFiles(): Promise<PreparedLocalMediaAsset[]> {
   const result = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
-    multiple: false,
+    multiple: true,
     type: "*/*",
   });
 
-  if (result.canceled) return null;
+  if (result.canceled) return [];
 
-  const asset = result.assets[0];
-  if (!asset) return null;
-
-  return prepareLocalMediaAsset({
-    uri: asset.uri,
-    sourceType: "FILE_IMPORT",
-    mimeType: asset.mimeType,
-    sizeBytes: asset.size,
-    fileName: asset.name,
-    captureTimestamp: new Date(asset.lastModified).toISOString(),
-  });
+  return Promise.all(
+    result.assets.map((asset) =>
+      prepareLocalMediaAsset({
+        uri: asset.uri,
+        sourceType: "FILE_IMPORT",
+        mimeType: asset.mimeType,
+        sizeBytes: asset.size,
+        fileName: asset.name,
+        captureTimestamp: asset.lastModified
+          ? new Date(asset.lastModified).toISOString()
+          : new Date().toISOString(),
+      }),
+    ),
+  );
 }
 
 export async function prepareLocalMediaAsset(

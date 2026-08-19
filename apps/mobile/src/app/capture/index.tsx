@@ -7,6 +7,7 @@ import {
   type MediaAsset,
   type MediaSourceType,
   type Project,
+  getProofPacketDocumentEntry,
 } from "@fielddoc/domain";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -25,6 +26,7 @@ import {
   captureCameraPhoto,
   captureDocumentScanBatch,
   importLocalFile,
+  importLocalFiles,
   pickPhotoLibraryMedia,
   pickPhotoLibraryMediaBatch,
   type PreparedLocalMediaAsset,
@@ -246,7 +248,7 @@ export default function CaptureScreen() {
             mimeType: preparedMedia.mimeType,
             sizeBytes: preparedMedia.sizeBytes,
             sha256: preparedMedia.sha256,
-            pageCount: preparedMedia.sourceType === "DOCUMENT_SCAN" ? 1 : null,
+            pageCount: inferDocumentPageCount(preparedMedia),
             sourceType: preparedMedia.sourceType,
           });
         }
@@ -607,7 +609,7 @@ export default function CaptureScreen() {
     if (sourceType === "CAMERA_PHOTO") return pickOne(captureCameraPhoto);
     if (sourceType === "DOCUMENT_SCAN") return captureDocumentScanBatch();
     if (sourceType === "PHOTO_LIBRARY") return pickPhotoLibraryMediaBatch();
-    return pickOne(importLocalFile);
+    return importLocalFiles();
   }
 
   async function pickOne(
@@ -629,6 +631,13 @@ export default function CaptureScreen() {
     return (
       media.mediaType === "DOCUMENT" || media.sourceType === "DOCUMENT_SCAN"
     );
+  }
+
+  function inferDocumentPageCount(media: PreparedLocalMediaAsset) {
+    if (media.sourceType === "DOCUMENT_SCAN") return 1;
+    if (media.mimeType.startsWith("image/")) return 1;
+
+    return null;
   }
 
   function advanceFieldStage() {
@@ -980,41 +989,62 @@ export default function CaptureScreen() {
             {documents.length ? (
               <View style={styles.documentStack}>
                 {documents.map((document) => {
-                  const linkedPages = mediaAssets.filter(
-                    (mediaAsset) =>
-                      mediaAsset.sourceType === "DOCUMENT_SCAN" &&
-                      mediaAsset.deletedAt === null,
+                  const documentEntry = getProofPacketDocumentEntry(
+                    document,
+                    mediaAssets.filter(
+                      (mediaAsset) => mediaAsset.deletedAt === null,
+                    ),
                   );
                   const pageCount =
-                    document.pageCount ?? Math.max(linkedPages.length, 1);
+                    documentEntry.visualPageCount ?? document.pageCount ?? null;
+                  const visualMediaAssets = mediaAssets.filter((mediaAsset) =>
+                    documentEntry.visualMediaAssetIds.includes(mediaAsset.id),
+                  );
                   const sizeBytes =
                     document.sizeBytes ??
-                    linkedPages.reduce(
+                    visualMediaAssets.reduce(
                       (total, mediaAsset) => total + mediaAsset.sizeBytes,
                       0,
                     );
 
                   return (
                     <View key={document.id} style={styles.documentSummary}>
-                      <AppText variant="label">{document.title}</AppText>
+                      <AppText variant="label">{documentEntry.label}</AppText>
                       <AppText variant="small" muted>
                         {[
-                          `${pageCount} ${pageCount === 1 ? "page" : "pages"}`,
-                          document.sourceType === "DOCUMENT_SCAN"
-                            ? "visual scan"
-                            : document.sourceType,
+                          documentEntry.previewKind.replaceAll("_", " "),
+                          documentEntry.fileProfile.replaceAll("_", " "),
+                          pageCount
+                            ? `${pageCount} ${pageCount === 1 ? "page" : "pages"}`
+                            : "page count unknown",
                           sizeBytes === null ? null : formatBytes(sizeBytes),
                         ]
                           .filter(Boolean)
                           .join(" / ")}
                       </AppText>
+                      <AppText variant="small" muted>
+                        {documentEntry.proofSummary}
+                      </AppText>
+                      <AppText variant="small" muted>
+                        {documentEntry.detail}
+                      </AppText>
+                      {documentEntry.recommendedAction ? (
+                        <AppText variant="small" muted>
+                          {documentEntry.recommendedAction}
+                        </AppText>
+                      ) : null}
                       {document.sha256 ? (
                         <AppText variant="small" muted>
                           SHA {document.sha256.slice(0, 16)}
                         </AppText>
-                      ) : linkedPages.length ? (
+                      ) : visualMediaAssets.length ? (
                         <AppText variant="small" muted>
                           Page hashes are preserved on each original image.
+                        </AppText>
+                      ) : null}
+                      {documentEntry.missingMetadata.length ? (
+                        <AppText variant="small" muted>
+                          Missing {documentEntry.missingMetadata.join(", ")}
                         </AppText>
                       ) : null}
                     </View>

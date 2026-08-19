@@ -1,6 +1,9 @@
 # Proof Packet Generation
 
-Sprint 7 introduces local offline PDF generation on mobile. This document separates what exists now from the future cloud/share path.
+Sprint 7 introduced local offline PDF generation on mobile. Later sprints add
+cloud report archiving, private share links, visual scanned-document pages, and
+imported-original document delivery. This document separates what exists now
+from future rendering work.
 
 ## Current Local Assembly
 
@@ -22,10 +25,12 @@ The current PDF includes structured project metadata, section order, evidence
 rows, captions, annotations, media counts, MIME types, file sizes, SHA-256
 metadata, available local image originals, imported document metadata, and
 local report branding fields. Supporting documents attached to included
-evidence render as appendix cards classified as visual, metadata-only, or
-incomplete. Multi-page camera document scans render as visual pages with
-per-page SHA-256 references. Non-image document pages are referenced with
-hashes and file metadata rather than visually embedded.
+evidence render as appendix cards classified as visual, imported original,
+metadata-only, or incomplete. Multi-page camera document scans render as visual
+pages with per-page SHA-256 references. Imported PDFs and other non-image files
+are preserved as hash-backed original evidence with source, MIME type, file
+size, and SHA-256 metadata. They are available for delivery review, but their
+pages are not yet rasterized into the local PDF.
 
 ## Current Local Open And Share
 
@@ -38,6 +43,15 @@ Sprint 8 adds native local file actions for generated PDFs:
 - share through the native sheet only after explicit user action
 
 These actions do not upload the file, create a public link, record delivery, or synchronize export state.
+
+## Current Cloud Report Delivery
+
+Generated report PDFs can be uploaded to private object storage after metadata
+sync succeeds. The server verifies the stored object before recording a report
+export. Authenticated web users can download archived PDFs, and external share
+links open a branded public landing page that shows report metadata, integrity
+details, expiration, and a download action. The download action redirects to a
+short-lived private storage URL and never exposes a durable bucket URL.
 
 ## Current Local Report Archive
 
@@ -64,10 +78,8 @@ The renderer must not mutate original files. Any transformed images, thumbnails,
 
 ## Out Of Scope Until A Later Sprint
 
-- upload or signed URL flows
 - server-side generation
 - workflow orchestration
-- customer delivery tracking
+- advanced customer delivery tracking beyond public share-link access counts
 - legal-admissibility claims
-- immutable server-side export history
-- native document edge detection, page cleanup, rasterization, and OCR
+- native document edge detection, page cleanup, imported PDF rasterization, and OCR

@@ -271,3 +271,24 @@ Manual coverage should create a project on mobile, tap Scan Document, capture a
 paper page, then import a PDF/file. Confirm both appear under Document evidence,
 upload pending changes from Settings, open the deployed web project detail, and
 verify document counts and document metadata appear alongside media downloads.
+
+## Sprint 32 Imported-Original Delivery Tests
+
+Sprint 32 adds shared domain coverage for imported PDFs and other non-image
+documents as `external_original` proof entries. Tests verify that imported
+originals are counted separately from visual scanned pages and metadata-only
+documents, that report delivery readiness treats them as complete but warns they
+are not visually embedded, and that Proof Packet HTML includes immutable file
+metadata without duplicate generic document cards.
+
+Web workspace tests cover visual, external-original, and metadata-only document
+counts in project/report read models. Report service tests cover the no-auth
+public share landing view and assert that the page exposes report integrity
+metadata and a local download path without leaking private object-storage URLs.
+
+Manual coverage should import multiple files from mobile Capture, including a
+PDF and an image. Confirm the Capture detail page labels the PDF as an imported
+original, generate a Proof Packet, and verify the report readiness warning is
+clear. Upload the report PDF, create/open a share link, confirm
+`/share/reports/{token}` renders the branded delivery page, and use its download
+button to retrieve the private archived PDF.

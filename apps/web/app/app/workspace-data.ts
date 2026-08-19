@@ -15,6 +15,9 @@ import {
   type EvidenceCategory,
   type MediaAsset,
   type ProjectEvidenceSummary,
+  type ProofPacketDocumentEntry,
+  type ProofPacketDocumentFileProfile,
+  type ProofPacketDocumentPreviewKind,
   type ReportDeliveryReadiness,
   type ReportSectionConfig,
 } from "@fielddoc/domain";
@@ -110,7 +113,7 @@ export type WorkspaceAnnotation = {
   createdAt: Date;
 };
 
-export type WorkspaceDocument = {
+type WorkspaceDocumentRecord = {
   id: string;
   projectId: string;
   evidenceItemId: string | null;
@@ -126,6 +129,21 @@ export type WorkspaceDocument = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+type WorkspaceDocumentProof = {
+  label: string;
+  detail: string;
+  proofSummary: string;
+  recommendedAction: string | null;
+  previewKind: ProofPacketDocumentPreviewKind;
+  fileProfile: ProofPacketDocumentFileProfile;
+  visualPageCount: number | null;
+  visualMediaAssetIds: string[];
+  missingMetadata: string[];
+};
+
+export type WorkspaceDocument = WorkspaceDocumentRecord &
+  WorkspaceDocumentProof;
 
 export type WorkspaceEvidenceItem = {
   id: string;
@@ -147,6 +165,7 @@ export type WorkspaceEvidenceItem = {
   annotationCount: number;
   documentCount: number;
   visualDocumentCount: number;
+  externalOriginalDocumentCount: number;
   metadataOnlyDocumentCount: number;
   missingCaption: boolean;
 };
@@ -161,6 +180,7 @@ export type WorkspaceEvidenceSection = {
   annotationCount: number;
   documentCount: number;
   visualDocumentCount: number;
+  externalOriginalDocumentCount: number;
   metadataOnlyDocumentCount: number;
   importantCount: number;
   missingCaptionCount: number;
@@ -191,6 +211,7 @@ export type WorkspaceReportDetail = WorkspaceReport & {
     missingCaptionCount: number;
     importantCount: number;
     visualDocumentCount: number;
+    externalOriginalDocumentCount: number;
     metadataOnlyDocumentCount: number;
   };
   sectionConfig: ReportSectionConfig[];
@@ -533,10 +554,15 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     const media = mediaByEvidence[row.id] ?? [];
     const annotations = annotationsByEvidence[row.id] ?? [];
     const evidenceDocuments = documentsByEvidence[row.id] ?? [];
+    const domainMedia = media.map(toDomainMediaAsset);
     const documentEntries = evidenceDocuments.map((document) =>
-      getProofPacketDocumentEntry(
-        toDomainDocument(document),
-        media.map(toDomainMediaAsset),
+      getProofPacketDocumentEntry(toDomainDocument(document), domainMedia),
+    );
+    const documentsWithProof = evidenceDocuments.map((document, index) =>
+      toWorkspaceDocument(
+        document,
+        documentEntries[index] ??
+          getProofPacketDocumentEntry(toDomainDocument(document), domainMedia),
       ),
     );
 
@@ -544,7 +570,7 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       ...row,
       media,
       annotations,
-      documents: evidenceDocuments,
+      documents: documentsWithProof,
       mediaCount: media.length,
       uploadedMediaCount: media.filter((item) => item.hasUploadedOriginal)
         .length,
@@ -552,6 +578,9 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       documentCount: evidenceDocuments.length,
       visualDocumentCount: documentEntries.filter(
         (document) => document.previewKind === "visual",
+      ).length,
+      externalOriginalDocumentCount: documentEntries.filter(
+        (document) => document.previewKind === "external_original",
       ).length,
       metadataOnlyDocumentCount: documentEntries.filter(
         (document) => document.previewKind === "metadata_only",
@@ -605,7 +634,7 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     evidence,
     media,
     annotations: annotationRows,
-    documents: documentRows,
+    documents: evidence.flatMap((item) => item.documents),
     reportExports: diagnostics.reportExports,
     reportShareLinks: diagnostics.reportShareLinks,
     syncReceiptCount: receiptRows.length,
@@ -859,6 +888,10 @@ export function getReportDetailFromWorkspaceData(
     (count, section) => count + section.metadataOnlyDocumentCount,
     0,
   );
+  const externalOriginalDocumentCount = sections.reduce(
+    (count, section) => count + section.externalOriginalDocumentCount,
+    0,
+  );
   const readiness = getReportDraftReadiness(totals, sectionConfig);
   const deliveryReadiness = getReportDeliveryReadiness({
     reportReady: readiness.ready,
@@ -869,6 +902,7 @@ export function getReportDetailFromWorkspaceData(
     missingCaptionCount: totals.missingCaptionCount,
     documentCount,
     visualDocumentCount,
+    externalOriginalDocumentCount,
     metadataOnlyDocumentCount,
     shareLinkCount: activeShareLinksForDraft.length,
   });
@@ -895,6 +929,7 @@ export function getReportDetailFromWorkspaceData(
       missingCaptionCount: totals.missingCaptionCount,
       importantCount: totals.importantCount ?? 0,
       visualDocumentCount,
+      externalOriginalDocumentCount,
       metadataOnlyDocumentCount,
     },
     sectionConfig,
@@ -919,7 +954,7 @@ function isShareLinkActive(link: WorkspaceReportShareLink): boolean {
   return !link.revokedAt && link.expiresAt.getTime() > Date.now();
 }
 
-function toDomainDocument(document: WorkspaceDocument): Document {
+function toDomainDocument(document: WorkspaceDocumentRecord): Document {
   return {
     id: document.id,
     projectId: document.projectId,
@@ -943,6 +978,24 @@ function toDomainDocument(document: WorkspaceDocument): Document {
     updatedAt: document.updatedAt.toISOString(),
     deletedAt: null,
     syncState: "SYNCED",
+  };
+}
+
+function toWorkspaceDocument(
+  document: WorkspaceDocumentRecord,
+  entry: ProofPacketDocumentEntry,
+): WorkspaceDocument {
+  return {
+    ...document,
+    label: entry.label,
+    detail: entry.detail,
+    proofSummary: entry.proofSummary,
+    recommendedAction: entry.recommendedAction,
+    previewKind: entry.previewKind,
+    fileProfile: entry.fileProfile,
+    visualPageCount: entry.visualPageCount,
+    visualMediaAssetIds: entry.visualMediaAssetIds,
+    missingMetadata: entry.missingMetadata,
   };
 }
 
@@ -1024,6 +1077,10 @@ function buildEvidenceSections(
       ),
       visualDocumentCount: evidence.reduce(
         (count, item) => count + item.visualDocumentCount,
+        0,
+      ),
+      externalOriginalDocumentCount: evidence.reduce(
+        (count, item) => count + item.externalOriginalDocumentCount,
         0,
       ),
       metadataOnlyDocumentCount: evidence.reduce(

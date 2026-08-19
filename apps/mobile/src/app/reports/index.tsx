@@ -84,6 +84,8 @@ export default function ReportsScreen() {
     missingCaptionCount: summary.missingCaptionCount,
     documentCount: preview?.totals.documents ?? summary.documentCount,
     visualDocumentCount: preview?.totals.visualDocuments ?? 0,
+    externalOriginalDocumentCount:
+      preview?.totals.externalOriginalDocuments ?? 0,
     metadataOnlyDocumentCount: preview?.totals.metadataOnlyDocuments ?? 0,
   });
   const hasUnsavedDraftChanges =
@@ -550,8 +552,8 @@ export default function ReportsScreen() {
         {summary.documentCount > 0 ? (
           <AppText variant="small" muted>
             Supporting documents are included as a document appendix. Image
-            documents can render visually; non-image files are referenced with
-            metadata and SHA-256.
+            documents can render visually; imported PDFs and other non-image
+            files are preserved as original hash-backed evidence.
           </AppText>
         ) : null}
       </Card>

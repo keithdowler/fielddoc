@@ -163,9 +163,9 @@ Sprint 30 carries the same document metadata into canonical Neon/Postgres
 records. `documents.media_asset_id` links supporting document metadata to the
 uploaded immutable media asset when one exists; `file_name`, `mime_type`,
 `size_bytes`, `sha256`, `page_count`, and `source_type` allow web review and
-report-readiness surfaces to distinguish visual, metadata-only, and incomplete
-document evidence without duplicating original binaries outside private object
-storage.
+report-readiness surfaces to distinguish visual, imported-original,
+metadata-only, and incomplete document evidence without duplicating original
+binaries outside private object storage.
 
 Sprint 31 uses the existing document and media shape for multi-page scanned
 paperwork. One scanned document is represented as:
@@ -179,6 +179,12 @@ The document row may not have an aggregate SHA-256 when the user captured
 multiple image pages rather than importing one file. Each page still has its own
 immutable SHA-256 in `media_assets`, and Proof Packet assembly treats those page
 hashes as the visual document integrity evidence.
+
+Sprint 32 classifies imported PDFs and other non-image document files as
+external originals when their file metadata is complete. These documents do not
+gain synthetic page rows or visual derivatives yet. The original `documents`
+and `media_assets` rows remain the source of truth for file name, MIME type,
+size, SHA-256, source type, upload state, and delivery-readiness counts.
 
 Sprint 21 adds cloud report archival metadata:
 

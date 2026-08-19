@@ -83,6 +83,7 @@ describe("workspace detail read models", () => {
         missingCaptionCount: 1,
         importantCount: 1,
         visualDocumentCount: 1,
+        externalOriginalDocumentCount: 0,
         metadataOnlyDocumentCount: 0,
       },
       readiness: {
@@ -142,6 +143,16 @@ function createWorkspaceData(): WorkspaceData {
       sourceType: "DOCUMENT_SCAN",
       createdAt: at("2026-08-17T11:10:00.000Z"),
       updatedAt: at("2026-08-17T11:10:00.000Z"),
+      label: "Visual document pages",
+      detail: "1 document page will be embedded in the Proof Packet appendix.",
+      proofSummary:
+        "Visual page previews are embedded in the packet with immutable page hashes.",
+      recommendedAction: null,
+      previewKind: "visual" as const,
+      fileProfile: "scanned_pages" as const,
+      visualPageCount: 1,
+      visualMediaAssetIds: [media[0]?.id ?? ""],
+      missingMetadata: [],
     },
   ];
   const beforeMedia = media[0];
@@ -329,6 +340,7 @@ function createEvidenceItem(
     annotationCount: input.annotations.length,
     documentCount: input.documents.length,
     visualDocumentCount: input.documents.length,
+    externalOriginalDocumentCount: 0,
     metadataOnlyDocumentCount: 0,
     missingCaption:
       !input.caption?.trim() &&

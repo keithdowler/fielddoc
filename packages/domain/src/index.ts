@@ -730,22 +730,33 @@ export type ProofPacketEvidenceEntry = {
   annotationCount: number;
   documentCount: number;
   visualDocumentCount: number;
+  externalOriginalDocumentCount: number;
   metadataOnlyDocumentCount: number;
   missingCaption: boolean;
   isImportant: boolean;
 };
 
 export type ProofPacketDocumentPreviewKind =
-  "visual" | "metadata_only" | "incomplete";
+  "visual" | "external_original" | "metadata_only" | "incomplete";
+
+export type ProofPacketDocumentFileProfile =
+  | "scanned_pages"
+  | "imported_pdf"
+  | "imported_image"
+  | "imported_file"
+  | "unknown";
 
 export type ProofPacketDocumentEntry = {
   document: Document;
   previewKind: ProofPacketDocumentPreviewKind;
+  fileProfile: ProofPacketDocumentFileProfile;
   visualMediaAssetId: string | null;
   visualMediaAssetIds: string[];
   visualPageCount: number;
   label: string;
   detail: string;
+  proofSummary: string;
+  recommendedAction: string | null;
   missingMetadata: string[];
 };
 
@@ -759,6 +770,7 @@ export type ProofPacketSectionPreview = {
   annotationCount: number;
   documentCount: number;
   visualDocumentCount: number;
+  externalOriginalDocumentCount: number;
   metadataOnlyDocumentCount: number;
 };
 
@@ -775,6 +787,7 @@ export type ProofPacketPreview = {
     annotations: number;
     documents: number;
     visualDocuments: number;
+    externalOriginalDocuments: number;
     metadataOnlyDocuments: number;
     missingCaptions: number;
   };
@@ -835,6 +848,7 @@ export type ReportDeliveryReadinessInput = {
   missingCaptionCount: number;
   documentCount?: number;
   visualDocumentCount?: number;
+  externalOriginalDocumentCount?: number;
   metadataOnlyDocumentCount?: number;
   privateStorageReady?: boolean;
   subscriptionActive?: boolean;
@@ -1033,6 +1047,7 @@ export function getProofPacketDocumentEntry(
 ): ProofPacketDocumentEntry {
   const visualMediaAssets = getDocumentVisualMediaAssets(document, mediaAssets);
   const visualMediaAssetIds = visualMediaAssets.map((media) => media.id);
+  const fileProfile = getDocumentFileProfile(document, visualMediaAssets);
   const visualPageCount =
     document.pageCount ?? Math.max(visualMediaAssetIds.length, 1);
   const missingMetadata = [
@@ -1046,6 +1061,7 @@ export function getProofPacketDocumentEntry(
     return {
       document,
       previewKind: "visual",
+      fileProfile,
       visualMediaAssetId: visualMediaAssetIds[0] ?? null,
       visualMediaAssetIds,
       visualPageCount,
@@ -1057,6 +1073,34 @@ export function getProofPacketDocumentEntry(
         visualPageCount === 1
           ? "This scanned document is linked to an image original and can be embedded in the packet preview."
           : `This scanned document has ${visualPageCount} visual pages that can be embedded in the packet preview.`,
+      proofSummary:
+        visualPageCount === 1
+          ? "Visual page embedded from immutable local media."
+          : `${visualPageCount} visual pages embedded from immutable local media.`,
+      recommendedAction: null,
+      missingMetadata,
+    };
+  }
+
+  if (missingMetadata.length === 0 && isExternalOriginalDocument(document)) {
+    return {
+      document,
+      previewKind: "external_original",
+      fileProfile,
+      visualMediaAssetId: null,
+      visualMediaAssetIds: [],
+      visualPageCount: 0,
+      label: getExternalOriginalLabel(document),
+      detail:
+        document.mimeType === "application/pdf"
+          ? "This imported PDF is preserved as an immutable original with file metadata and SHA-256, but its pages are not rasterized into the packet yet."
+          : "This imported document is preserved as an immutable original with file metadata and SHA-256, but it is not visually embedded in the packet.",
+      proofSummary:
+        "Original file hash, size, MIME type, and source are preserved for delivery review.",
+      recommendedAction:
+        document.mimeType === "application/pdf"
+          ? "Open the original PDF from private storage for full visual review until PDF page previews are available."
+          : "Open the original document from private storage for full visual review.",
       missingMetadata,
     };
   }
@@ -1065,12 +1109,17 @@ export function getProofPacketDocumentEntry(
     return {
       document,
       previewKind: "metadata_only",
+      fileProfile,
       visualMediaAssetId: null,
       visualMediaAssetIds: [],
       visualPageCount: 0,
       label: "Metadata-only document",
       detail:
         "This document is tracked with immutable metadata and SHA-256, but its pages are not visually embedded.",
+      proofSummary:
+        "Document metadata is complete; no visual preview is available in this packet.",
+      recommendedAction:
+        "Open the original document separately before sending the packet.",
       missingMetadata,
     };
   }
@@ -1078,13 +1127,60 @@ export function getProofPacketDocumentEntry(
   return {
     document,
     previewKind: "incomplete",
+    fileProfile,
     visualMediaAssetId: null,
     visualMediaAssetIds: [],
     visualPageCount: 0,
     label: "Incomplete document metadata",
     detail: `Missing ${missingMetadata.join(", ")} before this document is delivery-ready.`,
+    proofSummary:
+      "Document metadata is incomplete and should not be treated as delivery-ready proof.",
+    recommendedAction: `Complete ${missingMetadata.join(", ")} before delivery.`,
     missingMetadata,
   };
+}
+
+export function getDocumentFileProfile(
+  document: Document,
+  visualMediaAssets: MediaAsset[] = [],
+): ProofPacketDocumentFileProfile {
+  if (visualMediaAssets.length > 0) {
+    return "scanned_pages";
+  }
+
+  if (document.mimeType === "application/pdf") {
+    return "imported_pdf";
+  }
+
+  if (document.sourceType === "DOCUMENT_SCAN") {
+    return "scanned_pages";
+  }
+
+  if (document.mimeType?.startsWith("image/")) {
+    return "imported_image";
+  }
+
+  if (document.sourceType === "FILE_IMPORT" || document.mimeType) {
+    return "imported_file";
+  }
+
+  return "unknown";
+}
+
+export function isExternalOriginalDocument(document: Document): boolean {
+  return (
+    document.sourceType === "FILE_IMPORT" ||
+    document.mimeType === "application/pdf" ||
+    document.mimeType === "application/msword" ||
+    document.mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
+}
+
+function getExternalOriginalLabel(document: Document): string {
+  if (document.mimeType === "application/pdf") return "Imported PDF original";
+  if (document.mimeType?.startsWith("image/")) return "Imported image original";
+  return "Imported document original";
 }
 
 export function getDocumentVisualMediaAssets(
@@ -1166,6 +1262,7 @@ export function getReportDeliveryReadiness(
   const incompleteDocuments =
     (input.documentCount ?? 0) -
     (input.visualDocumentCount ?? 0) -
+    (input.externalOriginalDocumentCount ?? 0) -
     (input.metadataOnlyDocumentCount ?? 0);
 
   if (incompleteDocuments > 0) {
@@ -1177,6 +1274,12 @@ export function getReportDeliveryReadiness(
   if ((input.metadataOnlyDocumentCount ?? 0) > 0) {
     warnings.push(
       `${formatCount(input.metadataOnlyDocumentCount ?? 0, "supporting document is", "supporting documents are")} metadata-only in the packet.`,
+    );
+  }
+
+  if ((input.externalOriginalDocumentCount ?? 0) > 0) {
+    warnings.push(
+      `${formatCount(input.externalOriginalDocumentCount ?? 0, "imported document is", "imported documents are")} available as original files but not visually embedded.`,
     );
   }
 
@@ -1294,6 +1397,9 @@ export function assembleProofPacketPreview(
           visualDocumentCount: documents.filter(
             (document) => document.previewKind === "visual",
           ).length,
+          externalOriginalDocumentCount: documents.filter(
+            (document) => document.previewKind === "external_original",
+          ).length,
           metadataOnlyDocumentCount: documents.filter(
             (document) => document.previewKind === "metadata_only",
           ).length,
@@ -1322,6 +1428,10 @@ export function assembleProofPacketPreview(
       ),
       visualDocumentCount: evidenceItems.reduce(
         (count, evidence) => count + evidence.visualDocumentCount,
+        0,
+      ),
+      externalOriginalDocumentCount: evidenceItems.reduce(
+        (count, evidence) => count + evidence.externalOriginalDocumentCount,
         0,
       ),
       metadataOnlyDocumentCount: evidenceItems.reduce(
@@ -1359,6 +1469,10 @@ export function assembleProofPacketPreview(
       ),
       visualDocuments: sectionPreviews.reduce(
         (count, section) => count + section.visualDocumentCount,
+        0,
+      ),
+      externalOriginalDocuments: sectionPreviews.reduce(
+        (count, section) => count + section.externalOriginalDocumentCount,
         0,
       ),
       metadataOnlyDocuments: sectionPreviews.reduce(
@@ -1608,7 +1722,7 @@ export function renderProofPacketHtml(
     </div>
     ${
       preview.totals.documents
-        ? `<p class="section-meta">Document appendix: ${preview.totals.visualDocuments} visual document pages embedded, ${preview.totals.metadataOnlyDocuments} metadata-only documents preserved with SHA-256 and file metadata.</p>`
+        ? `<p class="section-meta">Document appendix: ${preview.totals.visualDocuments} visual document pages embedded, ${preview.totals.externalOriginalDocuments} imported originals preserved for external review, ${preview.totals.metadataOnlyDocuments} metadata-only documents preserved with SHA-256 and file metadata.</p>`
         : ""
     }
     ${sectionHtml}
@@ -1930,6 +2044,10 @@ function renderEvidenceEntryHtml(
             ? formatCount(document.pageCount, "page", "pages")
             : null,
         document.sizeBytes === null ? null : formatBytes(document.sizeBytes),
+        `profile ${documentEntry.fileProfile.replaceAll("_", " ")}`,
+        document.sourceType
+          ? `source ${document.sourceType.toLowerCase().replaceAll("_", " ")}`
+          : null,
         document.sha256 ? `SHA-256 ${document.sha256}` : null,
       ]
         .filter((item): item is string => Boolean(item))
@@ -1953,10 +2071,22 @@ function renderEvidenceEntryHtml(
           ${metadata ? `<div class="muted">${metadata}</div>` : ""}
           ${pageHashes ? `<div class="muted document-pages">${pageHashes}</div>` : ""}
           <div>${escapeHtml(document.notes ?? documentEntry.detail)}</div>
+          <div class="muted">${escapeHtml(documentEntry.proofSummary)}</div>
+          ${
+            documentEntry.recommendedAction
+              ? `<div class="muted">${escapeHtml(documentEntry.recommendedAction)}</div>`
+              : ""
+          }
         </div>
       `;
     })
     .join("");
+  const documentedMediaAssetIds = new Set(
+    entry.documents.flatMap((documentEntry) => [
+      documentEntry.document.mediaAssetId,
+      ...documentEntry.visualMediaAssetIds,
+    ]),
+  );
   const visualMediaHtml = visualMedia
     .map(({ media, embedded }, index) => {
       const documentScanPageCount = visualMedia.filter(
@@ -1976,6 +2106,7 @@ function renderEvidenceEntryHtml(
     })
     .join("");
   const documentCardsHtml = documentMedia
+    .filter((media) => !documentedMediaAssetIds.has(media.id))
     .map(
       (media) => `
         <div class="document-card">

@@ -69,6 +69,10 @@ export default async function ReportDetailPage({
             value={report.totals.visualDocumentCount}
           />
           <Metric
+            label="Original docs"
+            value={report.totals.externalOriginalDocumentCount}
+          />
+          <Metric
             label="Metadata docs"
             value={report.totals.metadataOnlyDocumentCount}
           />
@@ -290,6 +294,7 @@ export default async function ReportDetailPage({
                         <span>
                           {evidence.documentCount} documents (
                           {evidence.visualDocumentCount} visual /{" "}
+                          {evidence.externalOriginalDocumentCount} original /{" "}
                           {evidence.metadataOnlyDocumentCount} metadata)
                         </span>
                         <span>{evidence.annotationCount} notes</span>
@@ -298,11 +303,17 @@ export default async function ReportDetailPage({
                         <ul className="annotationList">
                           {evidence.documents.map((document) => (
                             <li key={document.id}>
-                              {document.title}
+                              {document.label}
+                              {` / ${document.previewKind.replaceAll("_", " ")}`}
+                              {` / ${document.fileProfile.replaceAll("_", " ")}`}
+                              {` / ${document.proofSummary}`}
                               {document.notes ? ` / ${document.notes}` : ""}
-                              {document.pageCount
-                                ? ` / ${document.pageCount} ${
-                                    document.pageCount === 1 ? "page" : "pages"
+                              {(document.pageCount ?? document.visualPageCount)
+                                ? ` / ${document.pageCount ?? document.visualPageCount} ${
+                                    (document.pageCount ??
+                                      document.visualPageCount) === 1
+                                      ? "page"
+                                      : "pages"
                                   }`
                                 : ""}
                               {document.sourceType === "DOCUMENT_SCAN"
@@ -312,6 +323,12 @@ export default async function ReportDetailPage({
                                   : ""}
                               {document.sha256
                                 ? ` / SHA-256 ${document.sha256.slice(0, 16)}`
+                                : ""}
+                              {document.recommendedAction
+                                ? ` / ${document.recommendedAction}`
+                                : ""}
+                              {document.missingMetadata.length
+                                ? ` / missing ${document.missingMetadata.join(", ")}`
                                 : ""}
                             </li>
                           ))}

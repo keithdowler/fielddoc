@@ -6,6 +6,7 @@ import {
   createReportPdfUploadCompleteHandler,
   createReportPdfUploadPrepareHandler,
   createReportShareLinkCreateHandler,
+  getPublicReportShareView,
   hashShareToken,
 } from "./report-service";
 import type {
@@ -216,6 +217,33 @@ describe("report service", () => {
         }),
       }),
     );
+  });
+
+  it("resolves public share landing metadata without exposing storage URLs", async () => {
+    const repository = createRepository();
+    const share = await getPublicReportShareView(
+      "share_token_12345678901234567890",
+      {
+        createRepository: () => repository,
+        createStorage: () => createStorage(),
+        now: () => new Date("2026-08-17T15:00:00.000Z"),
+      },
+    );
+
+    expect(share).toMatchObject({
+      ok: true,
+      reportDraftId,
+      reportExportId,
+      mimeType: "application/pdf",
+      sizeBytes: 4096,
+      sha256,
+      downloadPath: "/share/reports/share_token_12345678901234567890/download",
+    });
+    expect(JSON.stringify(share)).not.toContain("downloads.example.test");
+    expect(repository.lastShareLinkAccess).toEqual({
+      shareLinkId,
+      accessedAt: new Date("2026-08-17T15:00:00.000Z"),
+    });
   });
 });
 

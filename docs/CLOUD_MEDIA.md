@@ -48,6 +48,7 @@ metadata outbox.
   - `POST /api/reports/downloads/prepare`
   - `POST /api/reports/share-links`
   - `GET /share/reports/{token}`
+  - `GET /share/reports/{token}/download`
 - Report object keys are tenant scoped:
   `organizations/{organizationId}/reports/{reportDraftId}/exports/{sha256}.pdf`.
 - Report upload completion verifies object existence, size, `application/pdf`
@@ -57,8 +58,9 @@ metadata outbox.
   media, and generated report PDFs in that order.
 - Web Reports exposes authenticated PDF downloads when a report export exists.
 - External report share links store only a hashed token, expiration, access
-  count, and report export reference. The public route redirects to a
-  short-lived private object URL and never exposes a durable bucket URL.
+  count, and report export reference. The public route renders a branded
+  no-auth delivery page with integrity metadata. Its download action redirects
+  to a short-lived private object URL and never exposes a durable bucket URL.
 
 ## Manual Verification Flow
 
@@ -77,6 +79,9 @@ metadata outbox.
 10. Use Download original from the Uploaded originals section and verify a
     temporary private-storage URL opens the original file.
 11. Visit Reports and use Download PDF for the generated report export.
+12. Create or open a report share link and confirm
+    `/share/reports/{token}` shows a branded delivery page while
+    `/share/reports/{token}/download` redirects to a temporary private URL.
 
 ## Required Production Environment
 
@@ -98,7 +103,6 @@ evidence originals.
 - Background upload retry policy with Wi-Fi/battery controls.
 - Async/streaming verification path for very large files if synchronous byte
   hashing becomes too slow for completion requests.
-- Branded customer-facing report delivery pages on top of share-link redirects.
-- First-class audit event rows for report generation, download, share creation,
-  and share access. Sprint 21 tracks share access count and last accessed time
-  but does not add a general audit log.
+- Background share-delivery analytics beyond access counts and audit events.
+- Async quarantine/verification workflow for large uploads or future document
+  malware scanning.

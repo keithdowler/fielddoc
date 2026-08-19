@@ -43,6 +43,28 @@ type AuthenticatedReportRequest = {
   repository: ReportArchiveRepository;
 };
 
+export type PublicReportShareView =
+  | {
+      ok: true;
+      shareLinkId: string;
+      organizationId: string;
+      reportExportId: string;
+      reportDraftId: string;
+      mimeType: string;
+      sizeBytes: number;
+      sha256: string;
+      generatedAt: Date;
+      uploadedAt: Date;
+      expiresAt: Date;
+      downloadPath: string;
+    }
+  | {
+      ok: false;
+      code: string;
+      message: string;
+      status: 404 | 410 | 503;
+    };
+
 const uploadUrlExpiresInSeconds = 10 * 60;
 const downloadUrlExpiresInSeconds = 5 * 60;
 const defaultShareLinkExpiresInMs = 7 * 24 * 60 * 60 * 1000;
@@ -373,19 +395,15 @@ export function createPublicReportShareRedirectHandler(
   >,
 ): (token: string, request?: Request) => Promise<Response> {
   return async function handlePublicReportShareRedirect(token, request) {
-    if (!/^[A-Za-z0-9_-]{24,256}$/.test(token)) {
-      return errorResponse(
-        "REPORT_SHARE_LINK_NOT_FOUND",
-        "Report share link was not found.",
-        404,
-      );
+    const resolved = await resolvePublicReportShareLink(token, dependencies);
+
+    if (!resolved.ok) {
+      return errorResponse(resolved.code, resolved.message, resolved.status);
     }
 
-    let repository: ReportArchiveRepository;
     let storage: PrivateObjectStorage;
 
     try {
-      repository = dependencies.createRepository();
       storage = dependencies.createStorage();
     } catch (error) {
       const response = configurationErrorResponse(error);
@@ -393,54 +411,23 @@ export function createPublicReportShareRedirectHandler(
       throw error;
     }
 
-    const shareLink = await repository.getShareLinkByTokenHash(
-      hashShareToken(token),
-    );
-
-    if (!shareLink) {
-      return errorResponse(
-        "REPORT_SHARE_LINK_NOT_FOUND",
-        "Report share link was not found.",
-        404,
-      );
-    }
-
     const now = dependencies.now?.() ?? new Date();
-
-    if (shareLink.revokedAt) {
-      return errorResponse(
-        "REPORT_SHARE_LINK_REVOKED",
-        "Report share link has been revoked.",
-        410,
-      );
-    }
-
-    if (shareLink.expiresAt.getTime() <= now.getTime()) {
-      return errorResponse(
-        "REPORT_SHARE_LINK_EXPIRED",
-        "Report share link has expired.",
-        410,
-      );
-    }
-
-    await repository.recordShareLinkAccess(shareLink.id, now);
-
     const downloadUrl = storage.createPresignedUrl({
       method: "GET",
-      objectKey: shareLink.reportExport.storageObjectKey,
+      objectKey: resolved.storageObjectKey,
       expiresInSeconds: downloadUrlExpiresInSeconds,
       now,
     });
 
     await safelyRecordAuditEvent(dependencies.createAuditWriter?.(), {
-      organizationId: shareLink.organizationId,
+      organizationId: resolved.organizationId,
       eventType: "report_share_link_access",
       entityType: "ReportShareLink",
-      entityId: shareLink.id,
+      entityId: resolved.shareLinkId,
       metadata: {
-        reportExportId: shareLink.reportExport.id,
-        reportDraftId: shareLink.reportExport.reportDraftId,
-        expiresAt: shareLink.expiresAt.toISOString(),
+        reportExportId: resolved.reportExportId,
+        reportDraftId: resolved.reportDraftId,
+        expiresAt: resolved.expiresAt.toISOString(),
       },
       requestId: request ? getRequestId(request) : null,
     });
@@ -452,6 +439,128 @@ export function createPublicReportShareRedirectHandler(
         Location: downloadUrl,
       },
     });
+  };
+}
+
+export async function getPublicReportShareView(
+  token: string,
+  dependencies: Pick<
+    ReportApiDependencies,
+    "createRepository" | "createStorage" | "now"
+  >,
+): Promise<PublicReportShareView> {
+  const resolved = await resolvePublicReportShareLink(token, dependencies);
+
+  if (!resolved.ok) return resolved;
+
+  return {
+    ok: true,
+    shareLinkId: resolved.shareLinkId,
+    organizationId: resolved.organizationId,
+    reportExportId: resolved.reportExportId,
+    reportDraftId: resolved.reportDraftId,
+    mimeType: resolved.mimeType,
+    sizeBytes: resolved.sizeBytes,
+    sha256: resolved.sha256,
+    generatedAt: resolved.generatedAt,
+    uploadedAt: resolved.uploadedAt,
+    expiresAt: resolved.expiresAt,
+    downloadPath: `/share/reports/${token}/download`,
+  };
+}
+
+type ResolvedPublicReportShareLink =
+  | (Extract<PublicReportShareView, { ok: true }> & {
+      storageObjectKey: string;
+    })
+  | Extract<PublicReportShareView, { ok: false }>;
+
+async function resolvePublicReportShareLink(
+  token: string,
+  dependencies: Pick<
+    ReportApiDependencies,
+    "createRepository" | "createStorage" | "now"
+  >,
+): Promise<ResolvedPublicReportShareLink> {
+  if (!/^[A-Za-z0-9_-]{24,256}$/.test(token)) {
+    return {
+      ok: false,
+      code: "REPORT_SHARE_LINK_NOT_FOUND",
+      message: "Report share link was not found.",
+      status: 404,
+    };
+  }
+
+  let repository: ReportArchiveRepository;
+
+  try {
+    repository = dependencies.createRepository();
+    dependencies.createStorage();
+  } catch (error) {
+    if (
+      error instanceof SyncConfigurationError ||
+      error instanceof MediaConfigurationError
+    ) {
+      return {
+        ok: false,
+        code: error.code,
+        message: error.message,
+        status: 503,
+      };
+    }
+
+    throw error;
+  }
+
+  const shareLink = await repository.getShareLinkByTokenHash(
+    hashShareToken(token),
+  );
+
+  if (!shareLink) {
+    return {
+      ok: false,
+      code: "REPORT_SHARE_LINK_NOT_FOUND",
+      message: "Report share link was not found.",
+      status: 404,
+    };
+  }
+
+  const now = dependencies.now?.() ?? new Date();
+
+  if (shareLink.revokedAt) {
+    return {
+      ok: false,
+      code: "REPORT_SHARE_LINK_REVOKED",
+      message: "Report share link has been revoked.",
+      status: 410,
+    };
+  }
+
+  if (shareLink.expiresAt.getTime() <= now.getTime()) {
+    return {
+      ok: false,
+      code: "REPORT_SHARE_LINK_EXPIRED",
+      message: "Report share link has expired.",
+      status: 410,
+    };
+  }
+
+  await repository.recordShareLinkAccess(shareLink.id, now);
+
+  return {
+    ok: true,
+    shareLinkId: shareLink.id,
+    organizationId: shareLink.organizationId,
+    reportExportId: shareLink.reportExport.id,
+    reportDraftId: shareLink.reportExport.reportDraftId,
+    storageObjectKey: shareLink.reportExport.storageObjectKey,
+    mimeType: shareLink.reportExport.mimeType,
+    sizeBytes: shareLink.reportExport.sizeBytes,
+    sha256: shareLink.reportExport.sha256,
+    generatedAt: shareLink.reportExport.generatedAt,
+    uploadedAt: shareLink.reportExport.uploadedAt,
+    expiresAt: shareLink.expiresAt,
+    downloadPath: `/share/reports/${token}/download`,
   };
 }
 
