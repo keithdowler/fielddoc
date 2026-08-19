@@ -3,6 +3,21 @@ import Link from "next/link";
 
 export default async function ProjectsPage() {
   const workspace = await getWorkspaceData();
+  const uploadedOriginals = workspace.media.filter(
+    (media) => media.hasUploadedOriginal,
+  ).length;
+  const pendingOriginals = Math.max(
+    workspace.media.length - uploadedOriginals,
+    0,
+  );
+  const missingCaptions = workspace.projects.reduce(
+    (count, project) => count + project.missingCaptionCount,
+    0,
+  );
+  const importantEvidence = workspace.projects.reduce(
+    (count, project) => count + project.importantEvidenceCount,
+    0,
+  );
 
   return (
     <section className="workspaceSection">
@@ -17,6 +32,16 @@ export default async function ProjectsPage() {
       {workspace.status !== "ready" ? (
         <p className="emptyMessage">{workspace.message}</p>
       ) : null}
+
+      <section
+        className="metricGrid compactMetrics"
+        aria-label="Project health"
+      >
+        <Metric label="Synced projects" value={workspace.projects.length} />
+        <Metric label="Important evidence" value={importantEvidence} />
+        <Metric label="Missing captions" value={missingCaptions} />
+        <Metric label="Originals pending" value={pendingOriginals} />
+      </section>
 
       {workspace.projects.length ? (
         <>
@@ -142,6 +167,15 @@ export default async function ProjectsPage() {
         </p>
       )}
     </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="metricBox">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
   );
 }
 

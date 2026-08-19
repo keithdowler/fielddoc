@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Remediation update: 2026-08-17 after document appendix and local branding sprint
+Remediation update: 2026-08-18 after beta readiness and operations sprint
 
 Status legend: VERIFIED, PARTIAL, MISSING, BROKEN, NOT APPLICABLE, DEFERRED INTENTIONALLY.
 
@@ -53,10 +53,10 @@ Status legend: VERIFIED, PARTIAL, MISSING, BROKEN, NOT APPLICABLE, DEFERRED INTE
 | Private object storage                                  | VERIFIED | Evidence originals and generated report PDFs use authenticated signed upload/download flows with server-side object verification.                                                                                                                                    |
 | Cloud report history                                    | VERIFIED | Generated report exports are persisted in Neon and available from authenticated web report routes.                                                                                                                                                                   |
 | Share links                                             | VERIFIED | Report share-link model and route issue tokenized links that redirect to short-lived private report downloads.                                                                                                                                                       |
-| Web dashboard                                           | PARTIAL  | Dashboard reads tenant-scoped Neon workspace metrics and recent projects.                                                                                                                                                                                            |
-| Web projects view                                       | PARTIAL  | Projects page and detail pages read tenant-scoped Neon rows with evidence sections, annotations, media counts, and private original downloads. Search/admin controls remain future work.                                                                             |
-| Web reports view                                        | PARTIAL  | Reports page and detail pages read tenant-scoped report drafts, readiness, report export status, authenticated downloads, and share links. Cloud branding management remains future work.                                                                            |
-| Web settings/branding                                   | PARTIAL  | Settings page shows tenant readiness plus exact missing production environment variable names for auth, Neon, R2, RevenueCat, email, Sentry, and legal URLs. Cloud branding management is missing.                                                                   |
+| Web dashboard                                           | PARTIAL  | Dashboard reads tenant-scoped Neon workspace metrics, beta readiness score/stage, attention queues, and recent projects. Search/admin controls remain future work.                                                                                                   |
+| Web projects view                                       | PARTIAL  | Projects page and detail pages read tenant-scoped Neon rows with evidence sections, annotations, media counts, important counts, private original downloads, and queue metrics. Search/admin controls remain future work.                                            |
+| Web reports view                                        | PARTIAL  | Reports page and detail pages read tenant-scoped report drafts, readiness, report export status, authenticated downloads, share links, and archive health. Cloud branding management remains future work.                                                            |
+| Web settings/branding                                   | PARTIAL  | Settings page shows tenant readiness, beta readiness blockers/warnings, and exact missing production environment variable names for auth, Neon, R2, RevenueCat, email, Sentry, and legal URLs. Cloud branding management is missing.                                 |
 | Account/profile/settings controls                       | PARTIAL  | Mobile settings supports cloud auth, sync diagnostics, subscription refresh/restore, local report branding, local metadata export, and local device deletion. Cloud account deletion and cloud branding controls remain future work.                                 |
 | Privacy/export/delete account                           | PARTIAL  | Local metadata export and local device deletion are implemented. Full cloud account deletion/export remains future work.                                                                                                                                             |
 | RevenueCat subscriptions                                | PARTIAL  | Mobile SDK wrapper, entitlement gate, restore/refresh controls, and server webhook receipts exist. App Store products, offerings, paywall copy, and sandbox purchase validation remain external setup.                                                               |
@@ -75,6 +75,7 @@ Commands run during audit/remediation:
 - `CI=true corepack pnpm test` - passed during audit, 13 files / 63 tests
 - Sprint 15 targeted/full validation - passed, 15 files / 73 tests
 - Web production build - passed, including media route handlers
+- Sprint 28 adds shared beta readiness scoring and web/mobile operations UX.
 
 ## End-to-End Scenario Trace
 

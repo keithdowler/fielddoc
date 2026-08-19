@@ -136,6 +136,43 @@ p {
   padding: 28px 0;
 }
 
+.readinessPanel {
+  align-items: center;
+  border: 2px solid #0f6b85;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding: 22px;
+}
+
+.readinessPanel h2 {
+  margin-bottom: 10px;
+}
+
+.readinessPanel p:last-child {
+  margin-bottom: 0;
+}
+
+.readinessScore {
+  border-left: 4px solid #0f6b85;
+  display: grid;
+  min-width: 132px;
+  padding-left: 18px;
+}
+
+.readinessScore strong {
+  color: #1d2528;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.readinessScore span {
+  color: #536166;
+  font-size: 0.9rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
 .sectionTitleRow {
   align-items: flex-end;
   display: flex;
@@ -152,6 +189,10 @@ p {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.compactMetrics {
+  margin: 24px 0;
 }
 
 .metricBox {
@@ -280,6 +321,25 @@ p {
 .statusPill.ready {
   border-color: #146c43;
   color: #146c43;
+}
+
+.statusPill.blocked {
+  border-color: #a51f1f;
+  color: #a51f1f;
+}
+
+.actionList {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding-left: 24px;
+}
+
+.actionList li {
+  color: #2f3a3e;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .detailList {
@@ -454,6 +514,11 @@ p {
 
   .metricGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .readinessPanel {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .dataRow {

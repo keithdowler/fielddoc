@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Last groomed: 2026-08-17 after document appendix and local branding sprint
+Last groomed: 2026-08-18 after beta readiness and operations sprint
 
 Priority legend: P0 critical, P1 high, P2 medium, P3 low.
 
@@ -36,6 +36,8 @@ follow-up is listed below.
 | Local privacy controls | Mobile can export local metadata to JSON and clear local projects, evidence metadata, originals, generated PDFs, sync state, and queued mutations from the device. | Full cloud account export/deletion workflow and retention policy automation.    |
 | Local report branding  | Mobile Settings can save local company name, prepared-by, footer text, and accent color, and local PDFs render those values without cloud APIs.                    | Logo upload, tenant-managed cloud branding, and web branding controls.          |
 | Setup visibility       | Web Settings shows exact missing production environment variable names and the repo includes a remote provider setup hit list.                                     | User must still configure RevenueCat, Resend, Sentry, legal URLs, and stores.   |
+| Beta readiness         | Shared domain readiness summary now scores tenant, storage, field evidence, report archive, sync receipts, audit, legal, billing, email, and observability setup.  | Field evidence volume, Resend, Sentry, legal URLs, and App Store submission.    |
+| Operations visibility  | Web dashboard/settings now show readiness stage, score, blockers, warnings, and attention queues; mobile Settings has a Sync Center for the normal upload path.    | Background sync, conflict review UI, admin filtering, and provider runbooks.    |
 
 ## Active P1 Backlog
 
@@ -60,6 +62,7 @@ follow-up is listed below.
 | P2       | PRODUCTION     | Add Sentry and privacy-safe analytics event taxonomy                                    | S          | No          | No               | No                  |
 | P2       | RETENTION      | Add activation metrics for project created, evidence captured, packet generated, synced | S          | No          | No               | No                  |
 | P2       | CORE VALUE     | Add template model for vertical report sections without building a large template pack  | M          | No          | No               | No                  |
+| P2       | PRODUCTION     | Configure Resend, Sentry, privacy URL, and terms URL in Vercel                          | S          | No          | Yes              | No                  |
 
 ## P3 Cleanup
 
@@ -71,7 +74,8 @@ follow-up is listed below.
 
 ## Recommended Next Sprint
 
-Build document preview/rendering and native scanning next.
+Build document preview/rendering, native scanning, and customer delivery polish
+next.
 
 ### Why
 

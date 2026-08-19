@@ -23,6 +23,46 @@ export default async function SettingsPage() {
         required environment is configured.
       </p>
 
+      <section className="readinessPanel">
+        <div>
+          <p className="eyebrow">Beta readiness</p>
+          <h2>{workspace.betaReadiness.headline}</h2>
+          <p>{workspace.betaReadiness.detail}</p>
+        </div>
+        <div className="readinessScore" aria-label="Beta readiness score">
+          <strong>{workspace.betaReadiness.score}</strong>
+          <span>of 100</span>
+        </div>
+      </section>
+
+      {workspace.betaReadiness.blockers.length ||
+      workspace.betaReadiness.warnings.length ? (
+        <div className="dataList">
+          {[
+            ...workspace.betaReadiness.blockers,
+            ...workspace.betaReadiness.warnings,
+          ]
+            .slice(0, 6)
+            .map((risk) => (
+              <article className="dataRow" key={risk.id}>
+                <div>
+                  <h3>{risk.label}</h3>
+                  <p className="compactText">{risk.detail}</p>
+                </div>
+                <span
+                  className={
+                    risk.severity === "blocker"
+                      ? "statusPill blocked"
+                      : "statusPill"
+                  }
+                >
+                  {risk.severity}
+                </span>
+              </article>
+            ))}
+        </div>
+      ) : null}
+
       <dl className="detailList">
         <div>
           <dt>Organization</dt>

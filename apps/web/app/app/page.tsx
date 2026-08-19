@@ -9,6 +9,21 @@ export default async function AppPage() {
     getWorkspaceData(),
   ]);
   const latestProjects = workspace.projects.slice(0, 5);
+  const uploadedOriginals = workspace.media.filter(
+    (media) => media.hasUploadedOriginal,
+  ).length;
+  const pendingOriginals = Math.max(
+    workspace.media.length - uploadedOriginals,
+    0,
+  );
+  const unarchivedReports = Math.max(
+    workspace.reports.length - workspace.reportExportCount,
+    0,
+  );
+  const missingCaptions = workspace.projects.reduce(
+    (count, project) => count + project.missingCaptionCount,
+    0,
+  );
 
   return (
     <div className="workspaceStack">
@@ -42,14 +57,84 @@ export default async function AppPage() {
         ) : null}
       </section>
 
+      <section className="readinessPanel">
+        <div>
+          <p className="eyebrow">Beta readiness</p>
+          <h2>{workspace.betaReadiness.headline}</h2>
+          <p>{workspace.betaReadiness.detail}</p>
+        </div>
+        <div className="readinessScore" aria-label="Beta readiness score">
+          <strong>{workspace.betaReadiness.score}</strong>
+          <span>of 100</span>
+        </div>
+      </section>
+
       <section className="metricGrid" aria-label="Workspace metrics">
         <Metric label="Projects" value={workspace.projects.length} />
-        <Metric label="Report drafts" value={workspace.reports.length} />
+        <Metric label="Evidence" value={workspace.evidence.length} />
+        <Metric label="Originals" value={uploadedOriginals} />
+        <Metric label="Archived PDFs" value={workspace.reportExportCount} />
         <Metric label="Sync receipts" value={workspace.syncReceiptCount} />
         <Metric
           label="Rejected receipts"
           value={workspace.rejectedSyncReceiptCount}
         />
+        <Metric label="Missing captions" value={missingCaptions} />
+        <Metric label="Share links" value={workspace.reportShareLinkCount} />
+        <Metric label="Audit events" value={workspace.auditEventCount} />
+      </section>
+
+      <section className="workspaceSection">
+        <div className="sectionTitleRow">
+          <div>
+            <p className="eyebrow">Attention queue</p>
+            <h2>What to tighten before beta</h2>
+          </div>
+          <span
+            className={`statusPill ${
+              workspace.betaReadiness.blockers.length === 0 ? "ready" : ""
+            }`}
+          >
+            {workspace.betaReadiness.blockers.length} blockers
+          </span>
+        </div>
+        <div className="dataList">
+          <QueueItem
+            label="Pending originals"
+            value={pendingOriginals}
+            detail="Media metadata exists without a verified private original."
+          />
+          <QueueItem
+            label="Unarchived report PDFs"
+            value={unarchivedReports}
+            detail="Report drafts exist without a cloud report export row."
+          />
+          <QueueItem
+            label="Missing captions"
+            value={missingCaptions}
+            detail="Evidence needs captions before customer-ready packets."
+          />
+          <QueueItem
+            label="Rejected sync receipts"
+            value={workspace.rejectedSyncReceiptCount}
+            detail="Rejected mutations should be investigated before more field tests."
+          />
+        </div>
+      </section>
+
+      <section className="workspaceSection">
+        <div className="sectionTitleRow">
+          <div>
+            <p className="eyebrow">Next actions</p>
+            <h2>Recommended operator path</h2>
+          </div>
+          <span className="statusPill">{workspace.betaReadiness.stage}</span>
+        </div>
+        <ol className="actionList">
+          {workspace.betaReadiness.nextActions.map((action) => (
+            <li key={action}>{action}</li>
+          ))}
+        </ol>
       </section>
 
       <section className="workspaceSection">
@@ -97,6 +182,28 @@ function Metric({ label, value }: { label: string; value: number }) {
       <strong>{value}</strong>
       <span>{label}</span>
     </div>
+  );
+}
+
+function QueueItem({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+}) {
+  return (
+    <article className="dataRow">
+      <div>
+        <h3>{label}</h3>
+        <p className="compactText">{detail}</p>
+      </div>
+      <span className={`statusPill ${value === 0 ? "ready" : ""}`}>
+        {value === 0 ? "Clear" : value}
+      </span>
+    </article>
   );
 }
 

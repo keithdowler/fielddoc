@@ -117,6 +117,254 @@ export function getCloudFeatureGate(input: {
   return { allowed: true, reason: null };
 }
 
+export type BetaReadinessStage =
+  | "setup_required"
+  | "field_validation"
+  | "beta_candidate"
+  | "production_candidate";
+
+export type BetaReadinessRiskSeverity = "blocker" | "warning";
+
+export type BetaReadinessRisk = {
+  id: string;
+  severity: BetaReadinessRiskSeverity;
+  label: string;
+  detail: string;
+};
+
+export type BetaReadinessSummaryInput = {
+  tenantReady: boolean;
+  privateStorageReady: boolean;
+  revenueCatWebhookReady: boolean;
+  emailDeliveryReady: boolean;
+  errorReportingReady: boolean;
+  legalUrlsReady: boolean;
+  projectCount: number;
+  evidenceCount: number;
+  mediaAssetCount: number;
+  uploadedMediaAssetCount: number;
+  reportDraftCount: number;
+  archivedReportPdfCount: number;
+  syncReceiptCount: number;
+  rejectedSyncReceiptCount: number;
+  auditEventCount: number;
+  shareLinkCount: number;
+  missingCaptionCount: number;
+};
+
+export type BetaReadinessSummary = {
+  score: number;
+  stage: BetaReadinessStage;
+  headline: string;
+  detail: string;
+  blockers: BetaReadinessRisk[];
+  warnings: BetaReadinessRisk[];
+  nextActions: string[];
+};
+
+export function getBetaReadinessSummary(
+  input: BetaReadinessSummaryInput,
+): BetaReadinessSummary {
+  const blockers: BetaReadinessRisk[] = [];
+  const warnings: BetaReadinessRisk[] = [];
+
+  if (!input.tenantReady) {
+    blockers.push({
+      id: "tenant",
+      severity: "blocker",
+      label: "Provision tenant",
+      detail:
+        "The signed-in Clerk organization must be bridged into the internal tenant model.",
+    });
+  }
+
+  if (!input.privateStorageReady) {
+    blockers.push({
+      id: "private_storage",
+      severity: "blocker",
+      label: "Configure private object storage",
+      detail:
+        "Originals and generated PDFs need private storage before leaving device storage.",
+    });
+  }
+
+  if (input.projectCount === 0) {
+    warnings.push({
+      id: "project_validation",
+      severity: "warning",
+      label: "Upload a real field project",
+      detail:
+        "At least one mobile-created project should be synced before beta validation.",
+    });
+  }
+
+  if (input.evidenceCount === 0) {
+    warnings.push({
+      id: "evidence_validation",
+      severity: "warning",
+      label: "Capture real evidence",
+      detail:
+        "A beta candidate needs real before/work/after or document evidence in the cloud.",
+    });
+  }
+
+  if (input.mediaAssetCount > input.uploadedMediaAssetCount) {
+    warnings.push({
+      id: "media_uploads",
+      severity: "warning",
+      label: "Upload remaining originals",
+      detail:
+        "Some media metadata is synced, but the immutable original files are still device-local.",
+    });
+  }
+
+  if (input.reportDraftCount > 0 && input.archivedReportPdfCount === 0) {
+    warnings.push({
+      id: "report_archive",
+      severity: "warning",
+      label: "Archive a generated Proof Packet",
+      detail:
+        "Generated PDF archival should be verified before relying on the web report archive.",
+    });
+  }
+
+  if (input.rejectedSyncReceiptCount > 0) {
+    warnings.push({
+      id: "rejected_sync",
+      severity: "warning",
+      label: "Review rejected sync receipts",
+      detail:
+        "Rejected mutations should be understood before adding more production traffic.",
+    });
+  }
+
+  if (input.missingCaptionCount > 0) {
+    warnings.push({
+      id: "missing_captions",
+      severity: "warning",
+      label: "Finish evidence captions",
+      detail:
+        "Missing captions reduce report quality and should be visible before delivery.",
+    });
+  }
+
+  if (!input.revenueCatWebhookReady) {
+    warnings.push({
+      id: "revenuecat_webhook",
+      severity: "warning",
+      label: "Configure RevenueCat webhook",
+      detail:
+        "The client can read subscription state, but the server cannot yet trust provider events.",
+    });
+  }
+
+  if (!input.emailDeliveryReady) {
+    warnings.push({
+      id: "email_delivery",
+      severity: "warning",
+      label: "Configure email delivery",
+      detail:
+        "Report link delivery and account lifecycle emails need a production email provider.",
+    });
+  }
+
+  if (!input.errorReportingReady) {
+    warnings.push({
+      id: "error_reporting",
+      severity: "warning",
+      label: "Configure error reporting",
+      detail:
+        "Broad beta support needs privacy-safe crash and server error visibility.",
+    });
+  }
+
+  if (!input.legalUrlsReady) {
+    warnings.push({
+      id: "legal_urls",
+      severity: "warning",
+      label: "Publish legal URLs",
+      detail:
+        "Privacy and terms URLs are required before App Store and customer-facing launch.",
+    });
+  }
+
+  const completedChecks = [
+    input.tenantReady,
+    input.privateStorageReady,
+    input.revenueCatWebhookReady,
+    input.emailDeliveryReady,
+    input.errorReportingReady,
+    input.legalUrlsReady,
+    input.projectCount > 0,
+    input.evidenceCount > 0,
+    input.mediaAssetCount === 0 ||
+      input.uploadedMediaAssetCount >= input.mediaAssetCount,
+    input.reportDraftCount === 0 || input.archivedReportPdfCount > 0,
+    input.rejectedSyncReceiptCount === 0,
+    input.auditEventCount > 0,
+  ].filter(Boolean).length;
+  const score = Math.round((completedChecks / 12) * 100);
+  const hasFieldEvidence = input.projectCount > 0 && input.evidenceCount > 0;
+  const hasArchiveProof =
+    input.archivedReportPdfCount > 0 && input.uploadedMediaAssetCount > 0;
+  const stage: BetaReadinessStage =
+    blockers.length > 0
+      ? "setup_required"
+      : score >= 92 && warnings.length === 0
+        ? "production_candidate"
+        : hasFieldEvidence && hasArchiveProof
+          ? "beta_candidate"
+          : "field_validation";
+
+  const nextActions = [...blockers, ...warnings]
+    .slice(0, 4)
+    .map((risk) => risk.label);
+
+  return {
+    score,
+    stage,
+    headline: getBetaReadinessHeadline(stage),
+    detail: getBetaReadinessDetail(stage, input),
+    blockers,
+    warnings,
+    nextActions:
+      nextActions.length > 0
+        ? nextActions
+        : [
+            "Run one real field packet through mobile, cloud sync, and web review.",
+          ],
+  };
+}
+
+function getBetaReadinessHeadline(stage: BetaReadinessStage): string {
+  switch (stage) {
+    case "production_candidate":
+      return "Production candidate";
+    case "beta_candidate":
+      return "Beta candidate";
+    case "field_validation":
+      return "Ready for field validation";
+    case "setup_required":
+      return "Setup required";
+  }
+}
+
+function getBetaReadinessDetail(
+  stage: BetaReadinessStage,
+  input: BetaReadinessSummaryInput,
+): string {
+  switch (stage) {
+    case "production_candidate":
+      return "Core cloud, storage, billing, legal, and observability checks are configured.";
+    case "beta_candidate":
+      return `${input.projectCount} projects, ${input.evidenceCount} evidence items, and ${input.archivedReportPdfCount} archived PDFs are visible in the cloud workspace.`;
+    case "field_validation":
+      return "The cloud foundation is connected. Run more real field work through sync, report archive, and web review.";
+    case "setup_required":
+      return "Complete required tenant and storage setup before treating cloud workflows as available.";
+  }
+}
+
 export const projectStatuses = ["draft", "active", "archived"] as const;
 
 export type ProjectStatus = (typeof projectStatuses)[number];

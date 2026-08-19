@@ -103,6 +103,21 @@ export default function SettingsScreen() {
     uploadingReports ||
     pullingChanges ||
     !cloudFeatureGate.allowed;
+  const syncCenterReady = mobileAuth.isSignedIn && cloudFeatureGate.allowed;
+  const syncCenterTone =
+    revenueCat.status === "failed"
+      ? "error"
+      : syncCenterReady
+        ? "success"
+        : "warning";
+  const syncCenterTitle = syncCenterReady
+    ? "Ready for cloud sync"
+    : mobileAuth.isSignedIn
+      ? "Cloud sync gated"
+      : "Sign in to sync";
+  const syncCenterMessage = syncCenterReady
+    ? "Run Upload All Pending Changes to send metadata, immutable originals, and generated Proof Packet PDFs."
+    : (cloudFeatureGate.reason ?? authStatusCopy.message);
 
   useEffect(() => {
     let mounted = true;
@@ -400,6 +415,48 @@ export default function SettingsScreen() {
             style={styles.actionButton}
           />
         </View>
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="Sync Center"
+          detail="Normal field workflow status for cloud upload and recovery."
+        />
+        <StatusBanner
+          tone={syncCenterTone}
+          title={syncCenterTitle}
+          message={syncCenterMessage}
+        />
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryItem}>
+            <AppText variant="label">Account</AppText>
+            <AppText variant="small" muted>
+              {mobileAuth.isSignedIn ? "Connected" : authStatusCopy.title}
+            </AppText>
+          </View>
+          <View style={styles.summaryItem}>
+            <AppText variant="label">Subscription</AppText>
+            <AppText variant="small" muted>
+              {revenueCatStatusCopy.title}
+            </AppText>
+          </View>
+          <View style={styles.summaryItem}>
+            <AppText variant="label">Last upload</AppText>
+            <AppText variant="small" muted>
+              {cloudSyncResult
+                ? statusTitleByCloudStatus[cloudSyncResult.status]
+                : "Not run this session"}
+            </AppText>
+          </View>
+        </View>
+        <AppButton
+          label={syncingAll ? "Uploading..." : "Run Full Sync"}
+          icon="arrow.triangle.2.circlepath"
+          accessibilityLabel="Run full cloud sync for metadata original media and report PDFs"
+          onPress={uploadAllPendingChanges}
+          disabled={cloudActionsDisabled}
+          loading={syncingAll}
+        />
       </Card>
 
       <Card>
@@ -779,6 +836,12 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  summaryGrid: {
+    gap: spacing.sm,
+  },
+  summaryItem: {
+    gap: spacing.xs,
   },
   swatchButton: {
     borderWidth: 3,

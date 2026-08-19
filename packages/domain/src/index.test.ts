@@ -4,6 +4,7 @@ import {
   assembleProofPacketPreview,
   defaultReportBranding,
   evidenceCategories,
+  getBetaReadinessSummary,
   getIncludedReportSections,
   getCloudFeatureGate,
   getReportDraftReadiness,
@@ -92,6 +93,95 @@ describe("domain constants", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("summarizes setup blockers before beta readiness", () => {
+    const summary = getBetaReadinessSummary({
+      tenantReady: false,
+      privateStorageReady: false,
+      revenueCatWebhookReady: false,
+      emailDeliveryReady: false,
+      errorReportingReady: false,
+      legalUrlsReady: false,
+      projectCount: 0,
+      evidenceCount: 0,
+      mediaAssetCount: 0,
+      uploadedMediaAssetCount: 0,
+      reportDraftCount: 0,
+      archivedReportPdfCount: 0,
+      syncReceiptCount: 0,
+      rejectedSyncReceiptCount: 0,
+      auditEventCount: 0,
+      shareLinkCount: 0,
+      missingCaptionCount: 0,
+    });
+
+    expect(summary.stage).toBe("setup_required");
+    expect(summary.headline).toBe("Setup required");
+    expect(summary.blockers.map((risk) => risk.id)).toEqual([
+      "tenant",
+      "private_storage",
+    ]);
+    expect(summary.nextActions).toContain("Provision tenant");
+  });
+
+  it("promotes synced field evidence and archived reports to beta candidate", () => {
+    const summary = getBetaReadinessSummary({
+      tenantReady: true,
+      privateStorageReady: true,
+      revenueCatWebhookReady: false,
+      emailDeliveryReady: false,
+      errorReportingReady: false,
+      legalUrlsReady: false,
+      projectCount: 2,
+      evidenceCount: 12,
+      mediaAssetCount: 6,
+      uploadedMediaAssetCount: 6,
+      reportDraftCount: 1,
+      archivedReportPdfCount: 1,
+      syncReceiptCount: 18,
+      rejectedSyncReceiptCount: 0,
+      auditEventCount: 4,
+      shareLinkCount: 1,
+      missingCaptionCount: 0,
+    });
+
+    expect(summary.stage).toBe("beta_candidate");
+    expect(summary.blockers).toEqual([]);
+    expect(summary.warnings.map((risk) => risk.id)).toEqual([
+      "revenuecat_webhook",
+      "email_delivery",
+      "error_reporting",
+      "legal_urls",
+    ]);
+  });
+
+  it("treats fully configured readiness as a production candidate", () => {
+    const summary = getBetaReadinessSummary({
+      tenantReady: true,
+      privateStorageReady: true,
+      revenueCatWebhookReady: true,
+      emailDeliveryReady: true,
+      errorReportingReady: true,
+      legalUrlsReady: true,
+      projectCount: 3,
+      evidenceCount: 20,
+      mediaAssetCount: 10,
+      uploadedMediaAssetCount: 10,
+      reportDraftCount: 2,
+      archivedReportPdfCount: 2,
+      syncReceiptCount: 30,
+      rejectedSyncReceiptCount: 0,
+      auditEventCount: 8,
+      shareLinkCount: 2,
+      missingCaptionCount: 0,
+    });
+
+    expect(summary.score).toBe(100);
+    expect(summary.stage).toBe("production_candidate");
+    expect(summary.nextActions).toEqual([
+      "Run one real field packet through mobile, cloud sync, and web review.",
+    ]);
   });
 
   it("requires only a project name for local project creation", () => {

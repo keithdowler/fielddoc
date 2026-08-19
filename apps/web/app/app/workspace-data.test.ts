@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getBetaReadinessSummary } from "@fielddoc/domain";
 
 import {
   getProjectDetailFromWorkspaceData,
@@ -163,6 +164,26 @@ function createWorkspaceData(): WorkspaceData {
     auditEventCount: 2,
     recentAuditEvents: [],
     diagnosticsWarning: null,
+    betaReadiness: getBetaReadinessSummary({
+      tenantReady: true,
+      privateStorageReady: true,
+      revenueCatWebhookReady: false,
+      emailDeliveryReady: false,
+      errorReportingReady: false,
+      legalUrlsReady: false,
+      projectCount: projects.length,
+      evidenceCount: evidence.length,
+      mediaAssetCount: media.length,
+      uploadedMediaAssetCount: media.filter((item) => item.hasUploadedOriginal)
+        .length,
+      reportDraftCount: reports.length,
+      archivedReportPdfCount: 1,
+      syncReceiptCount: 4,
+      rejectedSyncReceiptCount: 0,
+      auditEventCount: 2,
+      shareLinkCount: 1,
+      missingCaptionCount: 1,
+    }),
   };
 }
 

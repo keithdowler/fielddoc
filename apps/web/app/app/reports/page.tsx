@@ -3,6 +3,13 @@ import Link from "next/link";
 
 export default async function ReportsPage() {
   const workspace = await getWorkspaceData();
+  const reportsWithCloudPdf = workspace.reports.filter(
+    (report) => report.hasGeneratedPdf,
+  ).length;
+  const reportsNeedingArchive = Math.max(
+    workspace.reports.length - reportsWithCloudPdf,
+    0,
+  );
 
   return (
     <section className="workspaceSection">
@@ -16,6 +23,13 @@ export default async function ReportsPage() {
       {workspace.status !== "ready" ? (
         <p className="emptyMessage">{workspace.message}</p>
       ) : null}
+
+      <section className="metricGrid compactMetrics" aria-label="Report health">
+        <Metric label="Drafts" value={workspace.reports.length} />
+        <Metric label="Cloud PDFs" value={reportsWithCloudPdf} />
+        <Metric label="Need archive" value={reportsNeedingArchive} />
+        <Metric label="Share links" value={workspace.reportShareLinkCount} />
+      </section>
 
       {workspace.reports.length ? (
         <div className="dataList">
@@ -59,6 +73,15 @@ export default async function ReportsPage() {
         </p>
       )}
     </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="metricBox">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
   );
 }
 

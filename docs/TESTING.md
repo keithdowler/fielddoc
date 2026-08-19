@@ -238,4 +238,17 @@ the shared readiness model so Vercel production gaps are visible in the app.
 
 Manual coverage should redeploy the web app after provider setup changes, sign
 in, open `/app/settings`, and confirm each readiness row changes from Not
-configured to Ready only after the required provider value is present.
+configured to Ready as the matching environment variables are added.
+
+## Sprint 28 Beta Readiness And Operations Tests
+
+Sprint 28 adds shared domain coverage for beta-readiness stages, setup blockers,
+provider warnings, and production-candidate scoring. The web app consumes the
+same readiness summary in Dashboard and Settings, while Projects and Reports add
+queue metrics for missing captions, pending originals, and unarchived reports.
+
+Manual coverage should sign into the deployed web app, open `/app`, `/app/projects`,
+`/app/reports`, and `/app/settings`, then confirm the readiness score, blockers,
+warnings, and queue counts match the latest synced mobile data. On mobile,
+Settings should show Sync Center as ready only after Clerk sign-in and an active
+RevenueCat entitlement.

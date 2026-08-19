@@ -1,8 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
-import { webServerEnvSchema } from "@fielddoc/config";
+import {
+  getWebProductionReadiness,
+  publicWebEnvSchema,
+  webServerEnvSchema,
+} from "@fielddoc/config";
 import {
   defaultReportSectionConfigs,
+  getBetaReadinessSummary,
   getReportDraftReadiness,
+  type BetaReadinessSummary,
   type EvidenceCategory,
   type ProjectEvidenceSummary,
   type ReportSectionConfig,
@@ -168,6 +174,7 @@ export type WorkspaceData = {
   auditEventCount: number;
   recentAuditEvents: WorkspaceAuditEvent[];
   diagnosticsWarning: string | null;
+  betaReadiness: BetaReadinessSummary;
 };
 
 export type WorkspaceAuditEvent = {
@@ -190,6 +197,11 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
   }
 
   const env = webServerEnvSchema.parse(process.env);
+  const publicEnv = publicWebEnvSchema.parse(process.env);
+  const productionReadiness = getWebProductionReadiness({
+    ...env,
+    ...publicEnv,
+  });
 
   if (!env.DATABASE_URL) {
     return emptyWorkspaceData({
@@ -365,6 +377,8 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     db,
     membership.organizationId,
   );
+  const isEnvironmentReady = (id: string) =>
+    productionReadiness.find((item) => item.id === id)?.ready ?? false;
 
   const evidenceByProject = countBy(evidenceRows, (row) => row.projectId);
   const missingCaptionsByProject = countBy(
@@ -424,6 +438,9 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     };
   });
   const media = Object.values(mediaByEvidence).flat();
+  const uploadedMediaCount = media.filter(
+    (item) => item.hasUploadedOriginal,
+  ).length;
 
   return {
     status: "ready",
@@ -464,6 +481,28 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     auditEventCount: diagnostics.auditEventCount,
     recentAuditEvents: diagnostics.recentAuditEvents,
     diagnosticsWarning: diagnostics.warning,
+    betaReadiness: getBetaReadinessSummary({
+      tenantReady: true,
+      privateStorageReady: isEnvironmentReady("private_storage"),
+      revenueCatWebhookReady: isEnvironmentReady("revenuecat"),
+      emailDeliveryReady: isEnvironmentReady("email"),
+      errorReportingReady: isEnvironmentReady("error_reporting"),
+      legalUrlsReady: isEnvironmentReady("legal_urls"),
+      projectCount: projectRows.length,
+      evidenceCount: evidence.length,
+      mediaAssetCount: media.length,
+      uploadedMediaAssetCount: uploadedMediaCount,
+      reportDraftCount: reportRows.length,
+      archivedReportPdfCount: diagnostics.reportExportCount,
+      syncReceiptCount: receiptRows.length,
+      rejectedSyncReceiptCount: receiptRows.filter(
+        (receipt) => receipt.status === "rejected",
+      ).length,
+      auditEventCount: diagnostics.auditEventCount,
+      shareLinkCount: diagnostics.reportShareLinkCount,
+      missingCaptionCount: evidence.filter((item) => item.missingCaption)
+        .length,
+    }),
   };
 }
 
@@ -486,6 +525,25 @@ function emptyWorkspaceData(
     auditEventCount: 0,
     recentAuditEvents: [],
     diagnosticsWarning: null,
+    betaReadiness: getBetaReadinessSummary({
+      tenantReady: false,
+      privateStorageReady: false,
+      revenueCatWebhookReady: false,
+      emailDeliveryReady: false,
+      errorReportingReady: false,
+      legalUrlsReady: false,
+      projectCount: 0,
+      evidenceCount: 0,
+      mediaAssetCount: 0,
+      uploadedMediaAssetCount: 0,
+      reportDraftCount: 0,
+      archivedReportPdfCount: 0,
+      syncReceiptCount: 0,
+      rejectedSyncReceiptCount: 0,
+      auditEventCount: 0,
+      shareLinkCount: 0,
+      missingCaptionCount: 0,
+    }),
   };
 }
 
