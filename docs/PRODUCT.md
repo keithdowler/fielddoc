@@ -12,6 +12,10 @@ Examples include property maintenance, turnover contractors, restoration, roofin
 
 A field worker should be able to turn job-site evidence into a clean, professional Proof Packet in under two minutes after finishing capture.
 
+## Universal Usability Standard
+
+FieldDoc must be usable by mixed-age workforces, including people who are not comfortable with technical terms, people using the app outdoors, and people with reduced vision, dexterity, or working memory. Primary screens should use plain-language action labels, visible success/error states, large touch targets, dynamic text support, and "what needs attention" guidance before exposing diagnostic detail.
+
 ## Primary Workflow
 
 1. Create project.

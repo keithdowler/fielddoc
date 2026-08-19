@@ -660,14 +660,15 @@ export default function CaptureScreen() {
       <View>
         <AppText variant="hero">Capture</AppText>
         <AppText muted>
-          Capture photos or import files into local immutable evidence storage.
+          Add photos, scanned pages, PDFs, and files. Everything is saved on
+          this device first.
         </AppText>
       </View>
 
       {errorMessage ? (
         <StatusBanner
           tone="error"
-          title="Evidence not saved"
+          title="Capture needs attention"
           message={errorMessage}
         />
       ) : null}
@@ -681,8 +682,8 @@ export default function CaptureScreen() {
 
       <Card>
         <SectionHeader
-          title="Project"
-          detail="Evidence metadata is linked to a local project."
+          title="Job"
+          detail="Photos and files must belong to a local job."
         />
         {projects.length ? (
           <View style={styles.inlineActions}>
@@ -702,7 +703,7 @@ export default function CaptureScreen() {
         ) : (
           <EmptyState
             title="No projects"
-            message="Create a project before adding evidence metadata."
+            message="Create a job first so every photo and file has a clear home."
             icon="folder.badge.plus"
           />
         )}
@@ -715,8 +716,8 @@ export default function CaptureScreen() {
 
       <Card>
         <SectionHeader
-          title="Field Capture"
-          detail="Sticky stage controls for fast one-handed evidence capture."
+          title="Fast Capture"
+          detail="Pick the stage once, then add photos or documents."
         />
         <View style={styles.captureStats}>
           {fieldCaptureStages.map((stage) => (
@@ -768,7 +769,7 @@ export default function CaptureScreen() {
             accessibilityLabel={`Take ${categoryLabels[category]} evidence photo`}
           />
           <AppButton
-            label="Import Batch"
+            label="Add Photos"
             icon="photo.on.rectangle"
             variant="secondary"
             onPress={() => addMediaEvidence("PHOTO_LIBRARY")}
@@ -777,7 +778,7 @@ export default function CaptureScreen() {
             accessibilityLabel="Import one or more evidence photos"
           />
           <AppButton
-            label="Scan Document"
+            label="Scan Pages"
             icon="doc.text.magnifyingglass"
             variant="secondary"
             onPress={() => addMediaEvidence("DOCUMENT_SCAN")}
@@ -797,11 +798,11 @@ export default function CaptureScreen() {
 
       <Card>
         <SectionHeader
-          title="Evidence Metadata"
+          title="Evidence Details"
           detail={
             editingEvidenceId
-              ? "Edit evidence metadata stored in SQLite."
-              : "Save metadata alone or attach an original media file."
+              ? "Edit details saved on this device."
+              : "Add a title, caption, notes, or importance mark."
           }
         />
         <View style={styles.inlineActions}>
@@ -848,11 +849,7 @@ export default function CaptureScreen() {
         </View>
         <View style={styles.inlineActions}>
           <AppButton
-            label={
-              editingEvidenceId
-                ? "Save Evidence Changes"
-                : "Save Evidence Metadata"
-            }
+            label={editingEvidenceId ? "Save Changes" : "Save Details"}
             icon="tray.and.arrow.down.fill"
             onPress={saveEvidenceMetadata}
             loading={busySource === "metadata"}
@@ -870,8 +867,8 @@ export default function CaptureScreen() {
 
       <Card>
         <SectionHeader
-          title="Attach Original"
-          detail="Original media is copied into app storage and recorded with SHA-256 metadata."
+          title="Add Original File"
+          detail="The original is copied into app storage and given a SHA-256 proof hash."
         />
         <View style={styles.inlineActions}>
           <AppButton
@@ -892,7 +889,7 @@ export default function CaptureScreen() {
             accessibilityLabel="Choose a photo from the library as evidence"
           />
           <AppButton
-            label="Scan Document"
+            label="Scan Pages"
             icon="doc.text.magnifyingglass"
             variant="secondary"
             onPress={() => addMediaEvidence("DOCUMENT_SCAN")}
@@ -919,7 +916,7 @@ export default function CaptureScreen() {
 
       <Card>
         <SectionHeader
-          title="Saved Evidence Metadata"
+          title="Saved Evidence"
           detail={selectedProject ? selectedProject.name : "Select a project."}
         />
         {evidenceItems.length ? (
@@ -963,8 +960,8 @@ export default function CaptureScreen() {
           ))
         ) : (
           <EmptyState
-            title="No evidence metadata"
-            message="Save metadata above to populate this list."
+            title="No evidence yet"
+            message="Take a photo, add photos, scan pages, or save details above."
             icon="tray"
           />
         )}

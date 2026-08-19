@@ -4,8 +4,10 @@ import {
   getReportDeliveryReadiness,
   getReportDraftReadiness,
   getReportSectionEvidenceCount,
+  getReportUsabilityChecklist,
   normalizeReportSections,
   parseReportDraftSections,
+  type UserActionChecklistItem,
   type Project,
   type ReportDraft,
   type ProjectEvidenceSummary,
@@ -20,6 +22,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/app-button";
+import { AppIcon } from "@/components/app-icon";
 import { AppScreen } from "@/components/app-screen";
 import { AppText } from "@/components/app-text";
 import { Card } from "@/components/card";
@@ -28,7 +31,7 @@ import { FormField } from "@/components/form-field";
 import { MetricRow } from "@/components/metric-row";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBanner } from "@/components/status-banner";
-import { spacing } from "@/design/tokens";
+import { spacing, stateIcons } from "@/design/tokens";
 import { useAppTheme } from "@/design/use-app-theme";
 import { getLocalRepositories } from "@/infrastructure/local-store/repositories";
 import {
@@ -84,6 +87,21 @@ export default function ReportsScreen() {
     missingCaptionCount: summary.missingCaptionCount,
     documentCount: preview?.totals.documents ?? summary.documentCount,
     visualDocumentCount: preview?.totals.visualDocuments ?? 0,
+    externalOriginalDocumentCount:
+      preview?.totals.externalOriginalDocuments ?? 0,
+    metadataOnlyDocumentCount: preview?.totals.metadataOnlyDocuments ?? 0,
+  });
+  const usabilityChecklist = getReportUsabilityChecklist({
+    projectSelected: Boolean(project),
+    beforeCount: summary.beforeCount,
+    workCount: summary.workCount,
+    afterCount: summary.afterCount,
+    documentCount: summary.documentCount,
+    missingCaptionCount: summary.missingCaptionCount,
+    hasGeneratedPdf: Boolean(draft?.generatedPdfUri),
+    reportPdfUploaded: Boolean(draft?.generatedPdfUploadedAt),
+    mediaCount: preview?.totals.mediaAssets ?? summary.mediaAssetCount ?? 0,
+    uploadedMediaCount: preview ? countUploadedPreviewMedia(preview) : 0,
     externalOriginalDocumentCount:
       preview?.totals.externalOriginalDocuments ?? 0,
     metadataOnlyDocumentCount: preview?.totals.metadataOnlyDocuments ?? 0,
@@ -458,7 +476,8 @@ export default function ReportsScreen() {
       <View>
         <AppText variant="hero">Reports</AppText>
         <AppText muted>
-          Compose a local Proof Packet draft from evidence saved on this device.
+          Build a customer-ready Proof Packet from evidence saved on this
+          device.
         </AppText>
       </View>
 
@@ -530,7 +549,7 @@ export default function ReportsScreen() {
       <Card>
         <SectionHeader
           title="Report Readiness"
-          detail={project?.name ?? "No project selected"}
+          detail={project?.name ?? "Choose a project to start."}
         />
         <MetricRow label="Before evidence" value={summary.beforeCount} />
         <MetricRow label="Work evidence" value={summary.workCount} />
@@ -556,6 +575,18 @@ export default function ReportsScreen() {
             files are preserved as original hash-backed evidence.
           </AppText>
         ) : null}
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="What Needs Attention"
+          detail="A plain-language checklist for a customer-ready report."
+        />
+        <View style={styles.previewStack}>
+          {usabilityChecklist.map((item) => (
+            <ChecklistRow key={item.id} item={item} />
+          ))}
+        </View>
       </Card>
 
       <Card>
@@ -733,14 +764,14 @@ export default function ReportsScreen() {
       </Card>
 
       <AppButton
-        label="Save Report Draft"
+        label="Save Report"
         icon="doc.richtext.fill"
         disabled={!project}
         onPress={saveDraft}
         accessibilityLabel="Save local report draft"
       />
       <AppButton
-        label="Generate Local PDF"
+        label="Make Report PDF"
         icon="doc.fill"
         disabled={!preview || hasUnsavedDraftChanges}
         loading={generatingPdf}
@@ -748,7 +779,10 @@ export default function ReportsScreen() {
         accessibilityLabel="Generate local Proof Packet PDF"
       />
       <Card>
-        <SectionHeader title="Local PDF" detail="Saved on this device only." />
+        <SectionHeader
+          title="Report PDF"
+          detail="Saved on this device until you back it up."
+        />
         {draft?.generatedPdfUri ? (
           <View style={styles.previewStack}>
             <MetricRow
@@ -786,7 +820,7 @@ export default function ReportsScreen() {
             </AppText>
             <View style={styles.sectionActions}>
               <AppButton
-                label="Open PDF"
+                label="Open"
                 icon="doc.text.magnifyingglass"
                 variant="secondary"
                 loading={openingPdf}
@@ -795,7 +829,7 @@ export default function ReportsScreen() {
                 accessibilityLabel="Open local PDF"
               />
               <AppButton
-                label="Share PDF"
+                label="Share"
                 icon="square.and.arrow.up"
                 variant="secondary"
                 loading={sharingPdf}
@@ -872,10 +906,42 @@ export default function ReportsScreen() {
       </Card>
       <StatusBanner
         tone="info"
-        title="Delivery path"
-        message="Generate locally first, then use Settings to sync metadata, archive originals and PDFs, and review share links on web."
+        title="Safe sharing path"
+        message="Make the PDF locally first. Then use Settings to back up the report and originals before sharing from the web."
       />
     </AppScreen>
+  );
+}
+
+function ChecklistRow({ item }: { item: UserActionChecklistItem }) {
+  const theme = useAppTheme();
+  const tone =
+    item.status === "complete"
+      ? "success"
+      : item.status === "blocked"
+        ? "error"
+        : "warning";
+  const statusLabel =
+    item.status === "complete"
+      ? "Complete"
+      : item.status === "blocked"
+        ? "Blocked"
+        : "Needs attention";
+
+  return (
+    <View style={[styles.checklistRow, { borderColor: theme.border }]}>
+      <AppIcon name={stateIcons[tone]} color={theme[tone]} size={24} />
+      <View style={styles.checklistCopy}>
+        <AppText variant="label">{item.label}</AppText>
+        <AppText variant="body" muted>
+          {item.detail}
+        </AppText>
+        <AppText variant="small" style={{ color: theme[tone] }}>
+          {statusLabel}
+          {item.actionLabel ? ` / ${item.actionLabel}` : ""}
+        </AppText>
+      </View>
+    </View>
   );
 }
 
@@ -977,6 +1043,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   previewEntry: {
+    gap: spacing.xs,
+  },
+  checklistRow: {
+    alignItems: "flex-start",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: spacing.md,
+    paddingTop: spacing.md,
+  },
+  checklistCopy: {
+    flex: 1,
     gap: spacing.xs,
   },
 });

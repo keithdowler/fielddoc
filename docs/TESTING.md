@@ -259,6 +259,15 @@ warnings, and queue counts match the latest synced mobile data. On mobile,
 Settings should show Sync Center as ready only after Clerk sign-in and an active
 RevenueCat entitlement.
 
+## Sprint 33 Universal Usability Tests
+
+Sprint 33 adds shared domain coverage for a plain-language report checklist that
+marks customer-facing report steps as complete, needs attention, or blocked.
+Manual coverage should verify mobile dynamic text at larger accessibility sizes,
+one-handed reachability of primary buttons, visible Settings backup/subscription
+states, the Reports "What Needs Attention" checklist, and keyboard focus
+visibility on the deployed web workspace.
+
 ## Sprint 29 Document Metadata And Canonical Sync Tests
 
 Sprint 29 adds local repository coverage for document metadata, soft delete, and

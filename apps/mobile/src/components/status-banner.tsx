@@ -3,15 +3,20 @@ import type { SFSymbol } from "expo-symbols";
 
 import { radius, spacing, stateIcons } from "@/design/tokens";
 import { useAppTheme } from "@/design/use-app-theme";
+import { AppButton } from "./app-button";
 import { AppIcon } from "./app-icon";
 import { AppText } from "./app-text";
 
-type StatusTone = "info" | "success" | "warning" | "error";
+type StatusTone = "info" | "success" | "warning" | "error" | "blocked";
 
 type StatusBannerProps = {
   tone: StatusTone;
   title: string;
   message: string;
+  detail?: string;
+  actionLabel?: string;
+  actionAccessibilityLabel?: string;
+  onAction?: () => void;
 };
 
 const iconByTone: Record<StatusTone, SFSymbol> = {
@@ -19,11 +24,20 @@ const iconByTone: Record<StatusTone, SFSymbol> = {
   success: stateIcons.success,
   warning: stateIcons.warning,
   error: stateIcons.error,
+  blocked: stateIcons.blocked,
 };
 
-export function StatusBanner({ tone, title, message }: StatusBannerProps) {
+export function StatusBanner({
+  tone,
+  title,
+  message,
+  detail,
+  actionLabel,
+  actionAccessibilityLabel,
+  onAction,
+}: StatusBannerProps) {
   const theme = useAppTheme();
-  const color = theme[tone];
+  const color = tone === "blocked" ? theme.error : theme[tone];
 
   return (
     <View
@@ -36,9 +50,22 @@ export function StatusBanner({ tone, title, message }: StatusBannerProps) {
       <AppIcon name={iconByTone[tone]} color={color} size={22} />
       <View style={styles.copy}>
         <AppText variant="label">{title}</AppText>
-        <AppText variant="small" muted>
+        <AppText variant="body" muted>
           {message}
         </AppText>
+        {detail ? (
+          <AppText variant="small" muted>
+            Details: {detail}
+          </AppText>
+        ) : null}
+        {actionLabel && onAction ? (
+          <AppButton
+            label={actionLabel}
+            variant="secondary"
+            onPress={onAction}
+            accessibilityLabel={actionAccessibilityLabel ?? actionLabel}
+          />
+        ) : null}
       </View>
     </View>
   );

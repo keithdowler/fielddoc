@@ -61,8 +61,8 @@ export default function HomeScreen() {
         </AppText>
         <AppText variant="hero">Proof work faster.</AppText>
         <AppText muted>
-          Capture job-site progress, keep evidence organized, and know what
-          still needs attention.
+          Save job photos, notes, documents, and reports on this device first.
+          Back them up when you are ready.
         </AppText>
       </View>
 
@@ -76,8 +76,8 @@ export default function HomeScreen() {
 
       <Card>
         <SectionHeader
-          title="Continue Current Project"
-          detail="Stored locally on this device."
+          title="Continue Job"
+          detail="Your most recently updated local project."
         />
         {currentProject ? (
           <>
@@ -90,14 +90,14 @@ export default function HomeScreen() {
             <View style={styles.actions}>
               <Link href="/projects" asChild>
                 <AppButton
-                  label="Open Project"
+                  label="Open Job"
                   icon="folder.fill"
                   accessibilityLabel="Open current project"
                 />
               </Link>
               <Link href="/capture" asChild>
                 <AppButton
-                  label="Add Evidence"
+                  label="Add Photos"
                   icon="camera.fill"
                   variant="secondary"
                   accessibilityLabel="Add evidence to current project"
@@ -108,21 +108,18 @@ export default function HomeScreen() {
         ) : (
           <EmptyState
             title="No current project"
-            message="Create a local project before capturing evidence."
-            ctaLabel="Start New Project"
+            message="Start a local job before adding photos or documents."
+            ctaLabel="Start Job"
             icon="folder.badge.plus"
           />
         )}
       </Card>
 
       <Card>
-        <SectionHeader
-          title="Start New Project"
-          detail="Works in airplane mode."
-        />
+        <SectionHeader title="Start New Job" detail="Works in airplane mode." />
         <Link href="/projects" asChild>
           <AppButton
-            label="Create Project"
+            label="Create Job"
             icon="plus.circle.fill"
             accessibilityLabel="Create a project"
           />
@@ -130,7 +127,27 @@ export default function HomeScreen() {
       </Card>
 
       <Card>
-        <SectionHeader title="Recent Projects" />
+        <SectionHeader
+          title="What Needs Attention"
+          detail="Quick guidance for the next best action."
+        />
+        {currentProject ? (
+          <MetricRow label="Ready to capture" value={currentProject.name} />
+        ) : (
+          <MetricRow label="First step" value="Start a job" />
+        )}
+        <MetricRow
+          label="Local changes to back up"
+          value={pendingMutations > 0 ? pendingMutations : "None"}
+        />
+        <MetricRow
+          label="Reports to review"
+          value={projects.length ? "Check reports" : "No jobs yet"}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader title="Recent Jobs" />
         {projects.length ? (
           projects
             .slice(0, 4)
@@ -142,14 +159,14 @@ export default function HomeScreen() {
               />
             ))
         ) : (
-          <AppText muted>No local projects yet.</AppText>
+          <AppText muted>No local jobs yet.</AppText>
         )}
       </Card>
 
       <Card>
         <SectionHeader title="Reports Ready" />
         <MetricRow
-          label="Projects with local evidence"
+          label="Jobs with local evidence"
           value={projects.length ? "Review" : 0}
         />
         <MetricRow label="Draft reports on device" value={0} />
@@ -160,8 +177,8 @@ export default function HomeScreen() {
         title="Unsynced Items"
         message={
           pendingMutations > 0
-            ? `${pendingMutations} local changes are waiting for future sync.`
-            : "No pending local mutations."
+            ? `${pendingMutations} local changes are waiting for cloud backup.`
+            : "Everything local is caught up."
         }
       />
     </AppScreen>

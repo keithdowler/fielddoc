@@ -53,7 +53,10 @@ export function AppButton({
         {icon ? (
           <AppIcon name={icon} color={foregroundColor} size={19} />
         ) : null}
-        <AppText variant="label" style={{ color: foregroundColor }}>
+        <AppText
+          variant="label"
+          style={[styles.label, { color: foregroundColor }]}
+        >
           {loading ? "Working..." : label}
         </AppText>
       </View>
@@ -75,5 +78,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: spacing.sm,
+    justifyContent: "center",
+    maxWidth: "100%",
+  },
+  label: {
+    flexShrink: 1,
+    textAlign: "center",
   },
 });

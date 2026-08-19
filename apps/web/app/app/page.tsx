@@ -31,8 +31,8 @@ export default async function AppPage() {
         <p className="eyebrow">Cloud workspace</p>
         <h1>Proof Packet workspace</h1>
         <p>
-          Review synced project metadata, report drafts, and sync receipt health
-          for the active organization.
+          Review backed-up jobs, original files, reports, and account health for
+          the active organization.
         </p>
         <dl className="detailList">
           <div>
@@ -88,7 +88,7 @@ export default async function AppPage() {
         <div className="sectionTitleRow">
           <div>
             <p className="eyebrow">Attention queue</p>
-            <h2>What to tighten before beta</h2>
+            <h2>What needs attention</h2>
           </div>
           <span
             className={`statusPill ${
@@ -102,22 +102,22 @@ export default async function AppPage() {
           <QueueItem
             label="Pending originals"
             value={pendingOriginals}
-            detail="Media metadata exists without a verified private original."
+            detail="An original file still needs private cloud backup."
           />
           <QueueItem
             label="Unarchived report PDFs"
             value={unarchivedReports}
-            detail="Report drafts exist without a cloud report export row."
+            detail="A report exists but its PDF is not archived in private storage."
           />
           <QueueItem
             label="Missing captions"
             value={missingCaptions}
-            detail="Evidence needs captions before customer-ready packets."
+            detail="Evidence needs short captions before customer-ready packets."
           />
           <QueueItem
             label="Rejected sync receipts"
             value={workspace.rejectedSyncReceiptCount}
-            detail="Rejected mutations should be investigated before more field tests."
+            detail="Rejected uploads should be reviewed before more field tests."
           />
         </div>
       </section>
@@ -141,7 +141,7 @@ export default async function AppPage() {
         <div className="sectionTitleRow">
           <div>
             <p className="eyebrow">Recent projects</p>
-            <h2>Synced evidence pipeline</h2>
+            <h2>Backed-up jobs</h2>
           </div>
         </div>
         {latestProjects.length ? (
@@ -169,7 +169,7 @@ export default async function AppPage() {
             ))}
           </div>
         ) : (
-          <EmptyWorkspaceMessage message="No synced projects yet. Create evidence on mobile and upload metadata after mobile auth is connected." />
+          <EmptyWorkspaceMessage message="No backed-up jobs yet. Create a job on mobile, add evidence, then tap Back Up Now in Settings." />
         )}
       </section>
     </div>

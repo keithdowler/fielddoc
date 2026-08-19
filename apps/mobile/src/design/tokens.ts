@@ -19,14 +19,16 @@ export const radius = {
 
 export const typography = {
   hero: { fontSize: 34, lineHeight: 40, fontWeight: "800" },
+  screenTitle: { fontSize: 30, lineHeight: 36, fontWeight: "800" },
   title: { fontSize: 24, lineHeight: 30, fontWeight: "800" },
   section: { fontSize: 18, lineHeight: 24, fontWeight: "800" },
+  bodyLarge: { fontSize: 18, lineHeight: 27, fontWeight: "600" },
   body: { fontSize: 16, lineHeight: 23, fontWeight: "500" },
-  small: { fontSize: 13, lineHeight: 18, fontWeight: "600" },
-  label: { fontSize: 13, lineHeight: 18, fontWeight: "800" },
+  small: { fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  label: { fontSize: 14, lineHeight: 20, fontWeight: "800" },
 } as const;
 
-export const minTouchTarget = 48;
+export const minTouchTarget = 56;
 
 export const elevation = {
   level1: {
@@ -48,6 +50,7 @@ export const stateIcons = {
   success: "checkmark.circle.fill",
   warning: "exclamationmark.triangle.fill",
   error: "xmark.octagon.fill",
+  blocked: "hand.raised.fill",
   sync: "arrow.triangle.2.circlepath",
 } as const satisfies Record<string, SFSymbol>;
 

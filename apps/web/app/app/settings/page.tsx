@@ -18,9 +18,9 @@ export default async function SettingsPage() {
       <p className="eyebrow">Settings</p>
       <h1>Organization readiness</h1>
       <p>
-        Production readiness for the active workspace. These checks avoid
-        pretending that storage, billing, or observability are live before the
-        required environment is configured.
+        Production readiness for the active workspace. These checks keep setup
+        honest: storage, billing, email, and observability must be configured
+        before the app claims they are ready.
       </p>
 
       <section className="readinessPanel">

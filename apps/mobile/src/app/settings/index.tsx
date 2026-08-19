@@ -111,12 +111,12 @@ export default function SettingsScreen() {
         ? "success"
         : "warning";
   const syncCenterTitle = syncCenterReady
-    ? "Ready for cloud sync"
+    ? "Ready for cloud backup"
     : mobileAuth.isSignedIn
-      ? "Cloud sync gated"
-      : "Sign in to sync";
+      ? "Cloud backup locked"
+      : "Sign in to back up";
   const syncCenterMessage = syncCenterReady
-    ? "Run Upload All Pending Changes to send metadata, immutable originals, and generated Proof Packet PDFs."
+    ? "Use Back Up Now to send details, original files, and generated Proof Packet PDFs."
     : (cloudFeatureGate.reason ?? authStatusCopy.message);
 
   useEffect(() => {
@@ -335,14 +335,14 @@ export default function SettingsScreen() {
       <View>
         <AppText variant="hero">Settings</AppText>
         <AppText muted>
-          Operational controls, privacy actions, and production readiness.
+          Account, subscription, cloud backup, privacy, and support tools.
         </AppText>
       </View>
 
       <Card>
         <SectionHeader
           title="Cloud Account"
-          detail="Connects this device to your Proof Packet workspace."
+          detail="Connects this device to your FieldDoc workspace."
         />
         <StatusBanner
           tone={authStatusCopy.tone}
@@ -379,7 +379,7 @@ export default function SettingsScreen() {
       <Card>
         <SectionHeader
           title="Subscription"
-          detail="Controls access to cloud sync, private media archive, and report upload."
+          detail="Unlocks cloud backup, private media archive, and report upload."
         />
         <StatusBanner
           tone={revenueCatStatusCopy.tone}
@@ -419,8 +419,8 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
-          title="Sync Center"
-          detail="Normal field workflow status for cloud upload and recovery."
+          title="Cloud Backup"
+          detail="Normal field workflow for protecting work from this device."
         />
         <StatusBanner
           tone={syncCenterTone}
@@ -450,9 +450,9 @@ export default function SettingsScreen() {
           </View>
         </View>
         <AppButton
-          label={syncingAll ? "Uploading..." : "Run Full Sync"}
+          label={syncingAll ? "Backing Up..." : "Back Up Now"}
           icon="arrow.triangle.2.circlepath"
-          accessibilityLabel="Run full cloud sync for metadata original media and report PDFs"
+          accessibilityLabel="Back up metadata original media and report PDFs"
           onPress={uploadAllPendingChanges}
           disabled={cloudActionsDisabled}
           loading={syncingAll}
@@ -461,8 +461,8 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
-          title="Upload All Pending Changes"
-          detail="Sends metadata first, then uploads originals and report PDFs."
+          title="Backup Details"
+          detail="Sends job details first, then originals and report PDFs."
         />
         {cloudSyncResult ? (
           <StatusBanner
@@ -472,8 +472,8 @@ export default function SettingsScreen() {
           />
         ) : (
           <AppText muted>
-            Use this for the normal field workflow after capturing evidence.
-            Metadata must reach the cloud before originals can be placed in
+            Use this for the normal field workflow after capturing evidence. Job
+            details must reach the cloud before originals can be placed in
             private storage.
           </AppText>
         )}
@@ -498,9 +498,9 @@ export default function SettingsScreen() {
           </View>
         ) : null}
         <AppButton
-          label={syncingAll ? "Uploading..." : "Upload All Pending Changes"}
+          label={syncingAll ? "Backing Up..." : "Back Up Everything"}
           icon="icloud.and.arrow.up"
-          accessibilityLabel="Upload all pending metadata and original media"
+          accessibilityLabel="Back up all pending metadata original media and report PDFs"
           onPress={uploadAllPendingChanges}
           disabled={cloudActionsDisabled}
           loading={syncingAll}
@@ -509,8 +509,8 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
-          title="Cloud Sync"
-          detail="Uploads local metadata with your cloud session."
+          title="Job Detail Upload"
+          detail="Uploads local project, evidence, and report details."
         />
         {syncResult ? (
           <StatusBanner
@@ -535,9 +535,9 @@ export default function SettingsScreen() {
           </View>
         ) : null}
         <AppButton
-          label={syncing ? "Checking..." : "Upload Pending Metadata"}
+          label={syncing ? "Checking..." : "Upload Job Details"}
           icon="arrow.triangle.2.circlepath"
-          accessibilityLabel="Upload pending local metadata changes"
+          accessibilityLabel="Upload pending local job detail changes"
           onPress={uploadPendingMetadata}
           disabled={cloudActionsDisabled}
         />
@@ -545,8 +545,8 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
-          title="Download Cloud Changes"
-          detail="Pulls tenant-scoped canonical metadata into local storage."
+          title="Download From Cloud"
+          detail="Pulls workspace job details into local storage."
         />
         {pullSyncResult ? (
           <StatusBanner
@@ -557,7 +557,7 @@ export default function SettingsScreen() {
         ) : (
           <AppText muted>
             Use this after signing in on a new device or after another device
-            uploads project metadata.
+            uploads project details.
           </AppText>
         )}
         {pullSyncResult ? (
@@ -575,9 +575,9 @@ export default function SettingsScreen() {
           </View>
         ) : null}
         <AppButton
-          label={pullingChanges ? "Downloading..." : "Download Cloud Changes"}
+          label={pullingChanges ? "Downloading..." : "Download Updates"}
           icon="icloud.and.arrow.down"
-          accessibilityLabel="Download cloud metadata changes"
+          accessibilityLabel="Download cloud project and evidence changes"
           onPress={downloadCloudChanges}
           disabled={cloudActionsDisabled}
           loading={pullingChanges}
@@ -586,8 +586,8 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
-          title="Original Media Upload"
-          detail="Uploads local originals after metadata exists in the cloud."
+          title="Original File Backup"
+          detail="Uploads local originals after job details exist in the cloud."
         />
         {mediaUploadResult ? (
           <StatusBanner
@@ -612,9 +612,9 @@ export default function SettingsScreen() {
           </View>
         ) : null}
         <AppButton
-          label={uploadingMedia ? "Checking..." : "Upload Original Media"}
+          label={uploadingMedia ? "Checking..." : "Back Up Originals"}
           icon="icloud.and.arrow.up"
-          accessibilityLabel="Upload original media files to private cloud storage"
+          accessibilityLabel="Back up original media files to private cloud storage"
           onPress={uploadOriginalMedia}
           disabled={cloudActionsDisabled}
         />
@@ -622,7 +622,7 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
-          title="Report PDF Upload"
+          title="Report PDF Backup"
           detail="Archives generated Proof Packets in private storage."
         />
         {reportUploadResult ? (
@@ -648,9 +648,9 @@ export default function SettingsScreen() {
           </View>
         ) : null}
         <AppButton
-          label={uploadingReports ? "Checking..." : "Upload Report PDFs"}
+          label={uploadingReports ? "Checking..." : "Back Up Report PDFs"}
           icon="doc.richtext"
-          accessibilityLabel="Upload generated report PDFs to private cloud storage"
+          accessibilityLabel="Back up generated report PDFs to private cloud storage"
           onPress={uploadReportPdfs}
           disabled={cloudActionsDisabled}
         />
@@ -815,8 +815,9 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   row: {
-    alignItems: "center",
+    alignItems: "flex-start",
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
     justifyContent: "space-between",
   },
@@ -832,6 +833,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
   },
   actionButton: {

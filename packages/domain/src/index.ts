@@ -59,6 +59,181 @@ export type SubscriptionEntitlement = {
   lastCheckedAt: string;
 };
 
+export type UserActionStatus = "complete" | "action_needed" | "blocked";
+
+export type UserActionChecklistItem = {
+  id: string;
+  status: UserActionStatus;
+  label: string;
+  detail: string;
+  actionLabel: string | null;
+};
+
+export type ReportUsabilityChecklistInput = {
+  projectSelected: boolean;
+  beforeCount: number;
+  workCount: number;
+  afterCount: number;
+  documentCount: number;
+  missingCaptionCount: number;
+  hasGeneratedPdf: boolean;
+  reportPdfUploaded: boolean;
+  mediaCount: number;
+  uploadedMediaCount: number;
+  externalOriginalDocumentCount?: number;
+  metadataOnlyDocumentCount?: number;
+  subscriptionActive?: boolean;
+  privateStorageReady?: boolean;
+};
+
+export function getReportUsabilityChecklist(
+  input: ReportUsabilityChecklistInput,
+): UserActionChecklistItem[] {
+  const hasAnyEvidence =
+    input.beforeCount +
+      input.workCount +
+      input.afterCount +
+      input.documentCount >
+    0;
+  const pendingOriginals = Math.max(
+    input.mediaCount - input.uploadedMediaCount,
+    0,
+  );
+
+  return [
+    {
+      id: "project",
+      status: input.projectSelected ? "complete" : "blocked",
+      label: "Choose a project",
+      detail: input.projectSelected
+        ? "This report is tied to one local job."
+        : "Create or select a job before making a report.",
+      actionLabel: input.projectSelected ? null : "Choose project",
+    },
+    {
+      id: "before",
+      status: input.beforeCount > 0 ? "complete" : "action_needed",
+      label: "Before evidence",
+      detail:
+        input.beforeCount > 0
+          ? `${formatCount(input.beforeCount, "before item", "before items")} saved.`
+          : "Add at least one Before photo when the starting condition matters.",
+      actionLabel: input.beforeCount > 0 ? null : "Add Before",
+    },
+    {
+      id: "work",
+      status: input.workCount > 0 ? "complete" : "action_needed",
+      label: "Work evidence",
+      detail:
+        input.workCount > 0
+          ? `${formatCount(input.workCount, "work item", "work items")} saved.`
+          : "Add Work evidence to show what changed.",
+      actionLabel: input.workCount > 0 ? null : "Add Work",
+    },
+    {
+      id: "after",
+      status: input.afterCount > 0 ? "complete" : "action_needed",
+      label: "After evidence",
+      detail:
+        input.afterCount > 0
+          ? `${formatCount(input.afterCount, "after item", "after items")} saved.`
+          : "Add After evidence so the final condition is clear.",
+      actionLabel: input.afterCount > 0 ? null : "Add After",
+    },
+    {
+      id: "documents",
+      status: input.documentCount > 0 ? "complete" : "action_needed",
+      label: "Documents",
+      detail:
+        input.documentCount > 0
+          ? `${formatCount(input.documentCount, "document", "documents")} attached.`
+          : "Attach signed paperwork, PDFs, or supporting files when available.",
+      actionLabel: input.documentCount > 0 ? null : "Add documents",
+    },
+    {
+      id: "captions",
+      status:
+        input.missingCaptionCount === 0 && hasAnyEvidence
+          ? "complete"
+          : "action_needed",
+      label: "Captions",
+      detail:
+        input.missingCaptionCount === 0 && hasAnyEvidence
+          ? "Evidence has the caption detail needed for review."
+          : input.missingCaptionCount > 0
+            ? `${formatCount(input.missingCaptionCount, "item needs", "items need")} a plain-language caption.`
+            : "Add evidence first, then give it short captions.",
+      actionLabel:
+        input.missingCaptionCount === 0 && hasAnyEvidence
+          ? null
+          : "Review captions",
+    },
+    {
+      id: "generate_pdf",
+      status: input.hasGeneratedPdf ? "complete" : "action_needed",
+      label: "Make report PDF",
+      detail: input.hasGeneratedPdf
+        ? "A local Proof Packet PDF exists on this device."
+        : "Generate a PDF after the evidence and captions look right.",
+      actionLabel: input.hasGeneratedPdf ? null : "Generate PDF",
+    },
+    {
+      id: "subscription",
+      status:
+        input.subscriptionActive === false
+          ? "blocked"
+          : input.subscriptionActive === true
+            ? "complete"
+            : "action_needed",
+      label: "Subscription",
+      detail:
+        input.subscriptionActive === false
+          ? "Cloud backup and report archive need an active subscription."
+          : input.subscriptionActive === true
+            ? "Cloud backup features are available on this device."
+            : "Sign in and refresh subscription before cloud delivery.",
+      actionLabel:
+        input.subscriptionActive === true ? null : "Check subscription",
+    },
+    {
+      id: "backup_originals",
+      status:
+        input.privateStorageReady === false
+          ? "blocked"
+          : pendingOriginals === 0
+            ? "complete"
+            : "action_needed",
+      label: "Back up original files",
+      detail:
+        input.privateStorageReady === false
+          ? "Private storage is not configured yet."
+          : pendingOriginals === 0
+            ? "Original files are backed up or there are no originals yet."
+            : `${formatCount(pendingOriginals, "original file is", "original files are")} still only on this device.`,
+      actionLabel:
+        pendingOriginals === 0 && input.privateStorageReady !== false
+          ? null
+          : "Back up now",
+    },
+    {
+      id: "upload_pdf",
+      status:
+        input.reportPdfUploaded || !input.hasGeneratedPdf
+          ? input.reportPdfUploaded
+            ? "complete"
+            : "action_needed"
+          : "action_needed",
+      label: "Archive report PDF",
+      detail: input.reportPdfUploaded
+        ? "The generated PDF is stored in the private cloud archive."
+        : input.hasGeneratedPdf
+          ? "Back up the generated PDF before sharing from the web."
+          : "Generate the PDF before archiving it.",
+      actionLabel: input.reportPdfUploaded ? null : "Archive PDF",
+    },
+  ];
+}
+
 export function hasActiveFieldDocProEntitlement(
   entitlements: readonly SubscriptionEntitlement[],
   nowIso: string = new Date().toISOString(),

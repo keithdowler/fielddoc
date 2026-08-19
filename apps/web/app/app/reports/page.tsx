@@ -16,8 +16,8 @@ export default async function ReportsPage() {
       <p className="eyebrow">Reports</p>
       <h1>Proof Packet archive</h1>
       <p>
-        Synced report drafts appear here as cloud metadata. Generated PDFs are
-        delivered through private, short-lived storage URLs when available.
+        Backed-up report drafts and generated PDFs appear here. Downloads use
+        private, short-lived links when the PDF is archived.
       </p>
 
       {workspace.status !== "ready" ? (
@@ -78,7 +78,7 @@ export default async function ReportsPage() {
       ) : (
         <p className="emptyMessage">
           No synced report drafts yet. Generate or save a local draft on mobile,
-          then upload metadata after mobile cloud sign-in is connected.
+          then tap Back Up Now after mobile cloud sign-in is connected.
         </p>
       )}
     </section>

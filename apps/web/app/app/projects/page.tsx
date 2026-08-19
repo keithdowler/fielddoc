@@ -22,11 +22,10 @@ export default async function ProjectsPage() {
   return (
     <section className="workspaceSection">
       <p className="eyebrow">Projects</p>
-      <h1>Synced projects</h1>
+      <h1>Backed-up jobs</h1>
       <p>
-        Projects appear here after mobile metadata is uploaded into the active
-        organization. Media counts show how many immutable originals have been
-        attached to private object storage.
+        Jobs appear here after the mobile app backs up job details. Media counts
+        show how many original files are protected in private storage.
       </p>
 
       {workspace.status !== "ready" ? (
@@ -37,7 +36,7 @@ export default async function ProjectsPage() {
         className="metricGrid compactMetrics"
         aria-label="Project health"
       >
-        <Metric label="Synced projects" value={workspace.projects.length} />
+        <Metric label="Backed-up jobs" value={workspace.projects.length} />
         <Metric label="Important evidence" value={importantEvidence} />
         <Metric label="Missing captions" value={missingCaptions} />
         <Metric label="Originals pending" value={pendingOriginals} />
@@ -153,17 +152,16 @@ export default async function ProjectsPage() {
               </div>
             ) : (
               <p className="emptyMessage">
-                No uploaded originals yet. Capture media on mobile, run Upload
-                All Pending Changes, then refresh this page.
+                No backed-up originals yet. Add photos or files on mobile, tap
+                Back Up Now in Settings, then refresh this page.
               </p>
             )}
           </section>
         </>
       ) : (
         <p className="emptyMessage">
-          No synced projects yet. Use the mobile app to create a local project,
-          capture evidence, then upload metadata once mobile cloud sign-in is
-          connected.
+          No backed-up jobs yet. Use the mobile app to create a local job,
+          capture evidence, then tap Back Up Now after signing in.
         </p>
       )}
     </section>

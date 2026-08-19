@@ -11,6 +11,7 @@ import {
   getReportDeliveryReadiness,
   getReportDraftReadiness,
   getReportReadiness,
+  getReportUsabilityChecklist,
   hasActiveFieldDocProEntitlement,
   normalizeReportBranding,
   normalizeReportSections,
@@ -96,6 +97,97 @@ describe("domain constants", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("builds a plain-language report checklist for broad usability", () => {
+    const checklist = getReportUsabilityChecklist({
+      projectSelected: true,
+      beforeCount: 1,
+      workCount: 0,
+      afterCount: 1,
+      documentCount: 1,
+      missingCaptionCount: 2,
+      hasGeneratedPdf: false,
+      reportPdfUploaded: false,
+      mediaCount: 3,
+      uploadedMediaCount: 1,
+      subscriptionActive: false,
+      privateStorageReady: true,
+    });
+
+    expect(checklist.map((item) => [item.id, item.status])).toEqual([
+      ["project", "complete"],
+      ["before", "complete"],
+      ["work", "action_needed"],
+      ["after", "complete"],
+      ["documents", "complete"],
+      ["captions", "action_needed"],
+      ["generate_pdf", "action_needed"],
+      ["subscription", "blocked"],
+      ["backup_originals", "action_needed"],
+      ["upload_pdf", "action_needed"],
+    ]);
+    expect(checklist.find((item) => item.id === "captions")).toMatchObject({
+      detail: "2 items need a plain-language caption.",
+      actionLabel: "Review captions",
+    });
+    expect(
+      checklist.find((item) => item.id === "backup_originals"),
+    ).toMatchObject({
+      detail: "2 original files are still only on this device.",
+      actionLabel: "Back up now",
+    });
+  });
+
+  it("marks report checklist delivery tasks complete when backup is done", () => {
+    const checklist = getReportUsabilityChecklist({
+      projectSelected: true,
+      beforeCount: 1,
+      workCount: 1,
+      afterCount: 1,
+      documentCount: 0,
+      missingCaptionCount: 0,
+      hasGeneratedPdf: true,
+      reportPdfUploaded: true,
+      mediaCount: 3,
+      uploadedMediaCount: 3,
+      subscriptionActive: true,
+      privateStorageReady: true,
+    });
+
+    expect(checklist.filter((item) => item.status === "blocked")).toEqual([]);
+    expect(checklist.find((item) => item.id === "subscription")).toMatchObject({
+      status: "complete",
+      actionLabel: null,
+    });
+    expect(checklist.find((item) => item.id === "upload_pdf")).toMatchObject({
+      status: "complete",
+      actionLabel: null,
+    });
+  });
+
+  it("blocks original backup checklist items when private storage is unavailable", () => {
+    const checklist = getReportUsabilityChecklist({
+      projectSelected: true,
+      beforeCount: 1,
+      workCount: 1,
+      afterCount: 1,
+      documentCount: 1,
+      missingCaptionCount: 0,
+      hasGeneratedPdf: true,
+      reportPdfUploaded: false,
+      mediaCount: 2,
+      uploadedMediaCount: 0,
+      subscriptionActive: true,
+      privateStorageReady: false,
+    });
+
+    expect(
+      checklist.find((item) => item.id === "backup_originals"),
+    ).toMatchObject({
+      status: "blocked",
+      detail: "Private storage is not configured yet.",
+    });
   });
 
   it("summarizes setup blockers before beta readiness", () => {
