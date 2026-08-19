@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   getReportDetailFromWorkspaceData,
   getWorkspaceData,
+  type WorkspaceReportDetail,
 } from "../../workspace-data";
 
 type ReportDetailPageProps = {
@@ -60,6 +61,7 @@ export default async function ReportDetailPage({
 
         <div className="metricGrid" aria-label="Report readiness metrics">
           <Metric label="Evidence" value={report.totals.evidenceCount} />
+          <Metric label="Documents" value={report.totals.documentCount} />
           <Metric label="Media" value={report.totals.mediaCount} />
           <Metric label="Uploaded" value={report.totals.uploadedMediaCount} />
           <Metric
@@ -102,6 +104,20 @@ export default async function ReportDetailPage({
             <dd>{formatDate(report.updatedAt)}</dd>
           </div>
         </dl>
+
+        <div className="dataList">
+          <article className="dataRow">
+            <div>
+              <h3>Delivery readiness</h3>
+              <p className="compactText">{getDeliveryReadinessCopy(report)}</p>
+            </div>
+            <span
+              className={`statusPill ${isDeliveryReady(report) ? "ready" : ""}`}
+            >
+              {isDeliveryReady(report) ? "Ready to deliver" : "Needs upload"}
+            </span>
+          </article>
+        </div>
       </section>
 
       <section className="workspaceSection">
@@ -124,7 +140,8 @@ export default async function ReportDetailPage({
               <h3>{section.label}</h3>
               <p className="compactText">
                 {section.evidenceCount} evidence / {section.mediaCount} media /{" "}
-                {section.annotationCount} notes
+                {section.documentCount} documents / {section.annotationCount}{" "}
+                notes
               </p>
 
               {section.evidenceItems.length ? (
@@ -160,8 +177,19 @@ export default async function ReportDetailPage({
                       <div className="rowMetrics inlineMetrics">
                         <span>{evidence.mediaCount} media</span>
                         <span>{evidence.uploadedMediaCount} uploaded</span>
+                        <span>{evidence.documentCount} documents</span>
                         <span>{evidence.annotationCount} notes</span>
                       </div>
+                      {evidence.documents.length ? (
+                        <ul className="annotationList">
+                          {evidence.documents.map((document) => (
+                            <li key={document.id}>
+                              {document.title}
+                              {document.notes ? ` / ${document.notes}` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                       {evidence.media.some(
                         (media) => media.hasUploadedOriginal,
                       ) ? (
@@ -175,7 +203,9 @@ export default async function ReportDetailPage({
                                 key={media.id}
                                 prefetch={false}
                               >
-                                Download original
+                                {media.mediaType === "DOCUMENT"
+                                  ? "Download document"
+                                  : "Download original"}
                               </Link>
                             ))}
                         </div>
@@ -194,6 +224,30 @@ export default async function ReportDetailPage({
       </section>
     </div>
   );
+}
+
+function isDeliveryReady(report: WorkspaceReportDetail): boolean {
+  return (
+    report.readiness.ready &&
+    report.hasGeneratedPdf &&
+    report.totals.mediaCount === report.totals.uploadedMediaCount
+  );
+}
+
+function getDeliveryReadinessCopy(report: WorkspaceReportDetail): string {
+  if (!report.readiness.ready) {
+    return "Required sections or captions are still missing.";
+  }
+
+  if (!report.hasGeneratedPdf) {
+    return "Generate and upload the private PDF before sending a share link.";
+  }
+
+  if (report.totals.mediaCount !== report.totals.uploadedMediaCount) {
+    return "Upload every original evidence file before delivery.";
+  }
+
+  return "Required captions, originals, and the private PDF are ready.";
 }
 
 function Metric({ label, value }: { label: string; value: number }) {

@@ -2,6 +2,7 @@ import {
   and,
   annotations,
   createNeonDatabase,
+  documents,
   eq,
   evidenceItems,
   mediaAssets,
@@ -13,6 +14,7 @@ import {
 import type {
   AnnotationPayload,
   CanonicalMutationRepository,
+  DocumentPayload,
   EvidenceItemPayload,
   MediaAssetPayload,
   ProjectPayload,
@@ -193,6 +195,40 @@ export function createNeonCanonicalMutationRepository(
         );
     },
 
+    async upsertDocument({ organizationId, payload }) {
+      await db
+        .insert(documents)
+        .values(toDocumentValues(organizationId, payload))
+        .onConflictDoUpdate({
+          target: documents.id,
+          set: {
+            projectId: payload.projectId,
+            evidenceItemId: payload.evidenceItemId,
+            title: payload.title,
+            notes: payload.notes,
+            updatedAt: new Date(payload.updatedAt),
+            deletedAt: toDate(payload.deletedAt),
+            serverVersion: sql`${documents.serverVersion} + 1`,
+          },
+        });
+    },
+
+    async deleteDocument({ organizationId, id, changedAt }) {
+      await db
+        .update(documents)
+        .set({
+          deletedAt: new Date(changedAt),
+          updatedAt: new Date(changedAt),
+          serverVersion: sql`${documents.serverVersion} + 1`,
+        })
+        .where(
+          and(
+            eq(documents.id, id),
+            eq(documents.organizationId, organizationId),
+          ),
+        );
+    },
+
     async upsertReportDraft({ organizationId, payload }) {
       await db
         .insert(reportDrafts)
@@ -315,6 +351,20 @@ function toAnnotationValues(
     evidenceItemId: payload.evidenceItemId,
     mediaAssetId: payload.mediaAssetId,
     body: payload.body,
+    createdAt: new Date(payload.createdAt),
+    updatedAt: new Date(payload.updatedAt),
+    deletedAt: toDate(payload.deletedAt),
+  };
+}
+
+function toDocumentValues(organizationId: string, payload: DocumentPayload) {
+  return {
+    id: payload.id,
+    organizationId,
+    projectId: payload.projectId,
+    evidenceItemId: payload.evidenceItemId,
+    title: payload.title,
+    notes: payload.notes,
     createdAt: new Date(payload.createdAt),
     updatedAt: new Date(payload.updatedAt),
     deletedAt: toDate(payload.deletedAt),

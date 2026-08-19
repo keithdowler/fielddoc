@@ -493,8 +493,15 @@ export type Document = {
   id: string;
   projectId: string;
   evidenceItemId: string | null;
+  mediaAssetId: string | null;
   title: string;
   notes: string | null;
+  fileName: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  sha256: string | null;
+  pageCount: number | null;
+  sourceType: MediaSourceType | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -1394,6 +1401,24 @@ export type CreateAnnotationInput = {
   body: string;
 };
 
+export type CreateDocumentInput = {
+  projectId: string;
+  evidenceItemId?: string | null;
+  mediaAssetId?: string | null;
+  title: string;
+  notes?: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  sha256?: string | null;
+  pageCount?: number | null;
+  sourceType?: MediaSourceType | null;
+};
+
+export type UpdateDocumentInput = Partial<
+  Pick<CreateDocumentInput, "title" | "notes" | "pageCount">
+>;
+
 export type SaveReportDraftInput = ReportDraftCompositionInput & {
   id?: string;
   status?: ProofPacketStatus;
@@ -1484,6 +1509,21 @@ export interface AnnotationRepository {
   listByEvidenceIds(evidenceItemIds: string[]): Promise<Annotation[]>;
   delete(id: string): Promise<void>;
   restore(id: string): Promise<Annotation>;
+}
+
+export interface DocumentRepository {
+  create(input: CreateDocumentInput): Promise<Document>;
+  update(id: string, input: UpdateDocumentInput): Promise<Document>;
+  getById(id: string): Promise<Document | null>;
+  listByProject(
+    projectId: string,
+    options?: { includeDeleted?: boolean },
+  ): Promise<Document[]>;
+  listByEvidenceItem(
+    evidenceItemId: string,
+    options?: { includeDeleted?: boolean },
+  ): Promise<Document[]>;
+  delete(id: string): Promise<void>;
 }
 
 export interface ReportDraftRepository {

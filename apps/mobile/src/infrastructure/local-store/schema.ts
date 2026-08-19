@@ -1,6 +1,6 @@
 import type { LocalDatabase } from "./database";
 
-export const localDatabaseVersion = 11;
+export const localDatabaseVersion = 12;
 
 export const localMigrations = [
   {
@@ -253,6 +253,26 @@ export const localMigrations = [
         value_json TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+    `,
+  },
+  {
+    version: 12,
+    name: "document_metadata",
+    sql: `
+      ALTER TABLE documents ADD COLUMN media_asset_id TEXT REFERENCES media_assets(id);
+      ALTER TABLE documents ADD COLUMN file_name TEXT;
+      ALTER TABLE documents ADD COLUMN mime_type TEXT;
+      ALTER TABLE documents ADD COLUMN size_bytes INTEGER;
+      ALTER TABLE documents ADD COLUMN sha256 TEXT;
+      ALTER TABLE documents ADD COLUMN page_count INTEGER;
+      ALTER TABLE documents ADD COLUMN source_type TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_documents_project_updated
+        ON documents(project_id, deleted_at, updated_at);
+      CREATE INDEX IF NOT EXISTS idx_documents_media
+        ON documents(media_asset_id);
+      CREATE INDEX IF NOT EXISTS idx_documents_sha256
+        ON documents(sha256);
     `,
   },
 ] as const;

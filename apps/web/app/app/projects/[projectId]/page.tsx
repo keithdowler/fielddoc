@@ -77,6 +77,7 @@ export default async function ProjectDetailPage({
 
         <div className="metricGrid" aria-label="Project evidence metrics">
           <Metric label="Evidence" value={project.evidenceCount} />
+          <Metric label="Documents" value={project.documentCount} />
           <Metric label="Original media" value={project.mediaCount} />
           <Metric label="Uploaded" value={project.uploadedMediaCount} />
           <Metric
@@ -107,7 +108,8 @@ export default async function ProjectDetailPage({
                   <h3>{section.label}</h3>
                   <p className="compactText">
                     {section.evidenceCount} evidence / {section.mediaCount}{" "}
-                    media / {section.annotationCount} notes
+                    media / {section.documentCount} documents /{" "}
+                    {section.annotationCount} notes
                   </p>
                 </div>
                 {section.importantCount ? (
@@ -196,6 +198,20 @@ function EvidenceCard({ evidence }: { evidence: WorkspaceEvidenceItem }) {
       {evidence.caption ? <p className="noteText">{evidence.caption}</p> : null}
       {evidence.notes ? <p className="compactText">{evidence.notes}</p> : null}
 
+      {evidence.documents.length ? (
+        <div className="dataList tight">
+          {evidence.documents.map((document) => (
+            <div className="mediaTile" key={document.id}>
+              <strong>{document.title}</strong>
+              <span>
+                {document.notes ?? "Document metadata synced from mobile"}
+              </span>
+              <span>Updated {formatDate(document.updatedAt)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {evidence.media.length ? (
         <div className="mediaGrid">
           {evidence.media.map((media) => (
@@ -218,9 +234,13 @@ function EvidenceCard({ evidence }: { evidence: WorkspaceEvidenceItem }) {
 }
 
 function MediaTile({ media }: { media: WorkspaceMediaAsset }) {
+  const isDocument = media.mediaType === "DOCUMENT";
+
   return (
     <div className="mediaTile">
-      <strong>{media.caption ?? media.mediaType}</strong>
+      <strong>
+        {media.caption ?? (isDocument ? "Document original" : media.mediaType)}
+      </strong>
       <span>
         {media.mimeType} / {formatBytes(media.sizeBytes)}
       </span>
@@ -231,7 +251,7 @@ function MediaTile({ media }: { media: WorkspaceMediaAsset }) {
           href={`/app/media/${media.id}/download`}
           prefetch={false}
         >
-          Download original
+          {isDocument ? "Download document" : "Download original"}
         </Link>
       ) : (
         <span className="warningText">Original not uploaded</span>

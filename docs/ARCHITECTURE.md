@@ -172,6 +172,14 @@ Sprint 9 exposes report history as a derived read model over local `report_draft
 
 Sprint remediation on 2026-08-16 upgrades local PDF generation from metadata-only media references to embedded local image originals. The mobile renderer reads each available local image original, converts it to a data URI for Expo Print, and passes the result into the shared domain HTML renderer. The original evidence file is not modified. Non-image documents, scanned document pages, cloud report versions, and share-link delivery remain future work.
 
+Sprint 29 adds document records as a first-class local repository and canonical
+sync target. Imported files and camera-based document scans create `DOCUMENT`
+evidence plus linked document metadata, while immutable media originals remain
+separate `media_assets`. The scanner path intentionally starts as a camera
+capture MVP instead of a custom edge-detection scanner so field users can record
+signed paperwork immediately. Visual PDF-page rendering, OCR, multi-page
+document assembly, and quarantine scanning remain future work.
+
 ### ADR 0017: Contract-Only Sync Endpoint Before Persistence
 
 Status: Superseded By ADR 0018

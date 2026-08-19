@@ -62,6 +62,36 @@ export async function captureCameraPhoto(): Promise<PreparedLocalMediaAsset | nu
   });
 }
 
+export async function captureDocumentScan(): Promise<PreparedLocalMediaAsset | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    throw new Error("Camera permission is required to scan a document.");
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ["images"],
+    quality: 1,
+    exif: false,
+  });
+
+  if (result.canceled) return null;
+
+  const asset = result.assets[0];
+  if (!asset) return null;
+
+  return prepareLocalMediaAsset({
+    uri: asset.uri,
+    sourceType: "DOCUMENT_SCAN",
+    mimeType: asset.mimeType,
+    sizeBytes: asset.fileSize,
+    width: normalizeDimension(asset.width),
+    height: normalizeDimension(asset.height),
+    fileName: asset.fileName ?? "Scanned document page",
+    originalAssetId: asset.assetId,
+    captureTimestamp: new Date().toISOString(),
+  });
+}
+
 export async function pickPhotoLibraryMedia(): Promise<PreparedLocalMediaAsset | null> {
   const assets = await pickPhotoLibraryMediaBatch();
   return assets[0] ?? null;

@@ -43,14 +43,14 @@ follow-up is listed below.
 
 | Priority | Category     | Item                                                                                        | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
 | -------- | ------------ | ------------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
-| P1       | CORE VALUE   | Add native document scanning path for signed/job documents                                  | L          | Yes         | Yes              | No                  |
-| P1       | CORE VALUE   | Render scanned/imported document pages or previews into Proof Packet PDFs                   | M          | Yes         | Yes              | Yes                 |
+| P1       | CORE VALUE   | Render imported multi-page document pages or previews into Proof Packet PDFs                | M          | Yes         | Yes              | Yes                 |
 | P1       | MONETIZATION | Configure App Store products, RevenueCat offerings, sandbox purchase test, and paywall copy | M          | No          | Yes              | Yes                 |
 
 ## Active P2 Backlog
 
 | Priority | Category       | Item                                                                                    | Complexity | Blocks Beta | Blocks App Store | Blocks Monetization |
 | -------- | -------------- | --------------------------------------------------------------------------------------- | ---------- | ----------- | ---------------- | ------------------- |
+| P2       | CORE VALUE     | Upgrade camera-based document scan MVP to native crop/edge-detection multi-page flow    | M          | No          | No               | No                  |
 | P2       | TRUST/SECURITY | Add malware-scan integration point or explicit quarantine placeholder for uploaded docs | M          | No          | Yes              | No                  |
 | P2       | TRUST/SECURITY | Add denied-access/failure audit policy, retention controls, and admin audit search      | M          | No          | No               | No                  |
 | P2       | PRIVACY        | Implement full cloud Export My Data and Delete Account flows                            | M          | No          | Yes              | No                  |

@@ -62,6 +62,12 @@ describe("SQLite local repositories", () => {
       const localSettingsTable = await database.getFirst<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'local_settings'",
       );
+      const documentMediaColumn = await database.getFirst<{ name: string }>(
+        "SELECT name FROM pragma_table_info('documents') WHERE name = 'media_asset_id'",
+      );
+      const documentMetadataIndex = await database.getFirst<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_documents_project_updated'",
+      );
 
       expect(row?.version).toBe(localDatabaseVersion);
       expect(indexRow?.name).toBe("idx_media_assets_evidence");
@@ -75,6 +81,8 @@ describe("SQLite local repositories", () => {
       expect(importantEvidenceColumn?.name).toBe("is_important");
       expect(localSyncConflictsTable?.name).toBe("local_sync_conflicts");
       expect(localSettingsTable?.name).toBe("local_settings");
+      expect(documentMediaColumn?.name).toBe("media_asset_id");
+      expect(documentMetadataIndex?.name).toBe("idx_documents_project_updated");
     });
   });
 
@@ -299,6 +307,72 @@ describe("SQLite local repositories", () => {
         (await mutations.listPending()).map((mutation) => mutation.operation),
       ).toEqual(["CREATE", "DELETE"]);
     });
+  });
+
+  it("stores document metadata and soft deletes through the outbox", async () => {
+    await withRepositories(
+      async ({ projects, evidence, media, documents, mutations }) => {
+        const project = await projects.create({ name: "Document project" });
+        const item = await evidence.create({
+          projectId: project.id,
+          category: "DOCUMENT",
+          title: "Signed authorization",
+          caption: "Signed by property manager",
+        });
+        const asset = await media.create({
+          evidenceItemId: item.id,
+          localUri: "file:///documents/signed-authorization.pdf",
+          mediaType: "DOCUMENT",
+          mimeType: "application/pdf",
+          sizeBytes: 4096,
+          sha256:
+            "3a6eb0790f39ac87c94f3856b2dd2c5d110e6811602261a9a923d3bb23adc8b7",
+          sourceType: "FILE_IMPORT",
+        });
+
+        const document = await documents.create({
+          projectId: project.id,
+          evidenceItemId: item.id,
+          mediaAssetId: asset.id,
+          title: "Signed authorization",
+          notes: "Imported during field visit",
+          fileName: "signed-authorization.pdf",
+          mimeType: asset.mimeType,
+          sizeBytes: asset.sizeBytes,
+          sha256: asset.sha256,
+          sourceType: "FILE_IMPORT",
+        });
+
+        expect(await documents.listByProject(project.id)).toMatchObject([
+          {
+            id: document.id,
+            mediaAssetId: asset.id,
+            fileName: "signed-authorization.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 4096,
+            sourceType: "FILE_IMPORT",
+            syncState: "PENDING",
+          },
+        ]);
+
+        await documents.delete(document.id);
+
+        expect(await documents.getById(document.id)).toBeNull();
+        expect(
+          (
+            await documents.listByProject(project.id, { includeDeleted: true })
+          )[0],
+        ).toMatchObject({ id: document.id, deletedAt: expect.any(String) });
+        expect(
+          (await mutations.listPending()).filter(
+            (mutation) => mutation.entityType === "Document",
+          ),
+        ).toMatchObject([
+          { operation: "CREATE", entityId: document.id },
+          { operation: "DELETE", entityId: document.id },
+        ]);
+      },
+    );
   });
 
   it("archives projects without deleting their record", async () => {

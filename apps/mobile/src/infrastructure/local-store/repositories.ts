@@ -1,6 +1,7 @@
 import { migrateLocalDatabase } from "./schema";
 import type { LocalDatabase } from "./database";
 import { SqliteAnnotationRepository } from "./annotations";
+import { SqliteDocumentRepository } from "./documents";
 import { SqliteEvidenceRepository } from "./evidence";
 import { SqliteLocalMutationRepository } from "./mutations";
 import { SqliteMediaAssetRepository } from "./media-assets";
@@ -16,6 +17,7 @@ export type LocalRepositories = {
   evidence: SqliteEvidenceRepository;
   media: SqliteMediaAssetRepository;
   annotations: SqliteAnnotationRepository;
+  documents: SqliteDocumentRepository;
   reportDrafts: SqliteReportDraftRepository;
   reportBranding: SqliteReportBrandingRepository;
   mutations: SqliteLocalMutationRepository;
@@ -36,6 +38,7 @@ export async function createLocalRepositories(
     evidence: new SqliteEvidenceRepository(database),
     media: new SqliteMediaAssetRepository(database),
     annotations: new SqliteAnnotationRepository(database),
+    documents: new SqliteDocumentRepository(database),
     reportDrafts: new SqliteReportDraftRepository(database),
     reportBranding: new SqliteReportBrandingRepository(database),
     mutations: new SqliteLocalMutationRepository(database),

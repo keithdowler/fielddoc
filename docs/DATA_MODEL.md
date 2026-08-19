@@ -154,6 +154,15 @@ Sprint 16 adds `is_important` to local and canonical evidence rows. Important
 evidence is mutable metadata, not a derivative of the original media file, and
 is represented in outbox mutations like other evidence metadata updates.
 
+Sprint 29 expands the local `documents` table with nullable document metadata:
+linked media asset ID, file name, MIME type, byte size, SHA-256, page count, and
+source type. These local fields let mobile distinguish imported PDFs/files and
+camera-scanned paperwork before OCR or page rendering exists. Canonical server
+sync currently persists the stable document subset already present in Neon:
+project ID, optional evidence item ID, title, notes, timestamps, and soft-delete
+state. Rich document file metadata remains tied to `media_assets` and private
+object storage.
+
 Sprint 21 adds cloud report archival metadata:
 
 - Local `report_drafts` now track `generated_pdf_storage_object_key`,

@@ -22,6 +22,7 @@ import { StatusBanner } from "@/components/status-banner";
 import { spacing } from "@/design/tokens";
 import {
   captureCameraPhoto,
+  captureDocumentScan,
   importLocalFile,
   pickPhotoLibraryMedia,
   pickPhotoLibraryMediaBatch,
@@ -180,9 +181,7 @@ export default function CaptureScreen() {
     }
   }
 
-  async function addMediaEvidence(
-    sourceType: Exclude<MediaSourceType, "DOCUMENT_SCAN">,
-  ) {
+  async function addMediaEvidence(sourceType: MediaSourceType) {
     if (!projectId) {
       setErrorMessage("Create a project before attaching evidence media.");
       return;
@@ -201,19 +200,22 @@ export default function CaptureScreen() {
       const savedItems: Array<{
         evidence: EvidenceItem;
         mediaAsset: MediaAsset;
+        documentCreated: boolean;
       }> = [];
 
       for (const [index, preparedMedia] of preparedMediaItems.entries()) {
-        const evidenceCategory =
-          preparedMedia.mediaType === "DOCUMENT" ? "DOCUMENT" : category;
+        const evidenceCategory = isDocumentEvidence(preparedMedia)
+          ? "DOCUMENT"
+          : category;
+        const evidenceTitle =
+          title ||
+          (preparedMediaItems.length > 1
+            ? `${preparedMedia.displayName} ${index + 1}`
+            : preparedMedia.displayName);
         const evidence = await repositories.evidence.create({
           projectId,
           category: evidenceCategory,
-          title:
-            title ||
-            (preparedMediaItems.length > 1
-              ? `${preparedMedia.displayName} ${index + 1}`
-              : preparedMedia.displayName),
+          title: evidenceTitle,
           caption,
           notes,
           isImportant,
@@ -225,7 +227,23 @@ export default function CaptureScreen() {
           caption,
           notes,
         });
-        savedItems.push({ evidence, mediaAsset });
+        const documentCreated = isDocumentEvidence(preparedMedia);
+        if (documentCreated) {
+          await repositories.documents.create({
+            projectId,
+            evidenceItemId: evidence.id,
+            mediaAssetId: mediaAsset.id,
+            title: evidenceTitle,
+            notes,
+            fileName: preparedMedia.displayName,
+            mimeType: preparedMedia.mimeType,
+            sizeBytes: preparedMedia.sizeBytes,
+            sha256: preparedMedia.sha256,
+            pageCount: preparedMedia.sourceType === "DOCUMENT_SCAN" ? 1 : null,
+            sourceType: preparedMedia.sourceType,
+          });
+        }
+        savedItems.push({ evidence, mediaAsset, documentCreated });
       }
 
       const lastSaved = savedItems.at(-1);
@@ -240,7 +258,11 @@ export default function CaptureScreen() {
       setStatusMessage(
         `${savedItems.length} ${savedCategoryLabel.toLowerCase()} evidence ${
           savedItems.length === 1 ? "item" : "items"
-        } saved from ${sourceLabels[sourceType]}.`,
+        } saved from ${sourceLabels[sourceType]}${
+          savedItems.some((item) => item.documentCreated)
+            ? " with document metadata."
+            : "."
+        }`,
       );
       await reloadEvidence(projectId);
       if (lastSaved) {
@@ -487,9 +509,10 @@ export default function CaptureScreen() {
   }
 
   function pickMedia(
-    sourceType: Exclude<MediaSourceType, "DOCUMENT_SCAN">,
+    sourceType: MediaSourceType,
   ): Promise<PreparedLocalMediaAsset[]> {
     if (sourceType === "CAMERA_PHOTO") return pickOne(captureCameraPhoto);
+    if (sourceType === "DOCUMENT_SCAN") return pickOne(captureDocumentScan);
     if (sourceType === "PHOTO_LIBRARY") return pickPhotoLibraryMediaBatch();
     return pickOne(importLocalFile);
   }
@@ -507,6 +530,12 @@ export default function CaptureScreen() {
     if (sourceType === "CAMERA_PHOTO") return captureCameraPhoto();
     if (sourceType === "PHOTO_LIBRARY") return pickPhotoLibraryMedia();
     return importLocalFile();
+  }
+
+  function isDocumentEvidence(media: PreparedLocalMediaAsset): boolean {
+    return (
+      media.mediaType === "DOCUMENT" || media.sourceType === "DOCUMENT_SCAN"
+    );
   }
 
   function advanceFieldStage() {
@@ -646,6 +675,15 @@ export default function CaptureScreen() {
             accessibilityLabel="Import one or more evidence photos"
           />
           <AppButton
+            label="Scan Document"
+            icon="doc.text.magnifyingglass"
+            variant="secondary"
+            onPress={() => addMediaEvidence("DOCUMENT_SCAN")}
+            loading={busySource === "DOCUMENT_SCAN"}
+            disabled={!selectedProject || Boolean(editingEvidenceId)}
+            accessibilityLabel="Scan a paper document as document evidence"
+          />
+          <AppButton
             label="Next Stage"
             icon="arrow.right"
             variant="secondary"
@@ -750,6 +788,15 @@ export default function CaptureScreen() {
             loading={busySource === "PHOTO_LIBRARY"}
             disabled={Boolean(editingEvidenceId)}
             accessibilityLabel="Choose a photo from the library as evidence"
+          />
+          <AppButton
+            label="Scan Document"
+            icon="doc.text.magnifyingglass"
+            variant="secondary"
+            onPress={() => addMediaEvidence("DOCUMENT_SCAN")}
+            loading={busySource === "DOCUMENT_SCAN"}
+            disabled={Boolean(editingEvidenceId)}
+            accessibilityLabel="Scan a paper document as document evidence"
           />
           <AppButton
             label="Import File"

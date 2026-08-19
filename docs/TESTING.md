@@ -252,3 +252,16 @@ Manual coverage should sign into the deployed web app, open `/app`, `/app/projec
 warnings, and queue counts match the latest synced mobile data. On mobile,
 Settings should show Sync Center as ready only after Clerk sign-in and an active
 RevenueCat entitlement.
+
+## Sprint 29 Document Metadata And Canonical Sync Tests
+
+Sprint 29 adds local repository coverage for document metadata, soft delete, and
+outbox mutation generation. Sync application tests now verify `Document`
+mutations are accepted and passed to canonical persistence instead of being
+rejected as unsupported. Workspace-data tests include document rows so web
+project/report totals cover document counts.
+
+Manual coverage should create a project on mobile, tap Scan Document, capture a
+paper page, then import a PDF/file. Confirm both appear under Document evidence,
+upload pending changes from Settings, open the deployed web project detail, and
+verify document counts and document metadata appear alongside media downloads.

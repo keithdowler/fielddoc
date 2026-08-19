@@ -118,6 +118,17 @@ function createWorkspaceData(): WorkspaceData {
       body: "Existing wall damage noted.",
     }),
   ];
+  const documents = [
+    {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      projectId,
+      evidenceItemId: beforeEvidenceId,
+      title: "Signed work authorization",
+      notes: "Imported PDF",
+      createdAt: at("2026-08-17T11:10:00.000Z"),
+      updatedAt: at("2026-08-17T11:10:00.000Z"),
+    },
+  ];
   const beforeMedia = media[0];
   const workMedia = media[1];
 
@@ -134,6 +145,7 @@ function createWorkspaceData(): WorkspaceData {
       isImportant: true,
       media: [beforeMedia],
       annotations,
+      documents,
     }),
     createEvidenceItem({
       id: workEvidenceId,
@@ -143,6 +155,7 @@ function createWorkspaceData(): WorkspaceData {
       isImportant: false,
       media: [workMedia],
       annotations: [],
+      documents: [],
     }),
   ];
   const reports = [createReport()];
@@ -157,6 +170,7 @@ function createWorkspaceData(): WorkspaceData {
     evidence,
     media,
     annotations,
+    documents,
     syncReceiptCount: 4,
     rejectedSyncReceiptCount: 0,
     reportExportCount: 1,
@@ -204,6 +218,7 @@ function createProject(input: { id: string }): WorkspaceProject {
     uploadedMediaCount: 1,
     importantEvidenceCount: 1,
     missingCaptionCount: 1,
+    documentCount: 1,
     reportDraftCount: 1,
   };
 }
@@ -245,6 +260,7 @@ function createEvidenceItem(
     | "isImportant"
     | "media"
     | "annotations"
+    | "documents"
   >,
 ): WorkspaceEvidenceItem {
   return {
@@ -261,10 +277,12 @@ function createEvidenceItem(
     updatedAt: at("2026-08-17T11:00:00.000Z"),
     media: input.media,
     annotations: input.annotations,
+    documents: input.documents,
     mediaCount: input.media.length,
     uploadedMediaCount: input.media.filter((item) => item.hasUploadedOriginal)
       .length,
     annotationCount: input.annotations.length,
+    documentCount: input.documents.length,
     missingCaption:
       !input.caption?.trim() &&
       !input.media.some((item) => item.caption?.trim()),

@@ -19,6 +19,7 @@ import {
   auditEvents,
   createNeonDatabase,
   desc,
+  documents,
   eq,
   evidenceItems,
   isNull,
@@ -53,6 +54,7 @@ export type WorkspaceProject = {
   uploadedMediaCount: number;
   importantEvidenceCount: number;
   missingCaptionCount: number;
+  documentCount: number;
   reportDraftCount: number;
 };
 
@@ -98,6 +100,16 @@ export type WorkspaceAnnotation = {
   createdAt: Date;
 };
 
+export type WorkspaceDocument = {
+  id: string;
+  projectId: string;
+  evidenceItemId: string | null;
+  title: string;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type WorkspaceEvidenceItem = {
   id: string;
   projectId: string;
@@ -112,9 +124,11 @@ export type WorkspaceEvidenceItem = {
   updatedAt: Date;
   media: WorkspaceMediaAsset[];
   annotations: WorkspaceAnnotation[];
+  documents: WorkspaceDocument[];
   mediaCount: number;
   uploadedMediaCount: number;
   annotationCount: number;
+  documentCount: number;
   missingCaption: boolean;
 };
 
@@ -126,6 +140,7 @@ export type WorkspaceEvidenceSection = {
   mediaCount: number;
   uploadedMediaCount: number;
   annotationCount: number;
+  documentCount: number;
   importantCount: number;
   missingCaptionCount: number;
 };
@@ -151,6 +166,7 @@ export type WorkspaceReportDetail = WorkspaceReport & {
     mediaCount: number;
     uploadedMediaCount: number;
     annotationCount: number;
+    documentCount: number;
     missingCaptionCount: number;
     importantCount: number;
   };
@@ -167,6 +183,7 @@ export type WorkspaceData = {
   evidence: WorkspaceEvidenceItem[];
   media: WorkspaceMediaAsset[];
   annotations: WorkspaceAnnotation[];
+  documents: WorkspaceDocument[];
   syncReceiptCount: number;
   rejectedSyncReceiptCount: number;
   reportExportCount: number;
@@ -247,6 +264,7 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     evidenceRows,
     mediaRows,
     annotationRows,
+    documentRows,
     reportRows,
     receiptRows,
   ] = await Promise.all([
@@ -345,6 +363,23 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       ),
     db
       .select({
+        id: documents.id,
+        projectId: documents.projectId,
+        evidenceItemId: documents.evidenceItemId,
+        title: documents.title,
+        notes: documents.notes,
+        createdAt: documents.createdAt,
+        updatedAt: documents.updatedAt,
+      })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.organizationId, membership.organizationId),
+          isNull(documents.deletedAt),
+        ),
+      ),
+    db
+      .select({
         id: reportDrafts.id,
         projectId: reportDrafts.projectId,
         title: reportDrafts.title,
@@ -389,6 +424,7 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     evidenceRows.filter((row) => row.isImportant),
     (row) => row.projectId,
   );
+  const documentsByProject = countBy(documentRows, (row) => row.projectId);
   const mediaByProject = countBy(mediaRows, (row) => row.projectId);
   const uploadedMediaByProject = countBy(
     mediaRows.filter((row) => Boolean(row.storageObjectKey)),
@@ -421,18 +457,25 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     annotationRows,
     (row) => row.evidenceItemId,
   );
+  const documentsByEvidence = groupBy(
+    documentRows.filter((row) => row.evidenceItemId !== null),
+    (row) => row.evidenceItemId ?? "",
+  );
   const evidence = evidenceRows.map((row) => {
     const media = mediaByEvidence[row.id] ?? [];
     const annotations = annotationsByEvidence[row.id] ?? [];
+    const evidenceDocuments = documentsByEvidence[row.id] ?? [];
 
     return {
       ...row,
       media,
       annotations,
+      documents: evidenceDocuments,
       mediaCount: media.length,
       uploadedMediaCount: media.filter((item) => item.hasUploadedOriginal)
         .length,
       annotationCount: annotations.length,
+      documentCount: evidenceDocuments.length,
       missingCaption:
         !row.caption?.trim() && !media.some((item) => item.caption?.trim()),
     };
@@ -454,6 +497,7 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       uploadedMediaCount: uploadedMediaByProject[project.id] ?? 0,
       importantEvidenceCount: importantEvidenceByProject[project.id] ?? 0,
       missingCaptionCount: missingCaptionsByProject[project.id] ?? 0,
+      documentCount: documentsByProject[project.id] ?? 0,
       reportDraftCount: reportsByProject[project.id] ?? 0,
     })),
     reports: reportRows.map((report) => ({
@@ -472,6 +516,7 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     evidence,
     media,
     annotations: annotationRows,
+    documents: documentRows,
     syncReceiptCount: receiptRows.length,
     rejectedSyncReceiptCount: receiptRows.filter(
       (receipt) => receipt.status === "rejected",
@@ -518,6 +563,7 @@ function emptyWorkspaceData(
     evidence: [],
     media: [],
     annotations: [],
+    documents: [],
     syncReceiptCount: 0,
     rejectedSyncReceiptCount: 0,
     reportExportCount: 0,
@@ -688,6 +734,10 @@ export function getReportDetailFromWorkspaceData(
         (count, section) => count + section.annotationCount,
         0,
       ),
+      documentCount: sections.reduce(
+        (count, section) => count + section.documentCount,
+        0,
+      ),
       missingCaptionCount: totals.missingCaptionCount,
       importantCount: totals.importantCount ?? 0,
     },
@@ -738,6 +788,10 @@ function buildEvidenceSections(
       ),
       annotationCount: evidence.reduce(
         (count, item) => count + item.annotationCount,
+        0,
+      ),
+      documentCount: evidence.reduce(
+        (count, item) => count + item.documentCount,
         0,
       ),
       importantCount: evidence.filter((item) => item.isImportant).length,

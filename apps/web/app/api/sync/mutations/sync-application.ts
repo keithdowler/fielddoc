@@ -27,6 +27,8 @@ export type CanonicalMutationRepository = {
     input: OrganizationPayload<AnnotationPayload>,
   ): Promise<void>;
   deleteAnnotation(input: OrganizationStateChange): Promise<void>;
+  upsertDocument(input: OrganizationPayload<DocumentPayload>): Promise<void>;
+  deleteDocument(input: OrganizationStateChange): Promise<void>;
   upsertReportDraft(
     input: OrganizationPayload<ReportDraftPayload>,
   ): Promise<void>;
@@ -72,6 +74,12 @@ export async function applyCanonicalMutation(
         );
       case "Annotation":
         return await applyAnnotationMutation(
+          input.mutation,
+          organizationId,
+          repository,
+        );
+      case "Document":
+        return await applyDocumentMutation(
           input.mutation,
           organizationId,
           repository,
@@ -182,6 +190,23 @@ async function applyAnnotationMutation(
   await repository.upsertAnnotation({
     organizationId,
     payload: annotationPayloadSchema.parse(mutation.payloadJson),
+  });
+  return { status: "applied" };
+}
+
+async function applyDocumentMutation(
+  mutation: SyncMutationEnvelope,
+  organizationId: string,
+  repository: CanonicalMutationRepository,
+): Promise<CanonicalMutationApplicationResult> {
+  if (mutation.operation === "DELETE") {
+    await repository.deleteDocument(parseStateChange(mutation, organizationId));
+    return { status: "applied" };
+  }
+
+  await repository.upsertDocument({
+    organizationId,
+    payload: documentPayloadSchema.parse(mutation.payloadJson),
   });
   return { status: "applied" };
 }
@@ -297,6 +322,15 @@ export const annotationPayloadSchema = baseLocalPayloadSchema.extend({
 });
 
 export type AnnotationPayload = z.infer<typeof annotationPayloadSchema>;
+
+export const documentPayloadSchema = baseLocalPayloadSchema.extend({
+  projectId: uuidSchema,
+  evidenceItemId: uuidSchema.nullable(),
+  title: z.string().trim().min(1),
+  notes: nullableTextSchema,
+});
+
+export type DocumentPayload = z.infer<typeof documentPayloadSchema>;
 
 export const reportDraftPayloadSchema = baseLocalPayloadSchema.extend({
   projectId: uuidSchema,
