@@ -308,14 +308,28 @@ export const documents = pgTable(
       .notNull()
       .references(() => projects.id),
     evidenceItemId: uuid("evidence_item_id").references(() => evidenceItems.id),
+    mediaAssetId: uuid("media_asset_id").references(() => mediaAssets.id),
     title: text("title").notNull(),
     notes: text("notes"),
+    fileName: text("file_name"),
+    mimeType: text("mime_type"),
+    sizeBytes: integer("size_bytes"),
+    sha256: text("sha256"),
+    pageCount: integer("page_count"),
+    sourceType: text("source_type"),
     serverVersion: integer("server_version").notNull().default(1),
     ...timestampColumns,
   },
   (table) => [
     index("idx_documents_project").on(table.projectId),
     index("idx_documents_evidence").on(table.evidenceItemId),
+    index("idx_documents_media").on(table.mediaAssetId),
+    index("idx_documents_sha256").on(table.sha256),
+    index("idx_documents_project_updated").on(
+      table.projectId,
+      table.deletedAt,
+      table.updatedAt,
+    ),
   ],
 );
 

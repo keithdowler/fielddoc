@@ -326,8 +326,20 @@ export type AnnotationPayload = z.infer<typeof annotationPayloadSchema>;
 export const documentPayloadSchema = baseLocalPayloadSchema.extend({
   projectId: uuidSchema,
   evidenceItemId: uuidSchema.nullable(),
+  mediaAssetId: uuidSchema.nullable(),
   title: z.string().trim().min(1),
   notes: nullableTextSchema,
+  fileName: nullableTextSchema,
+  mimeType: nullableTextSchema,
+  sizeBytes: z.number().int().nonnegative().nullable(),
+  sha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  pageCount: z.number().int().positive().nullable(),
+  sourceType: z
+    .enum(["CAMERA_PHOTO", "PHOTO_LIBRARY", "DOCUMENT_SCAN", "FILE_IMPORT"])
+    .nullable(),
 });
 
 export type DocumentPayload = z.infer<typeof documentPayloadSchema>;

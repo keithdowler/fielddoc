@@ -18,7 +18,13 @@ The assembled preview is derived state. It is not stored as a separate table and
 
 Mobile renders a local PDF by passing the assembled packet preview through the shared domain HTML renderer and the Expo Print adapter. The generated file is moved into app-owned document storage under `proof-packets/`, and the report draft records `generated_pdf_uri` and `generated_at`.
 
-The current PDF includes structured project metadata, section order, evidence rows, captions, annotations, media counts, MIME types, file sizes, SHA-256 metadata, available local image originals, imported document metadata, and local report branding fields. Non-image document pages are referenced in a document appendix with hashes and file metadata rather than visually embedded.
+The current PDF includes structured project metadata, section order, evidence
+rows, captions, annotations, media counts, MIME types, file sizes, SHA-256
+metadata, available local image originals, imported document metadata, and
+local report branding fields. Supporting documents attached to included
+evidence render as appendix cards classified as visual, metadata-only, or
+incomplete. Non-image document pages are referenced with hashes and file
+metadata rather than visually embedded.
 
 ## Current Local Open And Share
 

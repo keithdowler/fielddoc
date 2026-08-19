@@ -51,7 +51,16 @@ export default async function ReportsPage() {
                     : "Not generated"}
                 </span>
                 <span>
-                  {report.hasGeneratedPdf ? "PDF stored" : "PDF local"}
+                  {report.latestExportUploadedAt
+                    ? `Archived ${formatDate(report.latestExportUploadedAt)}`
+                    : report.hasGeneratedPdf
+                      ? "PDF stored"
+                      : "PDF local"}
+                </span>
+                <span>
+                  {report.activeShareLinkCount
+                    ? `${report.activeShareLinkCount} active links`
+                    : "No active link"}
                 </span>
                 {report.hasGeneratedPdf ? (
                   <Link

@@ -723,12 +723,28 @@ export type ProofPacketEvidenceEntry = {
   evidence: EvidenceItem;
   mediaAssets: MediaAsset[];
   annotations: Annotation[];
+  documents: ProofPacketDocumentEntry[];
   caption: string | null;
   capturedAt: string;
   mediaCount: number;
   annotationCount: number;
+  documentCount: number;
+  visualDocumentCount: number;
+  metadataOnlyDocumentCount: number;
   missingCaption: boolean;
   isImportant: boolean;
+};
+
+export type ProofPacketDocumentPreviewKind =
+  "visual" | "metadata_only" | "incomplete";
+
+export type ProofPacketDocumentEntry = {
+  document: Document;
+  previewKind: ProofPacketDocumentPreviewKind;
+  visualMediaAssetId: string | null;
+  label: string;
+  detail: string;
+  missingMetadata: string[];
 };
 
 export type ProofPacketSectionPreview = {
@@ -739,6 +755,9 @@ export type ProofPacketSectionPreview = {
   evidenceCount: number;
   mediaCount: number;
   annotationCount: number;
+  documentCount: number;
+  visualDocumentCount: number;
+  metadataOnlyDocumentCount: number;
 };
 
 export type ProofPacketPreview = {
@@ -752,6 +771,9 @@ export type ProofPacketPreview = {
     evidenceItems: number;
     mediaAssets: number;
     annotations: number;
+    documents: number;
+    visualDocuments: number;
+    metadataOnlyDocuments: number;
     missingCaptions: number;
   };
   ready: boolean;
@@ -764,6 +786,7 @@ export type ProofPacketPreviewInput = {
   evidenceItems: EvidenceItem[];
   mediaAssetsByEvidenceId: Record<string, MediaAsset[]>;
   annotationsByEvidenceId: Record<string, Annotation[]>;
+  documentsByEvidenceId?: Record<string, Document[]>;
 };
 
 export type ProofPacketHtmlOptions = {
@@ -799,6 +822,39 @@ export type ReportBranding = {
   footerText: string | null;
   accentColor: string;
   updatedAt: string;
+};
+
+export type ReportDeliveryReadinessInput = {
+  reportReady: boolean;
+  hasGeneratedPdf: boolean;
+  reportPdfUploaded: boolean;
+  mediaCount: number;
+  uploadedMediaCount: number;
+  missingCaptionCount: number;
+  documentCount?: number;
+  visualDocumentCount?: number;
+  metadataOnlyDocumentCount?: number;
+  privateStorageReady?: boolean;
+  subscriptionActive?: boolean;
+  shareLinkCount?: number;
+};
+
+export type ReportDeliveryReadinessStatus =
+  | "needs_evidence"
+  | "needs_captions"
+  | "generate_pdf"
+  | "subscription_required"
+  | "storage_not_configured"
+  | "upload_required"
+  | "ready_to_share";
+
+export type ReportDeliveryReadiness = {
+  ready: boolean;
+  status: ReportDeliveryReadinessStatus;
+  label: string;
+  detail: string;
+  blockers: string[];
+  warnings: string[];
 };
 
 export type SaveReportBrandingInput = {
@@ -969,6 +1025,196 @@ export function getReportReadiness(summary: ProjectEvidenceSummary): {
   };
 }
 
+export function getProofPacketDocumentEntry(
+  document: Document,
+  mediaAssets: MediaAsset[],
+): ProofPacketDocumentEntry {
+  const linkedMedia = document.mediaAssetId
+    ? mediaAssets.find((media) => media.id === document.mediaAssetId)
+    : undefined;
+  const visualMedia =
+    linkedMedia?.mediaType === "IMAGE" &&
+    linkedMedia.mimeType.startsWith("image/")
+      ? linkedMedia
+      : undefined;
+  const missingMetadata = [
+    document.fileName ? null : "file name",
+    document.mimeType ? null : "mime type",
+    document.sizeBytes === null ? "file size" : null,
+    document.sha256 ? null : "SHA-256",
+  ].filter((item): item is string => Boolean(item));
+
+  if (visualMedia) {
+    return {
+      document,
+      previewKind: "visual",
+      visualMediaAssetId: visualMedia.id,
+      label: "Visual document page",
+      detail:
+        "This scanned document is linked to an image original and can be embedded in the packet preview.",
+      missingMetadata,
+    };
+  }
+
+  if (missingMetadata.length === 0) {
+    return {
+      document,
+      previewKind: "metadata_only",
+      visualMediaAssetId: null,
+      label: "Metadata-only document",
+      detail:
+        "This document is tracked with immutable metadata and SHA-256, but its pages are not visually embedded.",
+      missingMetadata,
+    };
+  }
+
+  return {
+    document,
+    previewKind: "incomplete",
+    visualMediaAssetId: null,
+    label: "Incomplete document metadata",
+    detail: `Missing ${missingMetadata.join(", ")} before this document is delivery-ready.`,
+    missingMetadata,
+  };
+}
+
+export function getReportDeliveryReadiness(
+  input: ReportDeliveryReadinessInput,
+): ReportDeliveryReadiness {
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+
+  if (!input.reportReady) {
+    blockers.push(
+      input.missingCaptionCount > 0
+        ? "Finish required captions and included evidence."
+        : "Add required included evidence before delivery.",
+    );
+  }
+
+  if (input.missingCaptionCount > 0) {
+    blockers.push(`${input.missingCaptionCount} captions still need review.`);
+  }
+
+  if (!input.hasGeneratedPdf) {
+    blockers.push("Generate the Proof Packet PDF.");
+  }
+
+  if (input.subscriptionActive === false) {
+    blockers.push("Activate the subscription entitlement.");
+  }
+
+  if (input.privateStorageReady === false) {
+    blockers.push("Configure private object storage.");
+  }
+
+  if (input.hasGeneratedPdf && !input.reportPdfUploaded) {
+    blockers.push("Upload the generated PDF to private storage.");
+  }
+
+  if (input.mediaCount !== input.uploadedMediaCount) {
+    const pendingMediaCount = input.mediaCount - input.uploadedMediaCount;
+    blockers.push(
+      `Upload ${formatCount(pendingMediaCount, "original media file", "original media files")}.`,
+    );
+  }
+
+  const incompleteDocuments =
+    (input.documentCount ?? 0) -
+    (input.visualDocumentCount ?? 0) -
+    (input.metadataOnlyDocumentCount ?? 0);
+
+  if (incompleteDocuments > 0) {
+    blockers.push(
+      `Complete metadata for ${formatCount(incompleteDocuments, "supporting document", "supporting documents")}.`,
+    );
+  }
+
+  if ((input.metadataOnlyDocumentCount ?? 0) > 0) {
+    warnings.push(
+      `${formatCount(input.metadataOnlyDocumentCount ?? 0, "supporting document is", "supporting documents are")} metadata-only in the packet.`,
+    );
+  }
+
+  if ((input.shareLinkCount ?? 0) === 0 && input.reportPdfUploaded) {
+    warnings.push("No customer share link has been issued yet.");
+  }
+
+  if (!input.reportReady) {
+    return {
+      ready: false,
+      status:
+        input.missingCaptionCount > 0 ? "needs_captions" : "needs_evidence",
+      label:
+        input.missingCaptionCount > 0 ? "Needs captions" : "Needs evidence",
+      detail: "The report is not ready for customer delivery yet.",
+      blockers: uniqueStrings(blockers),
+      warnings,
+    };
+  }
+
+  if (!input.hasGeneratedPdf) {
+    return {
+      ready: false,
+      status: "generate_pdf",
+      label: "Generate PDF",
+      detail: "The report metadata is ready; generate the customer PDF next.",
+      blockers: uniqueStrings(blockers),
+      warnings,
+    };
+  }
+
+  if (input.subscriptionActive === false) {
+    return {
+      ready: false,
+      status: "subscription_required",
+      label: "Subscription required",
+      detail: "Cloud delivery is gated until an active entitlement is present.",
+      blockers: uniqueStrings(blockers),
+      warnings,
+    };
+  }
+
+  if (input.privateStorageReady === false) {
+    return {
+      ready: false,
+      status: "storage_not_configured",
+      label: "Storage required",
+      detail: "Private object storage must be configured before delivery.",
+      blockers: uniqueStrings(blockers),
+      warnings,
+    };
+  }
+
+  if (
+    !input.reportPdfUploaded ||
+    input.mediaCount !== input.uploadedMediaCount ||
+    incompleteDocuments > 0
+  ) {
+    return {
+      ready: false,
+      status: "upload_required",
+      label: "Upload required",
+      detail:
+        "The PDF and originals must be archived before customer delivery.",
+      blockers: uniqueStrings(blockers),
+      warnings,
+    };
+  }
+
+  return {
+    ready: true,
+    status: "ready_to_share",
+    label: "Ready to share",
+    detail:
+      input.shareLinkCount && input.shareLinkCount > 0
+        ? "The packet has archived originals, an uploaded PDF, and issued share links."
+        : "The packet has archived originals and an uploaded PDF.",
+    blockers: [],
+    warnings,
+  };
+}
+
 export function assembleProofPacketPreview(
   input: ProofPacketPreviewInput,
 ): ProofPacketPreview {
@@ -984,16 +1230,29 @@ export function assembleProofPacketPreview(
         const annotations = (
           input.annotationsByEvidenceId[evidence.id] ?? []
         ).sort(compareAnnotationsForPacket);
+        const documents = (input.documentsByEvidenceId?.[evidence.id] ?? [])
+          .sort(compareDocumentsForPacket)
+          .map((document) =>
+            getProofPacketDocumentEntry(document, mediaAssets),
+          );
         const caption = evidence.caption ?? mediaAssets[0]?.caption ?? null;
 
         return {
           evidence,
           mediaAssets,
           annotations,
+          documents,
           caption,
           capturedAt: evidence.captureTimestamp,
           mediaCount: mediaAssets.length,
           annotationCount: annotations.length,
+          documentCount: documents.length,
+          visualDocumentCount: documents.filter(
+            (document) => document.previewKind === "visual",
+          ).length,
+          metadataOnlyDocumentCount: documents.filter(
+            (document) => document.previewKind === "metadata_only",
+          ).length,
           missingCaption: !caption?.trim(),
           isImportant: evidence.isImportant,
         };
@@ -1011,6 +1270,18 @@ export function assembleProofPacketPreview(
       ),
       annotationCount: evidenceItems.reduce(
         (count, evidence) => count + evidence.annotationCount,
+        0,
+      ),
+      documentCount: evidenceItems.reduce(
+        (count, evidence) => count + evidence.documentCount,
+        0,
+      ),
+      visualDocumentCount: evidenceItems.reduce(
+        (count, evidence) => count + evidence.visualDocumentCount,
+        0,
+      ),
+      metadataOnlyDocumentCount: evidenceItems.reduce(
+        (count, evidence) => count + evidence.metadataOnlyDocumentCount,
         0,
       ),
     };
@@ -1036,6 +1307,18 @@ export function assembleProofPacketPreview(
       ),
       annotations: sectionPreviews.reduce(
         (count, section) => count + section.annotationCount,
+        0,
+      ),
+      documents: sectionPreviews.reduce(
+        (count, section) => count + section.documentCount,
+        0,
+      ),
+      visualDocuments: sectionPreviews.reduce(
+        (count, section) => count + section.visualDocumentCount,
+        0,
+      ),
+      metadataOnlyDocuments: sectionPreviews.reduce(
+        (count, section) => count + section.metadataOnlyDocumentCount,
         0,
       ),
       missingCaptions: summary.missingCaptionCount,
@@ -1084,7 +1367,7 @@ export function renderProofPacketHtml(
       (section, sectionIndex) => `
         <section class="packet-section">
           <h2>${sectionIndex + 1}. ${escapeHtml(section.label)}</h2>
-          <p class="section-meta">${section.evidenceCount} evidence items, ${section.mediaCount} media files, ${section.annotationCount} notes</p>
+          <p class="section-meta">${section.evidenceCount} evidence items, ${section.mediaCount} media files, ${section.documentCount} documents, ${section.annotationCount} notes</p>
           ${
             section.evidenceItems.length
               ? section.evidenceItems
@@ -1273,8 +1556,14 @@ export function renderProofPacketHtml(
       <div class="summary-box"><strong>${preview.totals.sections}</strong>Sections</div>
       <div class="summary-box"><strong>${preview.totals.evidenceItems}</strong>Evidence</div>
       <div class="summary-box"><strong>${preview.totals.mediaAssets}</strong>Media</div>
+      <div class="summary-box"><strong>${preview.totals.documents}</strong>Documents</div>
       <div class="summary-box"><strong>${preview.totals.missingCaptions}</strong>Missing captions</div>
     </div>
+    ${
+      preview.totals.documents
+        ? `<p class="section-meta">Document appendix: ${preview.totals.visualDocuments} visual document pages embedded, ${preview.totals.metadataOnlyDocuments} metadata-only documents preserved with SHA-256 and file metadata.</p>`
+        : ""
+    }
     ${sectionHtml}
     <footer>
       Generated from local offline evidence. Original evidence remains immutable; embedded visuals are report renderings of the stored originals and do not alter source files.
@@ -1352,6 +1641,22 @@ function compareAnnotationsForPacket(
     first.createdAt.localeCompare(second.createdAt) ||
     first.id.localeCompare(second.id)
   );
+}
+
+function compareDocumentsForPacket(first: Document, second: Document): number {
+  return (
+    first.updatedAt.localeCompare(second.updatedAt) ||
+    first.createdAt.localeCompare(second.createdAt) ||
+    first.id.localeCompare(second.id)
+  );
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function formatCount(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 export type CreateEvidenceInput = {
@@ -1566,6 +1871,29 @@ function renderEvidenceEntryHtml(
     (media) =>
       media.mediaType === "DOCUMENT" || media.mimeType === "application/pdf",
   );
+  const documentEntriesHtml = entry.documents
+    .map((documentEntry) => {
+      const document = documentEntry.document;
+      const metadata = [
+        document.fileName,
+        document.mimeType,
+        document.sizeBytes === null ? null : formatBytes(document.sizeBytes),
+        document.sha256 ? `SHA-256 ${document.sha256}` : null,
+      ]
+        .filter((item): item is string => Boolean(item))
+        .map(escapeHtml)
+        .join(" - ");
+
+      return `
+        <div class="document-card">
+          <strong>${escapeHtml(document.title)}</strong>
+          <div class="muted">${escapeHtml(documentEntry.label)}</div>
+          ${metadata ? `<div class="muted">${metadata}</div>` : ""}
+          <div>${escapeHtml(document.notes ?? documentEntry.detail)}</div>
+        </div>
+      `;
+    })
+    .join("");
   const visualMediaHtml = visualMedia
     .map(
       ({ media, embedded }) => `
@@ -1611,6 +1939,7 @@ function renderEvidenceEntryHtml(
         ${escapeHtml(entry.caption ?? "Caption needed")}
       </p>
       ${visualMediaHtml ? `<div class="media-grid">${visualMediaHtml}</div>` : ""}
+      ${documentEntriesHtml}
       ${documentCardsHtml}
       ${
         mediaItems

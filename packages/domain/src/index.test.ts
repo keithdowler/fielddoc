@@ -7,6 +7,8 @@ import {
   getBetaReadinessSummary,
   getIncludedReportSections,
   getCloudFeatureGate,
+  getProofPacketDocumentEntry,
+  getReportDeliveryReadiness,
   getReportDraftReadiness,
   getReportReadiness,
   hasActiveFieldDocProEntitlement,
@@ -18,6 +20,7 @@ import {
   toProjectSummary,
   validateProjectForm,
   type Annotation,
+  type Document,
   type EvidenceItem,
   type MediaAsset,
   type Project,
@@ -417,6 +420,9 @@ describe("domain constants", () => {
       evidenceItems: 3,
       mediaAssets: 1,
       annotations: 1,
+      documents: 0,
+      visualDocuments: 0,
+      metadataOnlyDocuments: 0,
       missingCaptions: 1,
     });
     expect(preview.ready).toBe(false);
@@ -481,6 +487,18 @@ describe("domain constants", () => {
       sha256:
         "11507a0e2f5e69d5c15a8e65b7ef464041602a06120573cd9f8021c3d1f2f4e7",
     });
+    const document = createDocument({
+      id: "document-doc",
+      projectId: project.id,
+      evidenceItemId: documentEvidence.id,
+      mediaAssetId: documentMedia.id,
+      title: "Permit PDF",
+      fileName: "permit.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 1024,
+      sha256:
+        "11507a0e2f5e69d5c15a8e65b7ef464041602a06120573cd9f8021c3d1f2f4e7",
+    });
     const draft: ReportDraft = {
       id: "draft-docs",
       projectId: project.id,
@@ -513,6 +531,7 @@ describe("domain constants", () => {
       evidenceItems: [documentEvidence],
       mediaAssetsByEvidenceId: { [documentEvidence.id]: [documentMedia] },
       annotationsByEvidenceId: {},
+      documentsByEvidenceId: { [documentEvidence.id]: [document] },
     });
 
     const html = renderProofPacketHtml(preview, {
@@ -530,12 +549,101 @@ describe("domain constants", () => {
     expect(html).toContain("Prepared by");
     expect(html).toContain("Keith Dowler");
     expect(html).toContain("Document appendix");
+    expect(html).toContain("Metadata-only document");
     expect(html).toContain("application/pdf");
     expect(html).toContain(
       "11507a0e2f5e69d5c15a8e65b7ef464041602a06120573cd9f8021c3d1f2f4e7",
     );
     expect(html).toContain("Generated for customer review.");
     expect(html).toContain(reportBrandingAccentColors[2]);
+  });
+
+  it("classifies visual and incomplete document previews", () => {
+    const visualMedia = createMediaAsset({
+      id: "media-visual-doc",
+      evidenceItemId: "evidence-doc",
+      caption: "Authorization image",
+      captureTimestamp: "2026-08-17T14:10:00.000Z",
+      sha256:
+        "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
+    });
+    const visualDocument = createDocument({
+      id: "document-visual",
+      projectId: "project-docs",
+      evidenceItemId: "evidence-doc",
+      mediaAssetId: visualMedia.id,
+      title: "Authorization image",
+      fileName: "authorization.jpg",
+      mimeType: "image/jpeg",
+      sizeBytes: 2048,
+      sha256: visualMedia.sha256,
+    });
+    const incompleteDocument = createDocument({
+      id: "document-incomplete",
+      projectId: "project-docs",
+      evidenceItemId: "evidence-doc",
+      mediaAssetId: null,
+      title: "Missing file metadata",
+    });
+
+    expect(
+      getProofPacketDocumentEntry(visualDocument, [visualMedia]),
+    ).toMatchObject({
+      previewKind: "visual",
+      visualMediaAssetId: visualMedia.id,
+    });
+    expect(
+      getProofPacketDocumentEntry(incompleteDocument, [visualMedia]),
+    ).toMatchObject({
+      previewKind: "incomplete",
+      missingMetadata: ["file name", "mime type", "file size", "SHA-256"],
+    });
+  });
+
+  it("explains report delivery readiness with blockers and warnings", () => {
+    expect(
+      getReportDeliveryReadiness({
+        reportReady: true,
+        hasGeneratedPdf: true,
+        reportPdfUploaded: true,
+        mediaCount: 3,
+        uploadedMediaCount: 3,
+        missingCaptionCount: 0,
+        documentCount: 1,
+        visualDocumentCount: 0,
+        metadataOnlyDocumentCount: 1,
+        privateStorageReady: true,
+        subscriptionActive: true,
+        shareLinkCount: 0,
+      }),
+    ).toMatchObject({
+      ready: true,
+      status: "ready_to_share",
+      warnings: [
+        "1 supporting document is metadata-only in the packet.",
+        "No customer share link has been issued yet.",
+      ],
+    });
+
+    expect(
+      getReportDeliveryReadiness({
+        reportReady: false,
+        hasGeneratedPdf: false,
+        reportPdfUploaded: false,
+        mediaCount: 2,
+        uploadedMediaCount: 1,
+        missingCaptionCount: 2,
+      }),
+    ).toMatchObject({
+      ready: false,
+      status: "needs_captions",
+      blockers: expect.arrayContaining([
+        "Finish required captions and included evidence.",
+        "2 captions still need review.",
+        "Generate the Proof Packet PDF.",
+        "Upload 1 original media file.",
+      ]),
+    });
   });
 });
 
@@ -603,6 +711,40 @@ function createAnnotation(
     mediaAssetId: null,
     createdAt: "2026-08-15T13:02:00.000Z",
     updatedAt: "2026-08-15T13:02:00.000Z",
+    deletedAt: null,
+    syncState: "PENDING",
+  };
+}
+
+function createDocument(
+  input: Pick<Document, "id" | "projectId" | "evidenceItemId" | "title"> &
+    Partial<
+      Pick<
+        Document,
+        | "mediaAssetId"
+        | "fileName"
+        | "mimeType"
+        | "sizeBytes"
+        | "sha256"
+        | "notes"
+      >
+    >,
+): Document {
+  return {
+    id: input.id,
+    projectId: input.projectId,
+    evidenceItemId: input.evidenceItemId,
+    mediaAssetId: input.mediaAssetId ?? null,
+    title: input.title,
+    notes: input.notes ?? null,
+    fileName: input.fileName ?? null,
+    mimeType: input.mimeType ?? null,
+    sizeBytes: input.sizeBytes ?? null,
+    sha256: input.sha256 ?? null,
+    pageCount: null,
+    sourceType: "DOCUMENT_SCAN",
+    createdAt: "2026-08-17T14:10:00.000Z",
+    updatedAt: "2026-08-17T14:10:00.000Z",
     deletedAt: null,
     syncState: "PENDING",
   };

@@ -89,6 +89,10 @@ Sprint 14 applies these entity types:
 - `Annotation`
 - `ReportDraft`
 
+Sprint 30 also applies:
+
+- `Document`
+
 Supported operations are create/update upserts plus soft-delete state changes.
 Project archive mutations update canonical project status and archive timestamp.
 
@@ -96,13 +100,15 @@ These entity types remain rejected as unsupported until mobile workflows exist:
 
 - `Customer`
 - `Site`
-- `Document`
 
 Media asset sync applies metadata plus cloud upload state. `storage_object_key`
 and `uploaded_at` remain null until mobile uploads the original through a signed
 private storage URL and records completion. Evidence sync includes
 `isImportant`, which controls important evidence highlighting in readiness,
-reports, and web project lists.
+reports, and web project lists. Document sync applies linked media asset ID,
+file name, MIME type, byte size, SHA-256, page count, source type, and
+soft-delete state so web and pulled mobile records can retain document proof
+quality without storing binary document bodies in Postgres.
 
 ## Future Sync Processor
 

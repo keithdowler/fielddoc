@@ -144,8 +144,18 @@ export const syncPullAnnotationSchema = canonicalBaseSchema.extend({
 export const syncPullDocumentSchema = canonicalBaseSchema.extend({
   projectId: uuidSchema,
   evidenceItemId: uuidSchema.nullable(),
+  mediaAssetId: uuidSchema.nullable(),
   title: z.string().trim().min(1),
   notes: z.string().nullable(),
+  fileName: z.string().trim().min(1).nullable(),
+  mimeType: z.string().trim().min(1).nullable(),
+  sizeBytes: z.number().int().nonnegative().nullable(),
+  sha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  pageCount: z.number().int().positive().nullable(),
+  sourceType: z.enum(mediaSourceTypes).nullable(),
 });
 
 export const syncPullReportDraftSchema = canonicalBaseSchema.extend({

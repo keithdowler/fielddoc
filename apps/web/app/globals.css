@@ -342,6 +342,17 @@ p {
   line-height: 1.45;
 }
 
+.compactActionList {
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.compactActionList li {
+  color: #536166;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
 .detailList {
   display: grid;
   gap: 14px;

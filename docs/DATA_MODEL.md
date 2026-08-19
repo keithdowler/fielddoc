@@ -157,11 +157,15 @@ is represented in outbox mutations like other evidence metadata updates.
 Sprint 29 expands the local `documents` table with nullable document metadata:
 linked media asset ID, file name, MIME type, byte size, SHA-256, page count, and
 source type. These local fields let mobile distinguish imported PDFs/files and
-camera-scanned paperwork before OCR or page rendering exists. Canonical server
-sync currently persists the stable document subset already present in Neon:
-project ID, optional evidence item ID, title, notes, timestamps, and soft-delete
-state. Rich document file metadata remains tied to `media_assets` and private
-object storage.
+camera-scanned paperwork before OCR or page rendering exists.
+
+Sprint 30 carries the same document metadata into canonical Neon/Postgres
+records. `documents.media_asset_id` links supporting document metadata to the
+uploaded immutable media asset when one exists; `file_name`, `mime_type`,
+`size_bytes`, `sha256`, `page_count`, and `source_type` allow web review and
+report-readiness surfaces to distinguish visual, metadata-only, and incomplete
+document evidence without duplicating original binaries outside private object
+storage.
 
 Sprint 21 adds cloud report archival metadata:
 

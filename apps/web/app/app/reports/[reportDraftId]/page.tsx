@@ -65,6 +65,14 @@ export default async function ReportDetailPage({
           <Metric label="Media" value={report.totals.mediaCount} />
           <Metric label="Uploaded" value={report.totals.uploadedMediaCount} />
           <Metric
+            label="Visual docs"
+            value={report.totals.visualDocumentCount}
+          />
+          <Metric
+            label="Metadata docs"
+            value={report.totals.metadataOnlyDocumentCount}
+          />
+          <Metric
             label="Missing captions"
             value={report.totals.missingCaptionCount}
           />
@@ -109,14 +117,116 @@ export default async function ReportDetailPage({
           <article className="dataRow">
             <div>
               <h3>Delivery readiness</h3>
-              <p className="compactText">{getDeliveryReadinessCopy(report)}</p>
+              <p className="compactText">{report.deliveryReadiness.detail}</p>
+              {report.deliveryReadiness.blockers.length ? (
+                <ul className="actionList compactActionList">
+                  {report.deliveryReadiness.blockers.map((blocker) => (
+                    <li key={blocker}>{blocker}</li>
+                  ))}
+                </ul>
+              ) : null}
+              {report.deliveryReadiness.warnings.length ? (
+                <ul className="actionList compactActionList">
+                  {report.deliveryReadiness.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
             <span
-              className={`statusPill ${isDeliveryReady(report) ? "ready" : ""}`}
+              className={`statusPill ${
+                report.deliveryReadiness.ready ? "ready" : ""
+              }`}
             >
-              {isDeliveryReady(report) ? "Ready to deliver" : "Needs upload"}
+              {report.deliveryReadiness.label}
             </span>
           </article>
+        </div>
+      </section>
+
+      <section className="workspaceSection">
+        <div className="sectionTitleRow">
+          <div>
+            <p className="eyebrow">Delivery history</p>
+            <h2>Exports and share links</h2>
+          </div>
+          <span
+            className={`statusPill ${
+              report.activeShareLinkCount ? "ready" : ""
+            }`}
+          >
+            {report.activeShareLinkCount} active links
+          </span>
+        </div>
+
+        <div className="sectionGrid">
+          <section className="reviewSection">
+            <h3>Archived PDFs</h3>
+            {report.exports.length ? (
+              <div className="dataList">
+                {report.exports.map((exportRow) => (
+                  <article className="dataRow" key={exportRow.id}>
+                    <div>
+                      <h3>{formatBytes(exportRow.sizeBytes)} PDF</h3>
+                      <p className="compactText">
+                        Uploaded {formatDate(exportRow.uploadedAt)}
+                      </p>
+                      <p className="compactText">
+                        SHA {exportRow.sha256.slice(0, 16)}
+                      </p>
+                    </div>
+                    <Link
+                      className="downloadLink"
+                      href={`/app/reports/${report.id}/download`}
+                      prefetch={false}
+                    >
+                      Download
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="emptyMessage">
+                No archived PDFs yet. Upload the generated mobile PDF from
+                Settings.
+              </p>
+            )}
+          </section>
+
+          <section className="reviewSection">
+            <h3>Share links</h3>
+            {report.shareLinks.length ? (
+              <div className="dataList">
+                {report.shareLinks.map((link) => (
+                  <article className="dataRow" key={link.id}>
+                    <div>
+                      <h3>{getShareLinkStatus(link)}</h3>
+                      <p className="compactText">
+                        Expires {formatDate(link.expiresAt)}
+                      </p>
+                      <p className="compactText">
+                        {link.accessCount} views
+                        {link.lastAccessedAt
+                          ? ` / last ${formatDate(link.lastAccessedAt)}`
+                          : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={`statusPill ${
+                        getShareLinkStatus(link) === "Active" ? "ready" : ""
+                      }`}
+                    >
+                      {getShareLinkStatus(link)}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="emptyMessage">
+                No share links issued yet. Create one after the PDF is archived.
+              </p>
+            )}
+          </section>
         </div>
       </section>
 
@@ -177,7 +287,11 @@ export default async function ReportDetailPage({
                       <div className="rowMetrics inlineMetrics">
                         <span>{evidence.mediaCount} media</span>
                         <span>{evidence.uploadedMediaCount} uploaded</span>
-                        <span>{evidence.documentCount} documents</span>
+                        <span>
+                          {evidence.documentCount} documents (
+                          {evidence.visualDocumentCount} visual /{" "}
+                          {evidence.metadataOnlyDocumentCount} metadata)
+                        </span>
                         <span>{evidence.annotationCount} notes</span>
                       </div>
                       {evidence.documents.length ? (
@@ -226,30 +340,6 @@ export default async function ReportDetailPage({
   );
 }
 
-function isDeliveryReady(report: WorkspaceReportDetail): boolean {
-  return (
-    report.readiness.ready &&
-    report.hasGeneratedPdf &&
-    report.totals.mediaCount === report.totals.uploadedMediaCount
-  );
-}
-
-function getDeliveryReadinessCopy(report: WorkspaceReportDetail): string {
-  if (!report.readiness.ready) {
-    return "Required sections or captions are still missing.";
-  }
-
-  if (!report.hasGeneratedPdf) {
-    return "Generate and upload the private PDF before sending a share link.";
-  }
-
-  if (report.totals.mediaCount !== report.totals.uploadedMediaCount) {
-    return "Upload every original evidence file before delivery.";
-  }
-
-  return "Required captions, originals, and the private PDF are ready.";
-}
-
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="metricBox">
@@ -264,4 +354,17 @@ function formatDate(value: Date): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(value);
+}
+
+function formatBytes(value: number): string {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getShareLinkStatus(link: WorkspaceReportDetail["shareLinks"][number]) {
+  if (link.revokedAt) return "Revoked";
+  if (link.expiresAt.getTime() <= Date.now()) return "Expired";
+  return "Active";
 }

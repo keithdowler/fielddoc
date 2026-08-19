@@ -108,7 +108,9 @@ export default async function ProjectDetailPage({
                   <h3>{section.label}</h3>
                   <p className="compactText">
                     {section.evidenceCount} evidence / {section.mediaCount}{" "}
-                    media / {section.documentCount} documents /{" "}
+                    media / {section.documentCount} documents (
+                    {section.visualDocumentCount} visual /{" "}
+                    {section.metadataOnlyDocumentCount} metadata) /{" "}
                     {section.annotationCount} notes
                   </p>
                 </div>
@@ -205,6 +207,11 @@ function EvidenceCard({ evidence }: { evidence: WorkspaceEvidenceItem }) {
               <strong>{document.title}</strong>
               <span>
                 {document.notes ?? "Document metadata synced from mobile"}
+              </span>
+              <span>
+                {evidence.visualDocumentCount} visual /{" "}
+                {evidence.metadataOnlyDocumentCount} metadata-only in this
+                evidence item
               </span>
               <span>Updated {formatDate(document.updatedAt)}</span>
             </div>

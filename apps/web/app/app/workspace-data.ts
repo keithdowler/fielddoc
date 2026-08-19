@@ -7,10 +7,15 @@ import {
 import {
   defaultReportSectionConfigs,
   getBetaReadinessSummary,
+  getProofPacketDocumentEntry,
+  getReportDeliveryReadiness,
   getReportDraftReadiness,
   type BetaReadinessSummary,
+  type Document,
   type EvidenceCategory,
+  type MediaAsset,
   type ProjectEvidenceSummary,
+  type ReportDeliveryReadiness,
   type ReportSectionConfig,
 } from "@fielddoc/domain";
 import {
@@ -70,6 +75,10 @@ export type WorkspaceReport = {
   updatedAt: Date;
   hasGeneratedPdf: boolean;
   generatedPdfObjectKey: string | null;
+  latestExportId: string | null;
+  latestExportUploadedAt: Date | null;
+  shareLinkCount: number;
+  activeShareLinkCount: number;
 };
 
 export type WorkspaceMediaAsset = {
@@ -104,8 +113,15 @@ export type WorkspaceDocument = {
   id: string;
   projectId: string;
   evidenceItemId: string | null;
+  mediaAssetId: string | null;
   title: string;
   notes: string | null;
+  fileName: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  sha256: string | null;
+  pageCount: number | null;
+  sourceType: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -129,6 +145,8 @@ export type WorkspaceEvidenceItem = {
   uploadedMediaCount: number;
   annotationCount: number;
   documentCount: number;
+  visualDocumentCount: number;
+  metadataOnlyDocumentCount: number;
   missingCaption: boolean;
 };
 
@@ -141,6 +159,8 @@ export type WorkspaceEvidenceSection = {
   uploadedMediaCount: number;
   annotationCount: number;
   documentCount: number;
+  visualDocumentCount: number;
+  metadataOnlyDocumentCount: number;
   importantCount: number;
   missingCaptionCount: number;
 };
@@ -169,8 +189,13 @@ export type WorkspaceReportDetail = WorkspaceReport & {
     documentCount: number;
     missingCaptionCount: number;
     importantCount: number;
+    visualDocumentCount: number;
+    metadataOnlyDocumentCount: number;
   };
   sectionConfig: ReportSectionConfig[];
+  deliveryReadiness: ReportDeliveryReadiness;
+  exports: WorkspaceReportExport[];
+  shareLinks: WorkspaceReportShareLink[];
 };
 
 export type WorkspaceData = {
@@ -184,6 +209,8 @@ export type WorkspaceData = {
   media: WorkspaceMediaAsset[];
   annotations: WorkspaceAnnotation[];
   documents: WorkspaceDocument[];
+  reportExports: WorkspaceReportExport[];
+  reportShareLinks: WorkspaceReportShareLink[];
   syncReceiptCount: number;
   rejectedSyncReceiptCount: number;
   reportExportCount: number;
@@ -199,6 +226,29 @@ export type WorkspaceAuditEvent = {
   eventType: string;
   entityType: string | null;
   entityId: string | null;
+  createdAt: Date;
+};
+
+export type WorkspaceReportExport = {
+  id: string;
+  reportDraftId: string;
+  storageObjectKey: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  generatedAt: Date;
+  uploadedAt: Date;
+  revokedAt: Date | null;
+};
+
+export type WorkspaceReportShareLink = {
+  id: string;
+  reportDraftId: string;
+  reportExportId: string;
+  expiresAt: Date;
+  revokedAt: Date | null;
+  lastAccessedAt: Date | null;
+  accessCount: number;
   createdAt: Date;
 };
 
@@ -366,8 +416,15 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
         id: documents.id,
         projectId: documents.projectId,
         evidenceItemId: documents.evidenceItemId,
+        mediaAssetId: documents.mediaAssetId,
         title: documents.title,
         notes: documents.notes,
+        fileName: documents.fileName,
+        mimeType: documents.mimeType,
+        sizeBytes: documents.sizeBytes,
+        sha256: documents.sha256,
+        pageCount: documents.pageCount,
+        sourceType: documents.sourceType,
         createdAt: documents.createdAt,
         updatedAt: documents.updatedAt,
       })
@@ -432,6 +489,14 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
   );
   const reportsByProject = countBy(reportRows, (row) => row.projectId);
   const projectNameById = new Map(projectRows.map((row) => [row.id, row.name]));
+  const reportExportsByDraft = groupBy(
+    diagnostics.reportExports,
+    (row) => row.reportDraftId,
+  );
+  const shareLinksByDraft = groupBy(
+    diagnostics.reportShareLinks,
+    (row) => row.reportDraftId,
+  );
   const mediaByEvidence = groupBy(
     mediaRows.map((media) => ({
       id: media.id,
@@ -465,6 +530,12 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
     const media = mediaByEvidence[row.id] ?? [];
     const annotations = annotationsByEvidence[row.id] ?? [];
     const evidenceDocuments = documentsByEvidence[row.id] ?? [];
+    const documentEntries = evidenceDocuments.map((document) =>
+      getProofPacketDocumentEntry(
+        toDomainDocument(document),
+        media.map(toDomainMediaAsset),
+      ),
+    );
 
     return {
       ...row,
@@ -476,6 +547,12 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
         .length,
       annotationCount: annotations.length,
       documentCount: evidenceDocuments.length,
+      visualDocumentCount: documentEntries.filter(
+        (document) => document.previewKind === "visual",
+      ).length,
+      metadataOnlyDocumentCount: documentEntries.filter(
+        (document) => document.previewKind === "metadata_only",
+      ).length,
       missingCaption:
         !row.caption?.trim() && !media.some((item) => item.caption?.trim()),
     };
@@ -510,13 +587,24 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       status: report.status,
       generatedAt: report.generatedAt,
       updatedAt: report.updatedAt,
-      hasGeneratedPdf: Boolean(report.generatedPdfObjectKey),
+      hasGeneratedPdf: Boolean(
+        report.generatedPdfObjectKey ?? reportExportsByDraft[report.id]?.[0],
+      ),
       generatedPdfObjectKey: report.generatedPdfObjectKey,
+      latestExportId: reportExportsByDraft[report.id]?.[0]?.id ?? null,
+      latestExportUploadedAt:
+        reportExportsByDraft[report.id]?.[0]?.uploadedAt ?? null,
+      shareLinkCount: shareLinksByDraft[report.id]?.length ?? 0,
+      activeShareLinkCount:
+        shareLinksByDraft[report.id]?.filter((link) => isShareLinkActive(link))
+          .length ?? 0,
     })),
     evidence,
     media,
     annotations: annotationRows,
     documents: documentRows,
+    reportExports: diagnostics.reportExports,
+    reportShareLinks: diagnostics.reportShareLinks,
     syncReceiptCount: receiptRows.length,
     rejectedSyncReceiptCount: receiptRows.filter(
       (receipt) => receipt.status === "rejected",
@@ -564,6 +652,8 @@ function emptyWorkspaceData(
     media: [],
     annotations: [],
     documents: [],
+    reportExports: [],
+    reportShareLinks: [],
     syncReceiptCount: 0,
     rejectedSyncReceiptCount: 0,
     reportExportCount: 0,
@@ -599,6 +689,8 @@ async function getOptionalWorkspaceDiagnostics(
 ): Promise<{
   reportExportCount: number;
   reportShareLinkCount: number;
+  reportExports: WorkspaceReportExport[];
+  reportShareLinks: WorkspaceReportShareLink[];
   auditEventCount: number;
   recentAuditEvents: WorkspaceAuditEvent[];
   warning: string | null;
@@ -611,13 +703,38 @@ async function getOptionalWorkspaceDiagnostics(
       auditEventRows,
     ] = await Promise.all([
       db
-        .select({ id: reportExports.id })
+        .select({
+          id: reportExports.id,
+          reportDraftId: reportExports.reportDraftId,
+          storageObjectKey: reportExports.storageObjectKey,
+          mimeType: reportExports.mimeType,
+          sizeBytes: reportExports.sizeBytes,
+          sha256: reportExports.sha256,
+          generatedAt: reportExports.generatedAt,
+          uploadedAt: reportExports.uploadedAt,
+          revokedAt: reportExports.revokedAt,
+        })
         .from(reportExports)
-        .where(eq(reportExports.organizationId, organizationId)),
+        .where(eq(reportExports.organizationId, organizationId))
+        .orderBy(desc(reportExports.uploadedAt)),
       db
-        .select({ id: reportShareLinks.id })
+        .select({
+          id: reportShareLinks.id,
+          reportDraftId: reportExports.reportDraftId,
+          reportExportId: reportShareLinks.reportExportId,
+          expiresAt: reportShareLinks.expiresAt,
+          revokedAt: reportShareLinks.revokedAt,
+          lastAccessedAt: reportShareLinks.lastAccessedAt,
+          accessCount: reportShareLinks.accessCount,
+          createdAt: reportShareLinks.createdAt,
+        })
         .from(reportShareLinks)
-        .where(eq(reportShareLinks.organizationId, organizationId)),
+        .innerJoin(
+          reportExports,
+          eq(reportShareLinks.reportExportId, reportExports.id),
+        )
+        .where(eq(reportShareLinks.organizationId, organizationId))
+        .orderBy(desc(reportShareLinks.createdAt)),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(auditEvents)
@@ -639,6 +756,8 @@ async function getOptionalWorkspaceDiagnostics(
     return {
       reportExportCount: reportExportRows.length,
       reportShareLinkCount: reportShareLinkRows.length,
+      reportExports: reportExportRows,
+      reportShareLinks: reportShareLinkRows,
       auditEventCount: auditEventCountRows[0]?.count ?? 0,
       recentAuditEvents: auditEventRows,
       warning: null,
@@ -647,6 +766,8 @@ async function getOptionalWorkspaceDiagnostics(
     return {
       reportExportCount: 0,
       reportShareLinkCount: 0,
+      reportExports: [],
+      reportShareLinks: [],
       auditEventCount: 0,
       recentAuditEvents: [],
       warning:
@@ -712,12 +833,48 @@ export function getReportDetailFromWorkspaceData(
         ?.included,
   );
   const totals = summarizeEvidenceSections(sections);
+  const reportExportsForDraft = workspace.reportExports.filter(
+    (item) => item.reportDraftId === report.id && !item.revokedAt,
+  );
+  const shareLinksForDraft = workspace.reportShareLinks.filter(
+    (item) => item.reportDraftId === report.id,
+  );
+  const activeShareLinksForDraft = shareLinksForDraft.filter(isShareLinkActive);
+  const uploadedMediaCount = sections.reduce(
+    (count, section) => count + section.uploadedMediaCount,
+    0,
+  );
+  const documentCount = sections.reduce(
+    (count, section) => count + section.documentCount,
+    0,
+  );
+  const visualDocumentCount = sections.reduce(
+    (count, section) => count + section.visualDocumentCount,
+    0,
+  );
+  const metadataOnlyDocumentCount = sections.reduce(
+    (count, section) => count + section.metadataOnlyDocumentCount,
+    0,
+  );
+  const readiness = getReportDraftReadiness(totals, sectionConfig);
+  const deliveryReadiness = getReportDeliveryReadiness({
+    reportReady: readiness.ready,
+    hasGeneratedPdf: report.hasGeneratedPdf || reportExportsForDraft.length > 0,
+    reportPdfUploaded: reportExportsForDraft.length > 0,
+    mediaCount: totals.mediaAssetCount ?? 0,
+    uploadedMediaCount,
+    missingCaptionCount: totals.missingCaptionCount,
+    documentCount,
+    visualDocumentCount,
+    metadataOnlyDocumentCount,
+    shareLinkCount: activeShareLinksForDraft.length,
+  });
 
   return {
     ...report,
     project,
     sections,
-    readiness: getReportDraftReadiness(totals, sectionConfig),
+    readiness,
     totals: {
       evidenceCount:
         totals.beforeCount +
@@ -726,22 +883,21 @@ export function getReportDetailFromWorkspaceData(
         totals.documentCount +
         (totals.otherCount ?? 0),
       mediaCount: totals.mediaAssetCount ?? 0,
-      uploadedMediaCount: sections.reduce(
-        (count, section) => count + section.uploadedMediaCount,
-        0,
-      ),
+      uploadedMediaCount,
       annotationCount: sections.reduce(
         (count, section) => count + section.annotationCount,
         0,
       ),
-      documentCount: sections.reduce(
-        (count, section) => count + section.documentCount,
-        0,
-      ),
+      documentCount,
       missingCaptionCount: totals.missingCaptionCount,
       importantCount: totals.importantCount ?? 0,
+      visualDocumentCount,
+      metadataOnlyDocumentCount,
     },
     sectionConfig,
+    deliveryReadiness,
+    exports: reportExportsForDraft,
+    shareLinks: shareLinksForDraft,
   };
 }
 
@@ -754,6 +910,69 @@ function countBy<T>(
     counts[key] = (counts[key] ?? 0) + 1;
     return counts;
   }, {});
+}
+
+function isShareLinkActive(link: WorkspaceReportShareLink): boolean {
+  return !link.revokedAt && link.expiresAt.getTime() > Date.now();
+}
+
+function toDomainDocument(document: WorkspaceDocument): Document {
+  return {
+    id: document.id,
+    projectId: document.projectId,
+    evidenceItemId: document.evidenceItemId,
+    mediaAssetId: document.mediaAssetId,
+    title: document.title,
+    notes: document.notes,
+    fileName: document.fileName,
+    mimeType: document.mimeType,
+    sizeBytes: document.sizeBytes,
+    sha256: document.sha256,
+    pageCount: document.pageCount,
+    sourceType:
+      document.sourceType === "CAMERA_PHOTO" ||
+      document.sourceType === "PHOTO_LIBRARY" ||
+      document.sourceType === "DOCUMENT_SCAN" ||
+      document.sourceType === "FILE_IMPORT"
+        ? document.sourceType
+        : null,
+    createdAt: document.createdAt.toISOString(),
+    updatedAt: document.updatedAt.toISOString(),
+    deletedAt: null,
+    syncState: "SYNCED",
+  };
+}
+
+function toDomainMediaAsset(media: WorkspaceMediaAsset): MediaAsset {
+  return {
+    id: media.id,
+    evidenceItemId: media.evidenceItemId,
+    localUri: "",
+    storageObjectKey: media.hasUploadedOriginal ? "uploaded" : null,
+    mediaType:
+      media.mediaType === "IMAGE" ||
+      media.mediaType === "VIDEO" ||
+      media.mediaType === "DOCUMENT" ||
+      media.mediaType === "OTHER"
+        ? media.mediaType
+        : "OTHER",
+    mimeType: media.mimeType,
+    sizeBytes: media.sizeBytes,
+    sha256: media.sha256,
+    width: null,
+    height: null,
+    caption: media.caption,
+    notes: media.notes,
+    captureTimestamp: media.captureTimestamp.toISOString(),
+    sourceType: "FILE_IMPORT",
+    originalAssetId: null,
+    derivativeType: null,
+    uploadedAt: media.uploadedAt?.toISOString() ?? null,
+    createdAt: media.captureTimestamp.toISOString(),
+    updatedAt: media.captureTimestamp.toISOString(),
+    deletedAt: null,
+    syncState: "SYNCED",
+  };
 }
 
 function groupBy<T>(
@@ -792,6 +1011,14 @@ function buildEvidenceSections(
       ),
       documentCount: evidence.reduce(
         (count, item) => count + item.documentCount,
+        0,
+      ),
+      visualDocumentCount: evidence.reduce(
+        (count, item) => count + item.visualDocumentCount,
+        0,
+      ),
+      metadataOnlyDocumentCount: evidence.reduce(
+        (count, item) => count + item.metadataOnlyDocumentCount,
         0,
       ),
       importantCount: evidence.filter((item) => item.isImportant).length,

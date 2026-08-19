@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Last groomed: 2026-08-18 after beta readiness and operations sprint
+Last groomed: 2026-08-18 after document proof delivery sprint
 
 Priority legend: P0 critical, P1 high, P2 medium, P3 low.
 
@@ -20,7 +20,7 @@ follow-up is listed below.
 | Capture speed          | Mobile Capture has sticky before/work/after stage controls, quick captioning, next-stage control, and batch photo import.                                          | Camera loop, retake/replace, scanner mode.                                      |
 | Web workspace          | Authenticated web dashboard/projects/reports/settings now read tenant-scoped Neon data instead of placeholder-only content.                                        | Project detail, report downloads, branding management, share links.             |
 | App build readiness    | EAS profiles, initial iOS/Android identifiers, build numbers, and privacy/terms env placeholders exist.                                                            | Real App Store review package, account deletion, restore purchases, legal URLs. |
-| Canonical sync apply   | Project, EvidenceItem, MediaAsset, Annotation, and ReportDraft mutations apply to canonical Neon tables after auth.                                                | Customer/Site/Document canonical application, pull sync, conflict detection.    |
+| Canonical sync apply   | Project, EvidenceItem, MediaAsset, Annotation, Document, and ReportDraft mutations apply to canonical Neon tables after auth.                                      | Customer/Site canonical application, stable pull cursors, conflict review UI.   |
 | Cloud media foundation | Web can prepare authenticated signed private upload/download URLs; media upload state syncs through local and canonical rows.                                      | Live R2/device verification, object-existence verification.                     |
 | Important evidence     | Evidence can be marked important locally, synced canonically, counted in readiness, shown in web lists, and rendered in PDFs.                                      | Visual polish and filtering for important-only review.                          |
 | Media upload queue     | Mobile has a tested queue for prepare URL, binary PUT, complete upload, and local upload-state reconciliation.                                                     | Background retry controls and user-configurable upload constraints.             |
@@ -38,6 +38,7 @@ follow-up is listed below.
 | Setup visibility       | Web Settings shows exact missing production environment variable names and the repo includes a remote provider setup hit list.                                     | User must still configure RevenueCat, Resend, Sentry, legal URLs, and stores.   |
 | Beta readiness         | Shared domain readiness summary now scores tenant, storage, field evidence, report archive, sync receipts, audit, legal, billing, email, and observability setup.  | Field evidence volume, Resend, Sentry, legal URLs, and App Store submission.    |
 | Operations visibility  | Web dashboard/settings now show readiness stage, score, blockers, warnings, and attention queues; mobile Settings has a Sync Center for the normal upload path.    | Background sync, conflict review UI, admin filtering, and provider runbooks.    |
+| Document proof quality | Report assembly, local PDFs, mobile report previews, and web report/project review now classify attached documents as visual, metadata-only, or incomplete.        | Native page rendering/previews and scanner-quality document capture.            |
 
 ## Active P1 Backlog
 

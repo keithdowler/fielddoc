@@ -79,12 +79,19 @@ describe("workspace detail read models", () => {
         mediaCount: 2,
         uploadedMediaCount: 1,
         annotationCount: 1,
+        documentCount: 1,
         missingCaptionCount: 1,
         importantCount: 1,
+        visualDocumentCount: 1,
+        metadataOnlyDocumentCount: 0,
       },
       readiness: {
         ready: false,
         missing: expect.arrayContaining(["After evidence", "Captions"]),
+      },
+      deliveryReadiness: {
+        ready: false,
+        status: "needs_captions",
       },
     });
     expect(detail?.sections.map((section) => section.category)).toEqual([
@@ -123,8 +130,16 @@ function createWorkspaceData(): WorkspaceData {
       id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       projectId,
       evidenceItemId: beforeEvidenceId,
+      mediaAssetId: media[0]?.id ?? null,
       title: "Signed work authorization",
       notes: "Imported PDF",
+      fileName: "authorization.jpg",
+      mimeType: "image/jpeg",
+      sizeBytes: 2048,
+      sha256:
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      pageCount: 1,
+      sourceType: "DOCUMENT_SCAN",
       createdAt: at("2026-08-17T11:10:00.000Z"),
       updatedAt: at("2026-08-17T11:10:00.000Z"),
     },
@@ -171,6 +186,32 @@ function createWorkspaceData(): WorkspaceData {
     media,
     annotations,
     documents,
+    reportExports: [
+      {
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        reportDraftId: reportId,
+        storageObjectKey: "organizations/org/reports/report/export.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 4096,
+        sha256:
+          "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
+        generatedAt: at("2026-08-17T12:10:00.000Z"),
+        uploadedAt: at("2026-08-17T12:20:00.000Z"),
+        revokedAt: null,
+      },
+    ],
+    reportShareLinks: [
+      {
+        id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        reportDraftId: reportId,
+        reportExportId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        expiresAt: at("2026-08-24T12:20:00.000Z"),
+        revokedAt: null,
+        lastAccessedAt: null,
+        accessCount: 0,
+        createdAt: at("2026-08-17T12:21:00.000Z"),
+      },
+    ],
     syncReceiptCount: 4,
     rejectedSyncReceiptCount: 0,
     reportExportCount: 1,
@@ -247,6 +288,10 @@ function createReport(): WorkspaceReport {
     updatedAt: at("2026-08-17T12:05:00.000Z"),
     hasGeneratedPdf: false,
     generatedPdfObjectKey: null,
+    latestExportId: null,
+    latestExportUploadedAt: null,
+    shareLinkCount: 0,
+    activeShareLinkCount: 0,
   };
 }
 
@@ -283,6 +328,8 @@ function createEvidenceItem(
       .length,
     annotationCount: input.annotations.length,
     documentCount: input.documents.length,
+    visualDocumentCount: input.documents.length,
+    metadataOnlyDocumentCount: 0,
     missingCaption:
       !input.caption?.trim() &&
       !input.media.some((item) => item.caption?.trim()),

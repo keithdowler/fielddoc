@@ -28,6 +28,9 @@ If mobile reports rejected metadata:
 - Open web Settings and check Rejected receipts.
 - Inspect the mutation entity type in API logs.
 - Confirm the Neon schema includes the current migration set.
+- For document metadata and report delivery readiness, confirm
+  `packages/database/migrations/0007_document_metadata.sql` has been applied in
+  Neon.
 - Do not delete local data until the rejected receipt is understood.
 
 If original media or PDFs do not upload:

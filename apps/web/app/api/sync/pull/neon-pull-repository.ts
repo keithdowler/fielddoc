@@ -14,6 +14,7 @@ import {
   reportDrafts,
   users,
 } from "@fielddoc/database";
+import { mediaSourceTypes, type MediaSourceType } from "@fielddoc/domain";
 import type {
   SyncPullAnnotation,
   SyncPullChanges,
@@ -294,13 +295,30 @@ function toDocument(row: typeof documents.$inferSelect): SyncPullDocument {
     id: row.id,
     projectId: row.projectId,
     evidenceItemId: row.evidenceItemId,
+    mediaAssetId: row.mediaAssetId,
     title: row.title,
     notes: row.notes,
+    fileName: row.fileName,
+    mimeType: row.mimeType,
+    sizeBytes: row.sizeBytes,
+    sha256: row.sha256,
+    pageCount: row.pageCount,
+    sourceType: toMediaSourceType(row.sourceType),
     createdAt: toRequiredIso(row.createdAt),
     updatedAt: toRequiredIso(row.updatedAt),
     deletedAt: toIso(row.deletedAt),
     serverVersion: row.serverVersion,
   };
+}
+
+function toMediaSourceType(value: string | null): MediaSourceType | null {
+  if (value === null) {
+    return null;
+  }
+
+  return mediaSourceTypes.includes(value as MediaSourceType)
+    ? (value as MediaSourceType)
+    : null;
 }
 
 function toReportDraft(

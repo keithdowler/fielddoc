@@ -1,6 +1,7 @@
 import {
   assembleProofPacketPreview,
   defaultReportSectionConfigs,
+  getReportDeliveryReadiness,
   getReportDraftReadiness,
   getReportSectionEvidenceCount,
   normalizeReportSections,
@@ -74,6 +75,17 @@ export default function ReportsScreen() {
   const [statusMessage, setStatusMessage] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
   const readiness = getReportDraftReadiness(summary, sections);
+  const deliveryReadiness = getReportDeliveryReadiness({
+    reportReady: readiness.ready,
+    hasGeneratedPdf: Boolean(draft?.generatedPdfUri),
+    reportPdfUploaded: Boolean(draft?.generatedPdfUploadedAt),
+    mediaCount: preview?.totals.mediaAssets ?? summary.mediaAssetCount ?? 0,
+    uploadedMediaCount: preview ? countUploadedPreviewMedia(preview) : 0,
+    missingCaptionCount: summary.missingCaptionCount,
+    documentCount: preview?.totals.documents ?? summary.documentCount,
+    visualDocumentCount: preview?.totals.visualDocuments ?? 0,
+    metadataOnlyDocumentCount: preview?.totals.metadataOnlyDocuments ?? 0,
+  });
   const hasUnsavedDraftChanges =
     !!draft &&
     (title !== draft.title ||
@@ -475,6 +487,16 @@ export default function ReportsScreen() {
         }
       />
 
+      <StatusBanner
+        tone={deliveryReadiness.ready ? "success" : "warning"}
+        title={deliveryReadiness.label}
+        message={
+          deliveryReadiness.ready
+            ? deliveryReadiness.detail
+            : (deliveryReadiness.blockers[0] ?? deliveryReadiness.detail)
+        }
+      />
+
       <Card>
         <SectionHeader
           title="Project"
@@ -628,6 +650,15 @@ export default function ReportsScreen() {
               value={preview.totals.mediaAssets}
             />
             <MetricRow label="Annotations" value={preview.totals.annotations} />
+            <MetricRow label="Documents" value={preview.totals.documents} />
+            <MetricRow
+              label="Visual documents"
+              value={preview.totals.visualDocuments}
+            />
+            <MetricRow
+              label="Metadata-only documents"
+              value={preview.totals.metadataOnlyDocuments}
+            />
             {preview.sections.map((section, sectionIndex) => (
               <View
                 key={section.category}
@@ -650,7 +681,8 @@ export default function ReportsScreen() {
                       </AppText>
                       <AppText variant="small" muted>
                         {formatDate(entry.capturedAt)} | {entry.mediaCount}{" "}
-                        media | {entry.annotationCount} notes
+                        media | {entry.documentCount} documents |{" "}
+                        {entry.annotationCount} notes
                       </AppText>
                       {entry.isImportant ? (
                         <AppText variant="small">Important evidence</AppText>
@@ -665,6 +697,20 @@ export default function ReportsScreen() {
                       >
                         {entry.caption ?? "Caption needed"}
                       </AppText>
+                      {entry.documents.length ? (
+                        <View style={styles.previewStack}>
+                          {entry.documents.map((documentEntry) => (
+                            <AppText
+                              key={documentEntry.document.id}
+                              variant="small"
+                              muted
+                            >
+                              {documentEntry.document.title}:{" "}
+                              {documentEntry.label}
+                            </AppText>
+                          ))}
+                        </View>
+                      ) : null}
                     </View>
                   ))
                 ) : (
@@ -824,8 +870,8 @@ export default function ReportsScreen() {
       </Card>
       <StatusBanner
         tone="info"
-        title="Local files only"
-        message="Local report history stays on this device. Cloud upload, share links, sync, and Vercel Workflows remain out of scope."
+        title="Delivery path"
+        message="Generate locally first, then use Settings to sync metadata, archive originals and PDFs, and review share links on web."
       />
     </AppScreen>
   );
@@ -838,9 +884,10 @@ async function assembleLocalProofPacketPreview(
   const repositories = await getLocalRepositories();
   const evidenceItems = await repositories.evidence.listByProject(project.id);
   const evidenceIds = evidenceItems.map((evidence) => evidence.id);
-  const [mediaAssets, annotations] = await Promise.all([
+  const [mediaAssets, annotations, documents] = await Promise.all([
     repositories.media.listByEvidenceIds(evidenceIds),
     repositories.annotations.listByEvidenceIds(evidenceIds),
+    repositories.documents.listByProject(project.id),
   ]);
 
   return assembleProofPacketPreview({
@@ -855,7 +902,25 @@ async function assembleLocalProofPacketPreview(
       annotations,
       (annotation) => annotation.evidenceItemId,
     ),
+    documentsByEvidenceId: groupByEvidenceId(
+      documents.filter((document) => document.evidenceItemId),
+      (document) => document.evidenceItemId ?? "",
+    ),
   });
+}
+
+function countUploadedPreviewMedia(preview: ProofPacketPreview): number {
+  return preview.sections.reduce(
+    (sectionCount, section) =>
+      sectionCount +
+      section.evidenceItems.reduce(
+        (entryCount, entry) =>
+          entryCount +
+          entry.mediaAssets.filter((media) => media.uploadedAt).length,
+        0,
+      ),
+    0,
+  );
 }
 
 function groupByEvidenceId<T>(
