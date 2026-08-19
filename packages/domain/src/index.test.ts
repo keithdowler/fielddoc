@@ -591,12 +591,58 @@ describe("domain constants", () => {
     ).toMatchObject({
       previewKind: "visual",
       visualMediaAssetId: visualMedia.id,
+      visualMediaAssetIds: [visualMedia.id],
+      visualPageCount: 1,
     });
     expect(
       getProofPacketDocumentEntry(incompleteDocument, [visualMedia]),
     ).toMatchObject({
       previewKind: "incomplete",
       missingMetadata: ["file name", "mime type", "file size", "SHA-256"],
+    });
+  });
+
+  it("classifies multi-page scanned documents as visual proof", () => {
+    const firstPage = createMediaAsset({
+      id: "media-doc-page-1",
+      evidenceItemId: "evidence-doc-pages",
+      caption: "Authorization page 1",
+      captureTimestamp: "2026-08-17T14:10:00.000Z",
+      sourceType: "DOCUMENT_SCAN",
+      sha256:
+        "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
+    });
+    const secondPage = createMediaAsset({
+      id: "media-doc-page-2",
+      evidenceItemId: "evidence-doc-pages",
+      caption: "Authorization page 2",
+      captureTimestamp: "2026-08-17T14:11:00.000Z",
+      sourceType: "DOCUMENT_SCAN",
+      sha256:
+        "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7",
+    });
+    const document = createDocument({
+      id: "document-pages",
+      projectId: "project-docs",
+      evidenceItemId: "evidence-doc-pages",
+      mediaAssetId: firstPage.id,
+      title: "Two-page authorization",
+      fileName: "two-page-authorization.scanned-pages",
+      mimeType: "image/jpeg",
+      pageCount: 2,
+      sizeBytes: firstPage.sizeBytes + secondPage.sizeBytes,
+      sourceType: "DOCUMENT_SCAN",
+    });
+
+    expect(
+      getProofPacketDocumentEntry(document, [secondPage, firstPage]),
+    ).toMatchObject({
+      previewKind: "visual",
+      visualMediaAssetId: firstPage.id,
+      visualMediaAssetIds: [firstPage.id, secondPage.id],
+      visualPageCount: 2,
+      missingMetadata: [],
+      label: "Visual document pages",
     });
   });
 
@@ -676,7 +722,9 @@ function createMediaAsset(
     MediaAsset,
     "id" | "evidenceItemId" | "caption" | "captureTimestamp"
   > &
-    Partial<Pick<MediaAsset, "mediaType" | "mimeType" | "sha256">>,
+    Partial<
+      Pick<MediaAsset, "mediaType" | "mimeType" | "sha256" | "sourceType">
+    >,
 ): MediaAsset {
   const mediaType = input.mediaType ?? "IMAGE";
   const mimeType = input.mimeType ?? "image/jpeg";
@@ -692,7 +740,7 @@ function createMediaAsset(
     width: 800,
     height: 600,
     notes: null,
-    sourceType: "CAMERA_PHOTO",
+    sourceType: input.sourceType ?? "CAMERA_PHOTO",
     originalAssetId: null,
     derivativeType: null,
     uploadedAt: null,
@@ -727,6 +775,8 @@ function createDocument(
         | "sizeBytes"
         | "sha256"
         | "notes"
+        | "pageCount"
+        | "sourceType"
       >
     >,
 ): Document {
@@ -741,8 +791,8 @@ function createDocument(
     mimeType: input.mimeType ?? null,
     sizeBytes: input.sizeBytes ?? null,
     sha256: input.sha256 ?? null,
-    pageCount: null,
-    sourceType: "DOCUMENT_SCAN",
+    pageCount: input.pageCount ?? null,
+    sourceType: input.sourceType ?? "DOCUMENT_SCAN",
     createdAt: "2026-08-17T14:10:00.000Z",
     updatedAt: "2026-08-17T14:10:00.000Z",
     deletedAt: null,

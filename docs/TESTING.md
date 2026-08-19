@@ -25,6 +25,12 @@ Sprint 3 extends repository coverage to local media asset metadata, media outbox
 
 Native picker flows are manually verified because camera, photo library, document picker, and app document storage depend on simulator/device capabilities.
 
+Sprint 31 adds domain coverage for multi-page scanned document proof
+classification and repository coverage for one document linked to multiple
+visual page originals. Manual coverage should verify Scan Document captures
+multiple pages into one evidence item, each page remains visible in Evidence
+Detail, and the generated Proof Packet labels document pages with page hashes.
+
 ## Sprint 4 Caption And Annotation Tests
 
 Sprint 4 adds repository tests for the media caption migration, media caption/notes updates, media restore, annotation creation, annotation soft delete, annotation restore, and generated outbox mutations. Manual coverage should verify the Capture evidence detail panel, image previews, media caption form, annotation form, and delete/restore controls on simulator or development build.

@@ -213,6 +213,24 @@ function EvidenceCard({ evidence }: { evidence: WorkspaceEvidenceItem }) {
                 {evidence.metadataOnlyDocumentCount} metadata-only in this
                 evidence item
               </span>
+              <span>
+                {[
+                  document.pageCount
+                    ? `${document.pageCount} ${
+                        document.pageCount === 1 ? "page" : "pages"
+                      }`
+                    : null,
+                  document.sourceType === "DOCUMENT_SCAN"
+                    ? "scanned"
+                    : document.sourceType?.toLowerCase().replaceAll("_", " "),
+                  document.mimeType,
+                ]
+                  .filter(Boolean)
+                  .join(" / ")}
+              </span>
+              {document.sha256 ? (
+                <span>SHA-256 {document.sha256.slice(0, 16)}</span>
+              ) : null}
               <span>Updated {formatDate(document.updatedAt)}</span>
             </div>
           ))}

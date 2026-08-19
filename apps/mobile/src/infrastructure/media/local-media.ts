@@ -4,7 +4,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
-import { Image } from "react-native";
+import { Alert, Image } from "react-native";
 
 import { createLocalId } from "@/infrastructure/local-store/id";
 import {
@@ -63,33 +63,55 @@ export async function captureCameraPhoto(): Promise<PreparedLocalMediaAsset | nu
 }
 
 export async function captureDocumentScan(): Promise<PreparedLocalMediaAsset | null> {
+  const pages = await captureDocumentScanBatch(1);
+  return pages[0] ?? null;
+}
+
+export async function captureDocumentScanBatch(
+  maxPages = 12,
+): Promise<PreparedLocalMediaAsset[]> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) {
     throw new Error("Camera permission is required to scan a document.");
   }
 
-  const result = await ImagePicker.launchCameraAsync({
-    mediaTypes: ["images"],
-    quality: 1,
-    exif: false,
-  });
+  const pages: PreparedLocalMediaAsset[] = [];
+  let shouldContinue = true;
 
-  if (result.canceled) return null;
+  while (shouldContinue && pages.length < maxPages) {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 1,
+      exif: false,
+    });
 
-  const asset = result.assets[0];
-  if (!asset) return null;
+    if (result.canceled) break;
 
-  return prepareLocalMediaAsset({
-    uri: asset.uri,
-    sourceType: "DOCUMENT_SCAN",
-    mimeType: asset.mimeType,
-    sizeBytes: asset.fileSize,
-    width: normalizeDimension(asset.width),
-    height: normalizeDimension(asset.height),
-    fileName: asset.fileName ?? "Scanned document page",
-    originalAssetId: asset.assetId,
-    captureTimestamp: new Date().toISOString(),
-  });
+    const asset = result.assets[0];
+    if (!asset) break;
+
+    const pageNumber = pages.length + 1;
+    pages.push(
+      await prepareLocalMediaAsset({
+        uri: asset.uri,
+        sourceType: "DOCUMENT_SCAN",
+        mimeType: asset.mimeType,
+        sizeBytes: asset.fileSize,
+        width: normalizeDimension(asset.width),
+        height: normalizeDimension(asset.height),
+        fileName: asset.fileName ?? `Scanned document page ${pageNumber}`,
+        originalAssetId: asset.assetId,
+        captureTimestamp: new Date().toISOString(),
+      }),
+    );
+
+    shouldContinue =
+      pages.length < maxPages
+        ? await confirmAdditionalDocumentPage(pages.length)
+        : false;
+  }
+
+  return pages;
 }
 
 export async function pickPhotoLibraryMedia(): Promise<PreparedLocalMediaAsset | null> {
@@ -199,6 +221,32 @@ function getEvidenceStorageDirectory(): string {
   }
 
   return `${FileSystem.documentDirectory}evidence-originals/`;
+}
+
+function confirmAdditionalDocumentPage(
+  savedPageCount: number,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      "Document page saved",
+      `${savedPageCount} ${savedPageCount === 1 ? "page" : "pages"} captured. Add another page to the same document?`,
+      [
+        {
+          text: "Done",
+          style: "cancel",
+          onPress: () => resolve(false),
+        },
+        {
+          text: "Add Page",
+          onPress: () => resolve(true),
+        },
+      ],
+      {
+        cancelable: true,
+        onDismiss: () => resolve(false),
+      },
+    );
+  });
 }
 
 async function sha256File(uri: string): Promise<string> {

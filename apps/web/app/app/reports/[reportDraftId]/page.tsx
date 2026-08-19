@@ -300,6 +300,19 @@ export default async function ReportDetailPage({
                             <li key={document.id}>
                               {document.title}
                               {document.notes ? ` / ${document.notes}` : ""}
+                              {document.pageCount
+                                ? ` / ${document.pageCount} ${
+                                    document.pageCount === 1 ? "page" : "pages"
+                                  }`
+                                : ""}
+                              {document.sourceType === "DOCUMENT_SCAN"
+                                ? " / scanned"
+                                : document.sourceType
+                                  ? ` / ${document.sourceType.toLowerCase().replaceAll("_", " ")}`
+                                  : ""}
+                              {document.sha256
+                                ? ` / SHA-256 ${document.sha256.slice(0, 16)}`
+                                : ""}
                             </li>
                           ))}
                         </ul>

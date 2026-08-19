@@ -23,8 +23,9 @@ rows, captions, annotations, media counts, MIME types, file sizes, SHA-256
 metadata, available local image originals, imported document metadata, and
 local report branding fields. Supporting documents attached to included
 evidence render as appendix cards classified as visual, metadata-only, or
-incomplete. Non-image document pages are referenced with hashes and file
-metadata rather than visually embedded.
+incomplete. Multi-page camera document scans render as visual pages with
+per-page SHA-256 references. Non-image document pages are referenced with
+hashes and file metadata rather than visually embedded.
 
 ## Current Local Open And Share
 
@@ -69,4 +70,4 @@ The renderer must not mutate original files. Any transformed images, thumbnails,
 - customer delivery tracking
 - legal-admissibility claims
 - immutable server-side export history
-- native document page rasterization and OCR
+- native document edge detection, page cleanup, rasterization, and OCR

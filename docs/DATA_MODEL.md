@@ -167,6 +167,19 @@ report-readiness surfaces to distinguish visual, metadata-only, and incomplete
 document evidence without duplicating original binaries outside private object
 storage.
 
+Sprint 31 uses the existing document and media shape for multi-page scanned
+paperwork. One scanned document is represented as:
+
+- one `DOCUMENT` evidence item
+- one `documents` row with `source_type = DOCUMENT_SCAN` and `page_count`
+- one or more immutable `media_assets` rows with `source_type = DOCUMENT_SCAN`
+  for each captured page
+
+The document row may not have an aggregate SHA-256 when the user captured
+multiple image pages rather than importing one file. Each page still has its own
+immutable SHA-256 in `media_assets`, and Proof Packet assembly treats those page
+hashes as the visual document integrity evidence.
+
 Sprint 21 adds cloud report archival metadata:
 
 - Local `report_drafts` now track `generated_pdf_storage_object_key`,

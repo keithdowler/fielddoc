@@ -1,5 +1,6 @@
 import {
   type Annotation,
+  type Document,
   evidenceCategories,
   type EvidenceCategory,
   type EvidenceItem,
@@ -22,7 +23,7 @@ import { StatusBanner } from "@/components/status-banner";
 import { spacing } from "@/design/tokens";
 import {
   captureCameraPhoto,
-  captureDocumentScan,
+  captureDocumentScanBatch,
   importLocalFile,
   pickPhotoLibraryMedia,
   pickPhotoLibraryMediaBatch,
@@ -65,6 +66,7 @@ export default function CaptureScreen() {
   const [editingMediaId, setEditingMediaId] = useState<string>();
   const [mediaCaption, setMediaCaption] = useState("");
   const [mediaNotes, setMediaNotes] = useState("");
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [annotationBody, setAnnotationBody] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
@@ -189,6 +191,11 @@ export default function CaptureScreen() {
 
     try {
       setBusySource(sourceType);
+      if (sourceType === "DOCUMENT_SCAN") {
+        await addDocumentScanEvidence();
+        return;
+      }
+
       const preparedMediaItems = await pickMedia(sourceType);
       if (!preparedMediaItems.length) {
         setStatusMessage("Media selection canceled.");
@@ -285,6 +292,81 @@ export default function CaptureScreen() {
     }
   }
 
+  async function addDocumentScanEvidence() {
+    if (!projectId) return;
+
+    const preparedPages = await captureDocumentScanBatch();
+    if (!preparedPages.length) {
+      setStatusMessage("Document scan canceled.");
+      setErrorMessage(undefined);
+      return;
+    }
+
+    const repositories = await getLocalRepositories();
+    const pageCount = preparedPages.length;
+    const evidenceTitle =
+      title ||
+      (pageCount === 1
+        ? "Scanned document"
+        : `Scanned document (${pageCount} pages)`);
+    const evidence = await repositories.evidence.create({
+      projectId,
+      category: "DOCUMENT",
+      title: evidenceTitle,
+      caption,
+      notes,
+      isImportant,
+      captureTimestamp:
+        preparedPages[0]?.captureTimestamp ?? new Date().toISOString(),
+    });
+
+    const mediaAssetsForDocument: MediaAsset[] = [];
+    for (const [index, page] of preparedPages.entries()) {
+      const mediaAsset = await repositories.media.create({
+        evidenceItemId: evidence.id,
+        ...page,
+        caption: caption || `${evidenceTitle} page ${index + 1}`,
+        notes,
+      });
+      mediaAssetsForDocument.push(mediaAsset);
+    }
+
+    const sizeBytes = mediaAssetsForDocument.reduce(
+      (total, mediaAsset) => total + mediaAsset.sizeBytes,
+      0,
+    );
+    const mimeTypes = new Set(
+      mediaAssetsForDocument.map((mediaAsset) => mediaAsset.mimeType),
+    );
+
+    await repositories.documents.create({
+      projectId,
+      evidenceItemId: evidence.id,
+      mediaAssetId: mediaAssetsForDocument[0]?.id ?? null,
+      title: evidenceTitle,
+      notes,
+      fileName:
+        pageCount === 1
+          ? (preparedPages[0]?.displayName ?? evidenceTitle)
+          : `${evidenceTitle}.scanned-pages`,
+      mimeType:
+        mimeTypes.size === 1 ? (preparedPages[0]?.mimeType ?? null) : "image/*",
+      sizeBytes,
+      sha256: null,
+      pageCount,
+      sourceType: "DOCUMENT_SCAN",
+    });
+
+    setStatusMessage(
+      `${pageCount} scanned document ${pageCount === 1 ? "page" : "pages"} saved as one document.`,
+    );
+    await reloadEvidence(projectId);
+    setSelectedEvidenceId(evidence.id);
+    await reloadEvidenceDetail(evidence.id, mediaAssetsForDocument[0]?.id);
+    resetEvidenceForm();
+    setErrorMessage(undefined);
+  }
+
   async function deleteEvidenceMetadata(id: string) {
     const repositories = await getLocalRepositories();
     await repositories.evidence.delete(id);
@@ -338,12 +420,22 @@ export default function CaptureScreen() {
     );
   }
 
+  async function reloadDocuments(evidenceId: string) {
+    const repositories = await getLocalRepositories();
+    setDocuments(
+      await repositories.documents.listByEvidenceItem(evidenceId, {
+        includeDeleted: true,
+      }),
+    );
+  }
+
   async function reloadEvidenceDetail(
     evidenceId: string,
     preferredMediaId?: string,
   ) {
     await Promise.all([
       reloadMedia(evidenceId, preferredMediaId),
+      reloadDocuments(evidenceId),
       reloadAnnotations(evidenceId),
     ]);
   }
@@ -493,6 +585,7 @@ export default function CaptureScreen() {
   function clearEvidenceDetail() {
     setSelectedEvidenceId(undefined);
     setMediaAssets([]);
+    setDocuments([]);
     setAnnotations([]);
     setAnnotationBody("");
     resetMediaForm();
@@ -512,7 +605,7 @@ export default function CaptureScreen() {
     sourceType: MediaSourceType,
   ): Promise<PreparedLocalMediaAsset[]> {
     if (sourceType === "CAMERA_PHOTO") return pickOne(captureCameraPhoto);
-    if (sourceType === "DOCUMENT_SCAN") return pickOne(captureDocumentScan);
+    if (sourceType === "DOCUMENT_SCAN") return captureDocumentScanBatch();
     if (sourceType === "PHOTO_LIBRARY") return pickPhotoLibraryMediaBatch();
     return pickOne(importLocalFile);
   }
@@ -884,6 +977,51 @@ export default function CaptureScreen() {
             <AppText muted>
               {selectedEvidence.caption ?? "Evidence caption is missing."}
             </AppText>
+            {documents.length ? (
+              <View style={styles.documentStack}>
+                {documents.map((document) => {
+                  const linkedPages = mediaAssets.filter(
+                    (mediaAsset) =>
+                      mediaAsset.sourceType === "DOCUMENT_SCAN" &&
+                      mediaAsset.deletedAt === null,
+                  );
+                  const pageCount =
+                    document.pageCount ?? Math.max(linkedPages.length, 1);
+                  const sizeBytes =
+                    document.sizeBytes ??
+                    linkedPages.reduce(
+                      (total, mediaAsset) => total + mediaAsset.sizeBytes,
+                      0,
+                    );
+
+                  return (
+                    <View key={document.id} style={styles.documentSummary}>
+                      <AppText variant="label">{document.title}</AppText>
+                      <AppText variant="small" muted>
+                        {[
+                          `${pageCount} ${pageCount === 1 ? "page" : "pages"}`,
+                          document.sourceType === "DOCUMENT_SCAN"
+                            ? "visual scan"
+                            : document.sourceType,
+                          sizeBytes === null ? null : formatBytes(sizeBytes),
+                        ]
+                          .filter(Boolean)
+                          .join(" / ")}
+                      </AppText>
+                      {document.sha256 ? (
+                        <AppText variant="small" muted>
+                          SHA {document.sha256.slice(0, 16)}
+                        </AppText>
+                      ) : linkedPages.length ? (
+                        <AppText variant="small" muted>
+                          Page hashes are preserved on each original image.
+                        </AppText>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
             {mediaAssets.length ? (
               mediaAssets.map((mediaAsset) => (
                 <View
@@ -1107,8 +1245,8 @@ export default function CaptureScreen() {
 
       <StatusBanner
         tone="info"
-        title="Document scanner not built yet"
-        message="Sprint 3 supports camera photos, photo-library import, and file import only. Cloud upload and document scanning remain out of scope."
+        title="Local document proof"
+        message="Scanned pages and imported files are stored locally with immutable metadata before cloud upload."
       />
     </AppScreen>
   );
@@ -1171,4 +1309,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.md,
   },
+  documentStack: {
+    gap: spacing.sm,
+  },
+  documentSummary: {
+    gap: spacing.xs,
+  },
 });
+
+function formatBytes(sizeBytes: number): string {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
+  return `${(sizeBytes / 1024 / 1024).toFixed(1)} MB`;
+}

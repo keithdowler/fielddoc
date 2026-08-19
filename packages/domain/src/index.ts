@@ -742,6 +742,8 @@ export type ProofPacketDocumentEntry = {
   document: Document;
   previewKind: ProofPacketDocumentPreviewKind;
   visualMediaAssetId: string | null;
+  visualMediaAssetIds: string[];
+  visualPageCount: number;
   label: string;
   detail: string;
   missingMetadata: string[];
@@ -1029,29 +1031,32 @@ export function getProofPacketDocumentEntry(
   document: Document,
   mediaAssets: MediaAsset[],
 ): ProofPacketDocumentEntry {
-  const linkedMedia = document.mediaAssetId
-    ? mediaAssets.find((media) => media.id === document.mediaAssetId)
-    : undefined;
-  const visualMedia =
-    linkedMedia?.mediaType === "IMAGE" &&
-    linkedMedia.mimeType.startsWith("image/")
-      ? linkedMedia
-      : undefined;
+  const visualMediaAssets = getDocumentVisualMediaAssets(document, mediaAssets);
+  const visualMediaAssetIds = visualMediaAssets.map((media) => media.id);
+  const visualPageCount =
+    document.pageCount ?? Math.max(visualMediaAssetIds.length, 1);
   const missingMetadata = [
     document.fileName ? null : "file name",
     document.mimeType ? null : "mime type",
     document.sizeBytes === null ? "file size" : null,
-    document.sha256 ? null : "SHA-256",
+    document.sha256 || visualMediaAssetIds.length > 0 ? null : "SHA-256",
   ].filter((item): item is string => Boolean(item));
 
-  if (visualMedia) {
+  if (visualMediaAssetIds.length > 0) {
     return {
       document,
       previewKind: "visual",
-      visualMediaAssetId: visualMedia.id,
-      label: "Visual document page",
+      visualMediaAssetId: visualMediaAssetIds[0] ?? null,
+      visualMediaAssetIds,
+      visualPageCount,
+      label:
+        visualPageCount === 1
+          ? "Visual document page"
+          : "Visual document pages",
       detail:
-        "This scanned document is linked to an image original and can be embedded in the packet preview.",
+        visualPageCount === 1
+          ? "This scanned document is linked to an image original and can be embedded in the packet preview."
+          : `This scanned document has ${visualPageCount} visual pages that can be embedded in the packet preview.`,
       missingMetadata,
     };
   }
@@ -1061,6 +1066,8 @@ export function getProofPacketDocumentEntry(
       document,
       previewKind: "metadata_only",
       visualMediaAssetId: null,
+      visualMediaAssetIds: [],
+      visualPageCount: 0,
       label: "Metadata-only document",
       detail:
         "This document is tracked with immutable metadata and SHA-256, but its pages are not visually embedded.",
@@ -1072,10 +1079,47 @@ export function getProofPacketDocumentEntry(
     document,
     previewKind: "incomplete",
     visualMediaAssetId: null,
+    visualMediaAssetIds: [],
+    visualPageCount: 0,
     label: "Incomplete document metadata",
     detail: `Missing ${missingMetadata.join(", ")} before this document is delivery-ready.`,
     missingMetadata,
   };
+}
+
+export function getDocumentVisualMediaAssets(
+  document: Document,
+  mediaAssets: MediaAsset[],
+): MediaAsset[] {
+  const linkedMedia = document.mediaAssetId
+    ? mediaAssets.find((media) => media.id === document.mediaAssetId)
+    : undefined;
+  const scanPageCandidates =
+    document.sourceType === "DOCUMENT_SCAN" && document.evidenceItemId
+      ? mediaAssets.filter(
+          (media) =>
+            media.evidenceItemId === document.evidenceItemId &&
+            media.sourceType === "DOCUMENT_SCAN",
+        )
+      : [];
+  const candidatesById = new Map<string, MediaAsset>();
+
+  if (linkedMedia) {
+    candidatesById.set(linkedMedia.id, linkedMedia);
+  }
+
+  for (const media of scanPageCandidates) {
+    candidatesById.set(media.id, media);
+  }
+
+  return Array.from(candidatesById.values())
+    .filter(
+      (media) =>
+        media.mediaType === "IMAGE" &&
+        media.mimeType.startsWith("image/") &&
+        media.deletedAt === null,
+    )
+    .sort(compareMediaForPacket);
 }
 
 export function getReportDeliveryReadiness(
@@ -1500,6 +1544,9 @@ export function renderProofPacketHtml(
         display: block;
         margin-bottom: 2px;
       }
+      .document-pages {
+        margin-top: 6px;
+      }
       .media-list,
       .annotation-list {
         margin: 8px 0 0 18px;
@@ -1877,9 +1924,24 @@ function renderEvidenceEntryHtml(
       const metadata = [
         document.fileName,
         document.mimeType,
+        documentEntry.visualPageCount > 0
+          ? formatCount(documentEntry.visualPageCount, "page", "pages")
+          : document.pageCount
+            ? formatCount(document.pageCount, "page", "pages")
+            : null,
         document.sizeBytes === null ? null : formatBytes(document.sizeBytes),
         document.sha256 ? `SHA-256 ${document.sha256}` : null,
       ]
+        .filter((item): item is string => Boolean(item))
+        .map(escapeHtml)
+        .join(" - ");
+      const pageHashes = documentEntry.visualMediaAssetIds
+        .map((mediaId, index) => {
+          const media = entry.mediaAssets.find((item) => item.id === mediaId);
+          return media
+            ? `Page ${index + 1}: SHA-256 ${media.sha256.slice(0, 16)}`
+            : null;
+        })
         .filter((item): item is string => Boolean(item))
         .map(escapeHtml)
         .join(" - ");
@@ -1889,20 +1951,29 @@ function renderEvidenceEntryHtml(
           <strong>${escapeHtml(document.title)}</strong>
           <div class="muted">${escapeHtml(documentEntry.label)}</div>
           ${metadata ? `<div class="muted">${metadata}</div>` : ""}
+          ${pageHashes ? `<div class="muted document-pages">${pageHashes}</div>` : ""}
           <div>${escapeHtml(document.notes ?? documentEntry.detail)}</div>
         </div>
       `;
     })
     .join("");
   const visualMediaHtml = visualMedia
-    .map(
-      ({ media, embedded }) => `
+    .map(({ media, embedded }, index) => {
+      const documentScanPageCount = visualMedia.filter(
+        ({ media: candidate }) => candidate.sourceType === "DOCUMENT_SCAN",
+      ).length;
+      const caption =
+        media.sourceType === "DOCUMENT_SCAN" && documentScanPageCount > 1
+          ? `Document page ${index + 1} - ${media.caption ?? entry.caption ?? title}`
+          : (media.caption ?? entry.caption ?? title);
+
+      return `
         <figure class="media-figure">
-          <img src="${escapeHtml(embedded?.dataUri ?? "")}" alt="${escapeHtml(embedded?.altText ?? media.caption ?? entry.caption ?? title)}" />
-          <figcaption>${escapeHtml(media.caption ?? entry.caption ?? title)}</figcaption>
+          <img src="${escapeHtml(embedded?.dataUri ?? "")}" alt="${escapeHtml(embedded?.altText ?? caption)}" />
+          <figcaption>${escapeHtml(caption)}</figcaption>
         </figure>
-      `,
-    )
+      `;
+    })
     .join("");
   const documentCardsHtml = documentMedia
     .map(

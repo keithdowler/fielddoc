@@ -96,6 +96,7 @@ export type WorkspaceMediaAsset = {
   caption: string | null;
   notes: string | null;
   captureTimestamp: Date;
+  sourceType: string;
   uploadedAt: Date | null;
   hasUploadedOriginal: boolean;
 };
@@ -375,6 +376,7 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
         caption: mediaAssets.caption,
         notes: mediaAssets.notes,
         captureTimestamp: mediaAssets.captureTimestamp,
+        sourceType: mediaAssets.sourceType,
         storageObjectKey: mediaAssets.storageObjectKey,
         uploadedAt: mediaAssets.uploadedAt,
       })
@@ -513,6 +515,7 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       caption: media.caption,
       notes: media.notes,
       captureTimestamp: media.captureTimestamp,
+      sourceType: media.sourceType,
       uploadedAt: media.uploadedAt,
       hasUploadedOriginal: Boolean(media.storageObjectKey),
     })),
@@ -964,7 +967,13 @@ function toDomainMediaAsset(media: WorkspaceMediaAsset): MediaAsset {
     caption: media.caption,
     notes: media.notes,
     captureTimestamp: media.captureTimestamp.toISOString(),
-    sourceType: "FILE_IMPORT",
+    sourceType:
+      media.sourceType === "CAMERA_PHOTO" ||
+      media.sourceType === "PHOTO_LIBRARY" ||
+      media.sourceType === "DOCUMENT_SCAN" ||
+      media.sourceType === "FILE_IMPORT"
+        ? media.sourceType
+        : "FILE_IMPORT",
     originalAssetId: null,
     derivativeType: null,
     uploadedAt: media.uploadedAt?.toISOString() ?? null,

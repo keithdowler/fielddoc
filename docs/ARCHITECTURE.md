@@ -177,8 +177,20 @@ sync target. Imported files and camera-based document scans create `DOCUMENT`
 evidence plus linked document metadata, while immutable media originals remain
 separate `media_assets`. The scanner path intentionally starts as a camera
 capture MVP instead of a custom edge-detection scanner so field users can record
-signed paperwork immediately. Visual PDF-page rendering, OCR, multi-page
-document assembly, and quarantine scanning remain future work.
+signed paperwork immediately. OCR, native edge detection, page cleanup, and
+quarantine scanning remain future work.
+
+### ADR 0031: Multi-Page Document Proof Over Existing Native Capture
+
+Status: Accepted
+
+Sprint 31 groups sequential camera document captures into one `DOCUMENT`
+evidence item, one document metadata record, and multiple immutable image media
+assets. This avoids introducing a new native scanner dependency before beta
+while still supporting multi-page signed paperwork, visual Proof Packet pages,
+per-page SHA-256 metadata, offline persistence, and later private upload. The
+document row records page count and aggregate file metadata where available;
+each scanned page remains independently hashed as an original media asset.
 
 ### ADR 0017: Contract-Only Sync Endpoint Before Persistence
 

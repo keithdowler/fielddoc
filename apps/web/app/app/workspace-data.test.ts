@@ -357,6 +357,7 @@ function createMediaAsset(
     caption: input.caption,
     notes: null,
     captureTimestamp: at("2026-08-17T11:00:00.000Z"),
+    sourceType: "CAMERA_PHOTO",
     uploadedAt: input.hasUploadedOriginal
       ? at("2026-08-17T12:00:00.000Z")
       : null,

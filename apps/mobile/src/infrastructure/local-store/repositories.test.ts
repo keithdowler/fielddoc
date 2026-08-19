@@ -375,6 +375,80 @@ describe("SQLite local repositories", () => {
     );
   });
 
+  it("persists one scanned document with multiple visual page originals", async () => {
+    await withRepositories(
+      async ({ projects, evidence, media, documents, mutations }) => {
+        const project = await projects.create({ name: "Scan project" });
+        const item = await evidence.create({
+          projectId: project.id,
+          category: "DOCUMENT",
+          title: "Signed work order",
+          caption: "Two-page signed work order",
+        });
+        const firstPage = await media.create({
+          evidenceItemId: item.id,
+          localUri: "file:///documents/work-order-page-1.jpg",
+          mediaType: "IMAGE",
+          mimeType: "image/jpeg",
+          sizeBytes: 2048,
+          sha256:
+            "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
+          caption: "Signed work order page 1",
+          sourceType: "DOCUMENT_SCAN",
+        });
+        const secondPage = await media.create({
+          evidenceItemId: item.id,
+          localUri: "file:///documents/work-order-page-2.jpg",
+          mediaType: "IMAGE",
+          mimeType: "image/jpeg",
+          sizeBytes: 3072,
+          sha256:
+            "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7",
+          caption: "Signed work order page 2",
+          sourceType: "DOCUMENT_SCAN",
+        });
+
+        const document = await documents.create({
+          projectId: project.id,
+          evidenceItemId: item.id,
+          mediaAssetId: firstPage.id,
+          title: "Signed work order",
+          fileName: "signed-work-order.scanned-pages",
+          mimeType: "image/jpeg",
+          sizeBytes: firstPage.sizeBytes + secondPage.sizeBytes,
+          sha256: null,
+          pageCount: 2,
+          sourceType: "DOCUMENT_SCAN",
+        });
+
+        expect(await documents.listByEvidenceItem(item.id)).toMatchObject([
+          {
+            id: document.id,
+            mediaAssetId: firstPage.id,
+            pageCount: 2,
+            sizeBytes: 5120,
+            sourceType: "DOCUMENT_SCAN",
+          },
+        ]);
+        expect(await media.listByEvidenceItem(item.id)).toMatchObject([
+          { id: firstPage.id, sourceType: "DOCUMENT_SCAN" },
+          { id: secondPage.id, sourceType: "DOCUMENT_SCAN" },
+        ]);
+        expect(
+          (await mutations.listPending()).filter(
+            (mutation) =>
+              mutation.entityType === "Document" ||
+              mutation.entityType === "MediaAsset",
+          ),
+        ).toMatchObject([
+          { operation: "CREATE", entityId: firstPage.id },
+          { operation: "CREATE", entityId: secondPage.id },
+          { operation: "CREATE", entityId: document.id },
+        ]);
+      },
+    );
+  });
+
   it("archives projects without deleting their record", async () => {
     await withRepositories(async ({ projects }) => {
       const project = await projects.create({ name: "Archive me" });
