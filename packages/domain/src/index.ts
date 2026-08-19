@@ -369,6 +369,7 @@ export type ReportUsabilityChecklistInput = {
   reportPdfUploaded: boolean;
   mediaCount: number;
   uploadedMediaCount: number;
+  blockedDocumentCount?: number;
   externalOriginalDocumentCount?: number;
   metadataOnlyDocumentCount?: number;
   subscriptionActive?: boolean;
@@ -388,6 +389,11 @@ export function getReportUsabilityChecklist(
     input.mediaCount - input.uploadedMediaCount,
     0,
   );
+  const blockedDocuments = input.blockedDocumentCount ?? 0;
+  const reviewDocuments =
+    blockedDocuments +
+    (input.externalOriginalDocumentCount ?? 0) +
+    (input.metadataOnlyDocumentCount ?? 0);
 
   return [
     {
@@ -431,13 +437,47 @@ export function getReportUsabilityChecklist(
     },
     {
       id: "documents",
-      status: input.documentCount > 0 ? "complete" : "action_needed",
+      status:
+        blockedDocuments > 0
+          ? "blocked"
+          : input.documentCount > 0
+            ? "complete"
+            : "action_needed",
       label: "Documents",
       detail:
-        input.documentCount > 0
-          ? `${formatCount(input.documentCount, "document", "documents")} attached.`
-          : "Attach signed paperwork, PDFs, or supporting files when available.",
-      actionLabel: input.documentCount > 0 ? null : "Add documents",
+        blockedDocuments > 0
+          ? `${formatCount(blockedDocuments, "supporting document must", "supporting documents must")} be replaced before delivery.`
+          : input.documentCount > 0
+            ? `${formatCount(input.documentCount, "document", "documents")} attached.`
+            : "Attach signed paperwork, PDFs, or supporting files when available.",
+      actionLabel:
+        blockedDocuments > 0
+          ? "Replace documents"
+          : input.documentCount > 0
+            ? null
+            : "Add documents",
+    },
+    {
+      id: "document_review",
+      status:
+        blockedDocuments > 0
+          ? "blocked"
+          : reviewDocuments > 0
+            ? "action_needed"
+            : input.documentCount > 0
+              ? "complete"
+              : "action_needed",
+      label: "Document review",
+      detail:
+        blockedDocuments > 0
+          ? "A blocked file type is quarantined from the Proof Packet."
+          : reviewDocuments > 0
+            ? "Some supporting documents need external review or metadata confirmation."
+            : input.documentCount > 0
+              ? "Attached documents are safe for delivery."
+              : "Add documents first, then confirm they are delivery-ready.",
+      actionLabel:
+        blockedDocuments > 0 || reviewDocuments > 0 ? "Review documents" : null,
     },
     {
       id: "captions",
@@ -1196,6 +1236,7 @@ export type ProofPacketEvidenceEntry = {
   visualDocumentCount: number;
   externalOriginalDocumentCount: number;
   metadataOnlyDocumentCount: number;
+  blockedDocumentCount: number;
   missingCaption: boolean;
   isImportant: boolean;
 };
@@ -1210,16 +1251,25 @@ export type ProofPacketDocumentFileProfile =
   | "imported_file"
   | "unknown";
 
+export type ProofPacketDocumentReviewStatus =
+  | "delivery_ready"
+  | "external_review_required"
+  | "metadata_incomplete"
+  | "blocked_unsupported";
+
 export type ProofPacketDocumentEntry = {
   document: Document;
   previewKind: ProofPacketDocumentPreviewKind;
   fileProfile: ProofPacketDocumentFileProfile;
+  reviewStatus: ProofPacketDocumentReviewStatus;
+  deliverySafe: boolean;
   visualMediaAssetId: string | null;
   visualMediaAssetIds: string[];
   visualPageCount: number;
   label: string;
   detail: string;
   proofSummary: string;
+  securitySummary: string;
   recommendedAction: string | null;
   missingMetadata: string[];
 };
@@ -1236,6 +1286,7 @@ export type ProofPacketSectionPreview = {
   visualDocumentCount: number;
   externalOriginalDocumentCount: number;
   metadataOnlyDocumentCount: number;
+  blockedDocumentCount: number;
 };
 
 export type ProofPacketPreview = {
@@ -1253,6 +1304,7 @@ export type ProofPacketPreview = {
     visualDocuments: number;
     externalOriginalDocuments: number;
     metadataOnlyDocuments: number;
+    blockedDocuments: number;
     missingCaptions: number;
   };
   ready: boolean;
@@ -1314,6 +1366,7 @@ export type ReportDeliveryReadinessInput = {
   visualDocumentCount?: number;
   externalOriginalDocumentCount?: number;
   metadataOnlyDocumentCount?: number;
+  blockedDocumentCount?: number;
   privateStorageReady?: boolean;
   subscriptionActive?: boolean;
   shareLinkCount?: number;
@@ -1512,6 +1565,7 @@ export function getProofPacketDocumentEntry(
   const visualMediaAssets = getDocumentVisualMediaAssets(document, mediaAssets);
   const visualMediaAssetIds = visualMediaAssets.map((media) => media.id);
   const fileProfile = getDocumentFileProfile(document, visualMediaAssets);
+  const unsupportedReason = getUnsupportedDocumentReason(document);
   const visualPageCount =
     document.pageCount ?? Math.max(visualMediaAssetIds.length, 1);
   const missingMetadata = [
@@ -1521,11 +1575,35 @@ export function getProofPacketDocumentEntry(
     document.sha256 || visualMediaAssetIds.length > 0 ? null : "SHA-256",
   ].filter((item): item is string => Boolean(item));
 
+  if (unsupportedReason) {
+    return {
+      document,
+      previewKind: "incomplete",
+      fileProfile,
+      reviewStatus: "blocked_unsupported",
+      deliverySafe: false,
+      visualMediaAssetId: null,
+      visualMediaAssetIds: [],
+      visualPageCount: 0,
+      label: "Blocked document type",
+      detail: unsupportedReason,
+      proofSummary:
+        "The original file metadata is retained, but this file type is blocked from customer delivery until reviewed outside the app.",
+      securitySummary:
+        "Quarantined for beta delivery: do not include this file in a customer packet.",
+      recommendedAction:
+        "Replace it with a PDF, image, or office document, or review the original manually before delivery.",
+      missingMetadata,
+    };
+  }
+
   if (visualMediaAssetIds.length > 0) {
     return {
       document,
       previewKind: "visual",
       fileProfile,
+      reviewStatus: "delivery_ready",
+      deliverySafe: true,
       visualMediaAssetId: visualMediaAssetIds[0] ?? null,
       visualMediaAssetIds,
       visualPageCount,
@@ -1541,6 +1619,8 @@ export function getProofPacketDocumentEntry(
         visualPageCount === 1
           ? "Visual page embedded from immutable local media."
           : `${visualPageCount} visual pages embedded from immutable local media.`,
+      securitySummary:
+        "Allowed for beta delivery because the packet embeds image evidence linked to immutable local media.",
       recommendedAction: null,
       missingMetadata,
     };
@@ -1551,6 +1631,8 @@ export function getProofPacketDocumentEntry(
       document,
       previewKind: "external_original",
       fileProfile,
+      reviewStatus: "external_review_required",
+      deliverySafe: true,
       visualMediaAssetId: null,
       visualMediaAssetIds: [],
       visualPageCount: 0,
@@ -1561,6 +1643,8 @@ export function getProofPacketDocumentEntry(
           : "This imported document is preserved as an immutable original with file metadata and SHA-256, but it is not visually embedded in the packet.",
       proofSummary:
         "Original file hash, size, MIME type, and source are preserved for delivery review.",
+      securitySummary:
+        "Allowed for beta delivery as a private original, but it requires external visual review before sending.",
       recommendedAction:
         document.mimeType === "application/pdf"
           ? "Open the original PDF from private storage for full visual review until PDF page previews are available."
@@ -1574,6 +1658,8 @@ export function getProofPacketDocumentEntry(
       document,
       previewKind: "metadata_only",
       fileProfile,
+      reviewStatus: "external_review_required",
+      deliverySafe: true,
       visualMediaAssetId: null,
       visualMediaAssetIds: [],
       visualPageCount: 0,
@@ -1582,6 +1668,8 @@ export function getProofPacketDocumentEntry(
         "This document is tracked with immutable metadata and SHA-256, but its pages are not visually embedded.",
       proofSummary:
         "Document metadata is complete; no visual preview is available in this packet.",
+      securitySummary:
+        "Allowed for beta delivery as metadata only; open the original file separately before sending.",
       recommendedAction:
         "Open the original document separately before sending the packet.",
       missingMetadata,
@@ -1592,6 +1680,8 @@ export function getProofPacketDocumentEntry(
     document,
     previewKind: "incomplete",
     fileProfile,
+    reviewStatus: "metadata_incomplete",
+    deliverySafe: false,
     visualMediaAssetId: null,
     visualMediaAssetIds: [],
     visualPageCount: 0,
@@ -1599,9 +1689,49 @@ export function getProofPacketDocumentEntry(
     detail: `Missing ${missingMetadata.join(", ")} before this document is delivery-ready.`,
     proofSummary:
       "Document metadata is incomplete and should not be treated as delivery-ready proof.",
+    securitySummary:
+      "Blocked for beta delivery until required immutable metadata is present.",
     recommendedAction: `Complete ${missingMetadata.join(", ")} before delivery.`,
     missingMetadata,
   };
+}
+
+const blockedDocumentMimeTypes = new Set([
+  "application/javascript",
+  "application/x-executable",
+  "application/x-msdownload",
+  "application/x-sh",
+  "application/x-shellscript",
+  "application/x-zip-compressed",
+  "application/zip",
+  "text/html",
+]);
+
+const allowedDocumentMimeTypes = new Set([
+  "application/msword",
+  "application/pdf",
+  "application/rtf",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/csv",
+  "text/plain",
+]);
+
+function getUnsupportedDocumentReason(document: Document): string | null {
+  const mimeType = document.mimeType?.toLowerCase() ?? null;
+
+  if (!mimeType) return null;
+
+  if (mimeType.startsWith("image/")) return null;
+
+  if (blockedDocumentMimeTypes.has(mimeType)) {
+    return `${document.fileName ?? document.title} uses ${mimeType}, which is blocked for beta delivery.`;
+  }
+
+  if (allowedDocumentMimeTypes.has(mimeType)) return null;
+
+  return `${document.fileName ?? document.title} uses ${mimeType}, which is not on the beta allowlist.`;
 }
 
 export function getDocumentFileProfile(
@@ -1723,15 +1853,24 @@ export function getReportDeliveryReadiness(
     );
   }
 
-  const incompleteDocuments =
+  const incompleteDocuments = Math.max(
     (input.documentCount ?? 0) -
-    (input.visualDocumentCount ?? 0) -
-    (input.externalOriginalDocumentCount ?? 0) -
-    (input.metadataOnlyDocumentCount ?? 0);
+      (input.visualDocumentCount ?? 0) -
+      (input.externalOriginalDocumentCount ?? 0) -
+      (input.metadataOnlyDocumentCount ?? 0) -
+      (input.blockedDocumentCount ?? 0),
+    0,
+  );
 
   if (incompleteDocuments > 0) {
     blockers.push(
       `Complete metadata for ${formatCount(incompleteDocuments, "supporting document", "supporting documents")}.`,
+    );
+  }
+
+  if ((input.blockedDocumentCount ?? 0) > 0) {
+    blockers.push(
+      `Remove or replace ${formatCount(input.blockedDocumentCount ?? 0, "blocked supporting document", "blocked supporting documents")}.`,
     );
   }
 
@@ -1800,7 +1939,8 @@ export function getReportDeliveryReadiness(
   if (
     !input.reportPdfUploaded ||
     input.mediaCount !== input.uploadedMediaCount ||
-    incompleteDocuments > 0
+    incompleteDocuments > 0 ||
+    (input.blockedDocumentCount ?? 0) > 0
   ) {
     return {
       ready: false,
@@ -1867,6 +2007,9 @@ export function assembleProofPacketPreview(
           metadataOnlyDocumentCount: documents.filter(
             (document) => document.previewKind === "metadata_only",
           ).length,
+          blockedDocumentCount: documents.filter(
+            (document) => document.reviewStatus === "blocked_unsupported",
+          ).length,
           missingCaption: !caption?.trim(),
           isImportant: evidence.isImportant,
         };
@@ -1900,6 +2043,10 @@ export function assembleProofPacketPreview(
       ),
       metadataOnlyDocumentCount: evidenceItems.reduce(
         (count, evidence) => count + evidence.metadataOnlyDocumentCount,
+        0,
+      ),
+      blockedDocumentCount: evidenceItems.reduce(
+        (count, evidence) => count + evidence.blockedDocumentCount,
         0,
       ),
     };
@@ -1941,6 +2088,10 @@ export function assembleProofPacketPreview(
       ),
       metadataOnlyDocuments: sectionPreviews.reduce(
         (count, section) => count + section.metadataOnlyDocumentCount,
+        0,
+      ),
+      blockedDocuments: sectionPreviews.reduce(
+        (count, section) => count + section.blockedDocumentCount,
         0,
       ),
       missingCaptions: summary.missingCaptionCount,
@@ -2122,6 +2273,10 @@ export function renderProofPacketHtml(
         display: block;
         margin-bottom: 2px;
       }
+      .document-card.blocked {
+        background: #fff7f7;
+        border-left-color: #b42318;
+      }
       .document-pages {
         margin-top: 6px;
       }
@@ -2186,7 +2341,7 @@ export function renderProofPacketHtml(
     </div>
     ${
       preview.totals.documents
-        ? `<p class="section-meta">Document appendix: ${preview.totals.visualDocuments} visual document pages embedded, ${preview.totals.externalOriginalDocuments} imported originals preserved for external review, ${preview.totals.metadataOnlyDocuments} metadata-only documents preserved with SHA-256 and file metadata.</p>`
+        ? `<p class="section-meta">Document appendix: ${preview.totals.visualDocuments} visual document pages embedded, ${preview.totals.externalOriginalDocuments} imported originals preserved for external review, ${preview.totals.metadataOnlyDocuments} metadata-only documents preserved with SHA-256 and file metadata, ${preview.totals.blockedDocuments} blocked documents requiring replacement.</p>`
         : ""
     }
     ${sectionHtml}
@@ -2529,13 +2684,14 @@ function renderEvidenceEntryHtml(
         .join(" - ");
 
       return `
-        <div class="document-card">
+        <div class="document-card ${documentEntry.deliverySafe ? "" : "blocked"}">
           <strong>${escapeHtml(document.title)}</strong>
           <div class="muted">${escapeHtml(documentEntry.label)}</div>
           ${metadata ? `<div class="muted">${metadata}</div>` : ""}
           ${pageHashes ? `<div class="muted document-pages">${pageHashes}</div>` : ""}
           <div>${escapeHtml(document.notes ?? documentEntry.detail)}</div>
           <div class="muted">${escapeHtml(documentEntry.proofSummary)}</div>
+          <div class="muted">${escapeHtml(documentEntry.securitySummary)}</div>
           ${
             documentEntry.recommendedAction
               ? `<div class="muted">${escapeHtml(documentEntry.recommendedAction)}</div>`

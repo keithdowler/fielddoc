@@ -124,6 +124,7 @@ describe("domain constants", () => {
       ["work", "action_needed"],
       ["after", "complete"],
       ["documents", "complete"],
+      ["document_review", "complete"],
       ["captions", "action_needed"],
       ["generate_pdf", "action_needed"],
       ["subscription", "blocked"],
@@ -630,6 +631,7 @@ describe("domain constants", () => {
       visualDocuments: 0,
       externalOriginalDocuments: 0,
       metadataOnlyDocuments: 0,
+      blockedDocuments: 0,
       missingCaptions: 1,
     });
     expect(preview.ready).toBe(false);
@@ -798,6 +800,8 @@ describe("domain constants", () => {
       getProofPacketDocumentEntry(visualDocument, [visualMedia]),
     ).toMatchObject({
       previewKind: "visual",
+      reviewStatus: "delivery_ready",
+      deliverySafe: true,
       visualMediaAssetId: visualMedia.id,
       visualMediaAssetIds: [visualMedia.id],
       visualPageCount: 1,
@@ -806,6 +810,8 @@ describe("domain constants", () => {
       getProofPacketDocumentEntry(incompleteDocument, [visualMedia]),
     ).toMatchObject({
       previewKind: "incomplete",
+      reviewStatus: "metadata_incomplete",
+      deliverySafe: false,
       missingMetadata: ["file name", "mime type", "file size", "SHA-256"],
     });
   });
@@ -872,6 +878,8 @@ describe("domain constants", () => {
     expect(getProofPacketDocumentEntry(importedPdf, [])).toMatchObject({
       previewKind: "external_original",
       fileProfile: "imported_pdf",
+      reviewStatus: "external_review_required",
+      deliverySafe: true,
       visualPageCount: 0,
       missingMetadata: [],
       label: "Imported PDF original",
@@ -880,6 +888,45 @@ describe("domain constants", () => {
       recommendedAction:
         "Open the original PDF from private storage for full visual review until PDF page previews are available.",
     });
+  });
+
+  it("blocks unsupported supporting documents from delivery", () => {
+    const scriptDocument = createDocument({
+      id: "document-script",
+      projectId: "project-docs",
+      evidenceItemId: "evidence-script",
+      mediaAssetId: null,
+      title: "Uploaded script",
+      fileName: "invoice.html",
+      mimeType: "text/html",
+      sizeBytes: 1024,
+      sha256:
+        "a4ebf8f18c8bd184221f6404d2dd9d77be4a27b29ecab2ae0e4ef5f7a1f42f3e",
+      sourceType: "FILE_IMPORT",
+    });
+
+    expect(getProofPacketDocumentEntry(scriptDocument, [])).toMatchObject({
+      previewKind: "incomplete",
+      reviewStatus: "blocked_unsupported",
+      deliverySafe: false,
+      label: "Blocked document type",
+      recommendedAction:
+        "Replace it with a PDF, image, or office document, or review the original manually before delivery.",
+    });
+
+    expect(
+      getReportDeliveryReadiness({
+        reportReady: true,
+        hasGeneratedPdf: true,
+        reportPdfUploaded: true,
+        mediaCount: 0,
+        uploadedMediaCount: 0,
+        missingCaptionCount: 0,
+        documentCount: 1,
+        visualDocumentCount: 0,
+        blockedDocumentCount: 1,
+      }).blockers,
+    ).toContain("Remove or replace 1 blocked supporting document.");
   });
 
   it("explains report delivery readiness with blockers and warnings", () => {

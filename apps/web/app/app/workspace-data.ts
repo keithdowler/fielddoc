@@ -18,6 +18,7 @@ import {
   type ProofPacketDocumentEntry,
   type ProofPacketDocumentFileProfile,
   type ProofPacketDocumentPreviewKind,
+  type ProofPacketDocumentReviewStatus,
   type ReportDeliveryReadiness,
   type ReportSectionConfig,
 } from "@fielddoc/domain";
@@ -134,9 +135,12 @@ type WorkspaceDocumentProof = {
   label: string;
   detail: string;
   proofSummary: string;
+  securitySummary: string;
   recommendedAction: string | null;
   previewKind: ProofPacketDocumentPreviewKind;
   fileProfile: ProofPacketDocumentFileProfile;
+  reviewStatus: ProofPacketDocumentReviewStatus;
+  deliverySafe: boolean;
   visualPageCount: number | null;
   visualMediaAssetIds: string[];
   missingMetadata: string[];
@@ -167,6 +171,7 @@ export type WorkspaceEvidenceItem = {
   visualDocumentCount: number;
   externalOriginalDocumentCount: number;
   metadataOnlyDocumentCount: number;
+  blockedDocumentCount: number;
   missingCaption: boolean;
 };
 
@@ -182,6 +187,7 @@ export type WorkspaceEvidenceSection = {
   visualDocumentCount: number;
   externalOriginalDocumentCount: number;
   metadataOnlyDocumentCount: number;
+  blockedDocumentCount: number;
   importantCount: number;
   missingCaptionCount: number;
 };
@@ -213,6 +219,7 @@ export type WorkspaceReportDetail = WorkspaceReport & {
     visualDocumentCount: number;
     externalOriginalDocumentCount: number;
     metadataOnlyDocumentCount: number;
+    blockedDocumentCount: number;
   };
   sectionConfig: ReportSectionConfig[];
   deliveryReadiness: ReportDeliveryReadiness;
@@ -585,6 +592,9 @@ export async function getWorkspaceData(): Promise<WorkspaceData> {
       metadataOnlyDocumentCount: documentEntries.filter(
         (document) => document.previewKind === "metadata_only",
       ).length,
+      blockedDocumentCount: documentEntries.filter(
+        (document) => document.reviewStatus === "blocked_unsupported",
+      ).length,
       missingCaption:
         !row.caption?.trim() && !media.some((item) => item.caption?.trim()),
     };
@@ -892,6 +902,10 @@ export function getReportDetailFromWorkspaceData(
     (count, section) => count + section.externalOriginalDocumentCount,
     0,
   );
+  const blockedDocumentCount = sections.reduce(
+    (count, section) => count + section.blockedDocumentCount,
+    0,
+  );
   const readiness = getReportDraftReadiness(totals, sectionConfig);
   const deliveryReadiness = getReportDeliveryReadiness({
     reportReady: readiness.ready,
@@ -904,6 +918,7 @@ export function getReportDetailFromWorkspaceData(
     visualDocumentCount,
     externalOriginalDocumentCount,
     metadataOnlyDocumentCount,
+    blockedDocumentCount,
     shareLinkCount: activeShareLinksForDraft.length,
   });
 
@@ -931,6 +946,7 @@ export function getReportDetailFromWorkspaceData(
       visualDocumentCount,
       externalOriginalDocumentCount,
       metadataOnlyDocumentCount,
+      blockedDocumentCount,
     },
     sectionConfig,
     deliveryReadiness,
@@ -990,9 +1006,12 @@ function toWorkspaceDocument(
     label: entry.label,
     detail: entry.detail,
     proofSummary: entry.proofSummary,
+    securitySummary: entry.securitySummary,
     recommendedAction: entry.recommendedAction,
     previewKind: entry.previewKind,
     fileProfile: entry.fileProfile,
+    reviewStatus: entry.reviewStatus,
+    deliverySafe: entry.deliverySafe,
     visualPageCount: entry.visualPageCount,
     visualMediaAssetIds: entry.visualMediaAssetIds,
     missingMetadata: entry.missingMetadata,
@@ -1085,6 +1104,10 @@ function buildEvidenceSections(
       ),
       metadataOnlyDocumentCount: evidence.reduce(
         (count, item) => count + item.metadataOnlyDocumentCount,
+        0,
+      ),
+      blockedDocumentCount: evidence.reduce(
+        (count, item) => count + item.blockedDocumentCount,
         0,
       ),
       importantCount: evidence.filter((item) => item.isImportant).length,

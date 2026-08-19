@@ -84,6 +84,8 @@ export default function ProjectsScreen() {
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [pendingAction, setPendingAction] =
     useState<PendingProjectAction>(null);
+  const [showOptionalProjectFields, setShowOptionalProjectFields] =
+    useState(false);
   const validation = useMemo(() => validateProjectForm(form), [form]);
   const selectedProject = projects.find(
     (project) => project.id === selectedProjectId,
@@ -207,6 +209,7 @@ export default function ProjectsScreen() {
       editingProjectId ? "Job updated locally." : "Job created locally.",
     );
     setForm({ ...initialProjectFormState, status: "saved" });
+    setShowOptionalProjectFields(false);
     await reload(project.id);
   }
 
@@ -317,20 +320,34 @@ export default function ProjectsScreen() {
           title={editingProjectId ? "Edit Job" : "Create Local Job"}
           detail="Only job name is required. The rest can be added later."
         />
-        {formFields.map(([field, label, placeholder]) => (
-          <FormField
-            key={field}
-            label={label}
-            value={form[field] ?? ""}
-            onChangeText={(value) => updateField(field, value)}
-            placeholder={placeholder}
-            multiline={field === "notes"}
-            error={validation.errors[field]}
+        {formFields
+          .filter(
+            ([field]) =>
+              field === "name" || showOptionalProjectFields || editingProjectId,
+          )
+          .map(([field, label, placeholder]) => (
+            <FormField
+              key={field}
+              label={label}
+              value={form[field] ?? ""}
+              onChangeText={(value) => updateField(field, value)}
+              placeholder={placeholder}
+              multiline={field === "notes"}
+              error={validation.errors[field]}
+            />
+          ))}
+        {!showOptionalProjectFields && !editingProjectId ? (
+          <AppButton
+            label="Add Customer and Site Details"
+            icon="list.bullet.clipboard"
+            variant="secondary"
+            onPress={() => setShowOptionalProjectFields(true)}
+            accessibilityLabel="Show optional customer site and work order fields"
           />
-        ))}
+        ) : null}
         <View style={styles.inlineActions}>
           <AppButton
-            label={editingProjectId ? "Save Changes" : "Create Local Job"}
+            label={editingProjectId ? "Save Changes" : "Create Job"}
             icon="plus.circle.fill"
             onPress={saveProject}
             accessibilityLabel={
@@ -344,6 +361,7 @@ export default function ProjectsScreen() {
               onPress={() => {
                 setEditingProjectId(undefined);
                 setForm(initialProjectFormState);
+                setShowOptionalProjectFields(false);
               }}
             />
           ) : null}
@@ -380,6 +398,7 @@ export default function ProjectsScreen() {
                     setSelectedProjectId(project.id);
                     setEditingProjectId(project.id);
                     setForm(formFromProject(project));
+                    setShowOptionalProjectFields(true);
                   }}
                 />
                 <AppButton
@@ -434,7 +453,7 @@ export default function ProjectsScreen() {
               <EmptyState
                 key={category}
                 title={`${label} empty`}
-                message="No evidence metadata has been added yet."
+                message={getEvidenceEmptyStateMessage(category)}
                 ctaLabel="Add Evidence"
                 icon="tray"
               />
@@ -494,6 +513,25 @@ export default function ProjectsScreen() {
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
+}
+
+function getEvidenceEmptyStateMessage(
+  category: (typeof evidenceCategories)[number],
+) {
+  if (category === "BEFORE") {
+    return "Capture the starting condition before work begins.";
+  }
+  if (category === "WORK") {
+    return "Add progress photos while the work is happening.";
+  }
+  if (category === "AFTER") {
+    return "Show the finished condition clearly.";
+  }
+  if (category === "DOCUMENT") {
+    return "Attach work orders, receipts, signed forms, or supporting files.";
+  }
+
+  return "Use this for anything that does not fit the main job stages.";
 }
 
 const styles = StyleSheet.create({

@@ -90,6 +90,7 @@ export default function ReportsScreen() {
     externalOriginalDocumentCount:
       preview?.totals.externalOriginalDocuments ?? 0,
     metadataOnlyDocumentCount: preview?.totals.metadataOnlyDocuments ?? 0,
+    blockedDocumentCount: preview?.totals.blockedDocuments ?? 0,
   });
   const usabilityChecklist = getReportUsabilityChecklist({
     projectSelected: Boolean(project),
@@ -105,6 +106,7 @@ export default function ReportsScreen() {
     externalOriginalDocumentCount:
       preview?.totals.externalOriginalDocuments ?? 0,
     metadataOnlyDocumentCount: preview?.totals.metadataOnlyDocuments ?? 0,
+    blockedDocumentCount: preview?.totals.blockedDocuments ?? 0,
   });
   const primaryChecklistItem =
     usabilityChecklist.find((item) => item.status === "blocked") ??

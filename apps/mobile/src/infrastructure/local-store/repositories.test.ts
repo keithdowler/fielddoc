@@ -255,6 +255,7 @@ describe("SQLite local repositories", () => {
 
       const current = await projects.getById(project.id);
       const conflictCount = await pullSync.countUnresolvedConflicts();
+      const conflicts = await pullSync.listUnresolvedConflicts();
       const conflict = await database.getFirst<{
         entity_type: string;
         entity_id: string;
@@ -270,10 +271,87 @@ describe("SQLite local repositories", () => {
         syncState: "CONFLICT",
       });
       expect(conflictCount).toBe(1);
+      expect(conflicts).toMatchObject([
+        {
+          entityType: "Project",
+          entityId: project.id,
+          resolvedAt: null,
+        },
+      ]);
       expect(conflict).toEqual({
         entity_type: "Project",
         entity_id: project.id,
       });
+    });
+  });
+
+  it("resolves preserved sync conflicts after review", async () => {
+    await withRepositories(async ({ projects, pullSync }) => {
+      const project = await projects.create({ name: "Local title" });
+      await projects.update(project.id, { name: "Pending local title" });
+
+      await pullSync.applyChanges({
+        projects: [
+          {
+            id: project.id,
+            customerId: null,
+            siteId: null,
+            name: "Server title",
+            customerCompany: null,
+            siteAddress: null,
+            workOrderReference: null,
+            scheduledDate: null,
+            notes: null,
+            status: "active",
+            archivedAt: null,
+            createdAt: project.createdAt,
+            updatedAt: "2026-08-17T15:00:00.000Z",
+            deletedAt: null,
+            serverVersion: 2,
+          },
+        ],
+        evidenceItems: [],
+        mediaAssets: [],
+        annotations: [],
+        documents: [],
+        reportDrafts: [],
+      });
+
+      const conflicts = await pullSync.listUnresolvedConflicts();
+
+      expect(conflicts).toHaveLength(1);
+      await pullSync.resolveConflict(conflicts[0]!.id);
+      expect(await pullSync.countUnresolvedConflicts()).toBe(0);
+
+      await pullSync.applyChanges({
+        projects: [
+          {
+            id: project.id,
+            customerId: null,
+            siteId: null,
+            name: "Server title again",
+            customerCompany: null,
+            siteAddress: null,
+            workOrderReference: null,
+            scheduledDate: null,
+            notes: null,
+            status: "active",
+            archivedAt: null,
+            createdAt: project.createdAt,
+            updatedAt: "2026-08-17T16:00:00.000Z",
+            deletedAt: null,
+            serverVersion: 3,
+          },
+        ],
+        evidenceItems: [],
+        mediaAssets: [],
+        annotations: [],
+        documents: [],
+        reportDrafts: [],
+      });
+
+      expect(await pullSync.resolveAllConflicts()).toBe(1);
+      expect(await pullSync.listUnresolvedConflicts()).toEqual([]);
     });
   });
 

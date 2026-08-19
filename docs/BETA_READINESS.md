@@ -44,3 +44,14 @@ Provider dashboards and end-to-end manual checks still decide launch readiness.
    and readiness warnings.
 7. Resolve any rejected receipts, missing captions, or pending originals before
    inviting external users.
+
+## Sprint Policy After Final UX Pass
+
+Do not continue broad numbered sprints by default. Future work should be handled
+as release checklist items:
+
+- production provider setup,
+- App Store and TestFlight packaging,
+- privacy/legal/compliance completion,
+- bug fixes discovered during field validation,
+- narrowly scoped core-value gaps such as imported PDF page previews.

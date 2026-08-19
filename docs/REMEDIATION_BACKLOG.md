@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-16
 
-Last groomed: 2026-08-19 after imported-original delivery sprint
+Last groomed: 2026-08-19 after final pre-release UX sprint
 
 Priority legend: P0 critical, P1 high, P2 medium, P3 low.
 
@@ -29,7 +29,7 @@ follow-up is listed below.
 | Media integrity        | Upload completion verifies private object existence, size, type, optional metadata hash, and downloaded byte SHA-256.                                                                                                                                                                                                                | Async quarantine/verification workflow if large uploads need it.                |
 | Web review loop        | Tenant-scoped project/report detail pages show evidence sections, annotations, readiness, and private original download links.                                                                                                                                                                                                       | Branded report management and delivery pages.                                   |
 | Report archive         | Generated PDFs upload to private storage as verified report exports with authenticated downloads and expiring share links.                                                                                                                                                                                                           | Branded delivery pages and full audit-event rows.                               |
-| Pull reconciliation    | Authenticated mobile pull sync downloads tenant-scoped canonical metadata, stores cursors, and preserves local conflicts.                                                                                                                                                                                                            | Stable tuple cursors, conflict review UI, automatic background sync.            |
+| Pull reconciliation    | Authenticated mobile pull sync downloads tenant-scoped canonical metadata, stores cursors, preserves local conflicts, and exposes preserved conflicts in mobile Settings for review.                                                                                                                                                 | Stable tuple cursors and automatic background sync.                             |
 | Audit trail            | Server writes tenant-scoped audit events for account provisioning, sync, media/report uploads/downloads, and share links.                                                                                                                                                                                                            | Denied-access/failure audit policy, retention tooling, admin event search.      |
 | Monetization base      | RevenueCat SDK wiring, subscription diagnostics, restore purchases, webhook receipts, and `fielddoc_pro` cloud gates exist.                                                                                                                                                                                                          | App Store products, sandbox purchase validation, and paywall polish.            |
 | Evidence replacement   | Mobile can retake/replace an active media asset while preserving the previous original row and queueing delete/create mutations.                                                                                                                                                                                                     | Visual replacement history polish and server-side replacement review filters.   |
@@ -40,6 +40,7 @@ follow-up is listed below.
 | Operations visibility  | Web dashboard/settings now show readiness stage, score, blockers, warnings, and attention queues; mobile Settings has a Sync Center for the normal upload path.                                                                                                                                                                      | Background sync, conflict review UI, admin filtering, and provider runbooks.    |
 | Document proof quality | Report assembly, local PDFs, mobile report previews, and web report/project review now classify attached documents and multi-page scans as visual, imported original, metadata-only, or incomplete. Multi-file import is supported and imported PDFs are preserved as external originals with hash, MIME, size, and source metadata. | Imported PDF raster previews, OCR, and native crop/edge detection.              |
 | Share delivery page    | Public report share links now open a branded no-auth landing page with report metadata, expiration, SHA-256 integrity details, and a separate private download redirect.                                                                                                                                                             | Delivery analytics, recipient capture, and share revocation UI.                 |
+| Pre-release UX         | Mobile project creation, capture, report readiness, settings conflict review, document safety copy, and release docs were polished for first-use clarity and public beta preparation.                                                                                                                                                | Final App Store screenshots and field tester onboarding.                        |
 
 ## Active P1 Backlog
 
@@ -56,7 +57,6 @@ follow-up is listed below.
 | P2       | TRUST/SECURITY | Add malware-scan integration point or explicit quarantine placeholder for uploaded docs | M          | No          | Yes              | No                  |
 | P2       | TRUST/SECURITY | Add denied-access/failure audit policy, retention controls, and admin audit search      | M          | No          | No               | No                  |
 | P2       | PRIVACY        | Implement full cloud Export My Data and Delete Account flows                            | M          | No          | Yes              | No                  |
-| P2       | RELIABILITY    | Add user-facing conflict review and resolution after preserved pull conflicts           | M          | No          | No               | No                  |
 | P2       | CORE VALUE     | Add tenant-managed logo, cloud report branding, and web branding controls               | M          | No          | No               | Yes                 |
 | P2       | RELIABILITY    | Generate thumbnail/preview derivatives for web and reports                              | M          | No          | No               | No                  |
 | P2       | CORE VALUE     | Add OCR extraction for scanned/imported documents                                       | L          | No          | No               | No                  |
@@ -76,8 +76,9 @@ follow-up is listed below.
 
 ## Recommended Next Sprint
 
-Build imported PDF preview/rasterization, document quarantine hooks, and customer
-delivery analytics next.
+Stop broad numbered feature sprints. Move to release hardening: imported PDF
+preview/rasterization, document quarantine hooks, customer delivery analytics,
+production email/error reporting, and App Store beta preparation.
 
 ### Why
 

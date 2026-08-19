@@ -50,6 +50,15 @@ const sourceLabels: Record<MediaSourceType, string> = {
 
 const fieldCaptureStages: EvidenceCategory[] = ["BEFORE", "WORK", "AFTER"];
 
+const captionSuggestions = [
+  "Pre-existing condition",
+  "Damage observed",
+  "Work in progress",
+  "Repair completed",
+  "Customer document",
+  "Access issue",
+];
+
 export default function CaptureScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string | undefined>();
@@ -266,13 +275,9 @@ export default function CaptureScreen() {
           : "Mixed";
 
       setStatusMessage(
-        `${savedItems.length} ${savedCategoryLabel.toLowerCase()} evidence ${
-          savedItems.length === 1 ? "item" : "items"
-        } saved from ${sourceLabels[sourceType]}${
-          savedItems.some((item) => item.documentCreated)
-            ? " with document metadata."
-            : "."
-        }`,
+        savedItems.length === 1
+          ? `Saved to ${savedCategoryLabel}. Ready for the next item.`
+          : `${savedItems.length} items saved from ${sourceLabels[sourceType]}. Ready for the next item.`,
       );
       await reloadEvidence(projectId);
       if (lastSaved) {
@@ -659,10 +664,10 @@ export default function CaptureScreen() {
   return (
     <AppScreen>
       <View>
-        <AppText variant="hero">Capture</AppText>
+        <AppText variant="hero">Capture Job Proof</AppText>
         <AppText muted>
-          Add photos, scanned pages, PDFs, and files. Everything is saved on
-          this device first.
+          Add photos, scanned pages, PDFs, and files to the right job stage.
+          Everything is saved on this device first.
         </AppText>
       </View>
 
@@ -755,6 +760,17 @@ export default function CaptureScreen() {
           placeholder="North wall before repair"
         />
         <View style={styles.inlineActions}>
+          {captionSuggestions.map((suggestion) => (
+            <AppButton
+              key={suggestion}
+              label={suggestion}
+              variant={caption === suggestion ? "primary" : "secondary"}
+              onPress={() => setCaption(suggestion)}
+              accessibilityLabel={`Use quick caption ${suggestion}`}
+            />
+          ))}
+        </View>
+        <View style={styles.inlineActions}>
           <AppButton
             label={isImportant ? "Important" : "Mark Important"}
             icon={isImportant ? "star.fill" : "star"}
@@ -769,7 +785,7 @@ export default function CaptureScreen() {
         </View>
         <View style={styles.inlineActions}>
           <AppButton
-            label="Take Photo"
+            label={`Take ${categoryLabels[category]} Photo`}
             icon="camera.fill"
             onPress={() => addMediaEvidence("CAMERA_PHOTO")}
             loading={busySource === "CAMERA_PHOTO"}
@@ -875,40 +891,13 @@ export default function CaptureScreen() {
 
       <Card>
         <SectionHeader
-          title="Add Original File"
-          detail="The original is copied into app storage and given a SHA-256 proof hash."
+          title="Supporting File"
+          detail="Import PDFs, work orders, receipts, or other files. Unsupported file types are blocked from delivery."
         />
         <View style={styles.inlineActions}>
           <AppButton
-            label="Take Photo"
-            icon="camera.fill"
-            onPress={() => addMediaEvidence("CAMERA_PHOTO")}
-            loading={busySource === "CAMERA_PHOTO"}
-            disabled={Boolean(editingEvidenceId)}
-            accessibilityLabel="Capture a camera photo as evidence"
-          />
-          <AppButton
-            label="Choose Photo"
-            icon="photo.on.rectangle"
-            variant="secondary"
-            onPress={() => addMediaEvidence("PHOTO_LIBRARY")}
-            loading={busySource === "PHOTO_LIBRARY"}
-            disabled={Boolean(editingEvidenceId)}
-            accessibilityLabel="Choose a photo from the library as evidence"
-          />
-          <AppButton
-            label="Scan Pages"
-            icon="doc.text.magnifyingglass"
-            variant="secondary"
-            onPress={() => addMediaEvidence("DOCUMENT_SCAN")}
-            loading={busySource === "DOCUMENT_SCAN"}
-            disabled={Boolean(editingEvidenceId)}
-            accessibilityLabel="Scan a paper document as document evidence"
-          />
-          <AppButton
             label="Import File"
             icon="doc.badge.plus"
-            variant="secondary"
             onPress={() => addMediaEvidence("FILE_IMPORT")}
             loading={busySource === "FILE_IMPORT"}
             disabled={Boolean(editingEvidenceId)}
@@ -1019,6 +1008,7 @@ export default function CaptureScreen() {
                         {[
                           documentEntry.previewKind.replaceAll("_", " "),
                           documentEntry.fileProfile.replaceAll("_", " "),
+                          documentEntry.reviewStatus.replaceAll("_", " "),
                           pageCount
                             ? `${pageCount} ${pageCount === 1 ? "page" : "pages"}`
                             : "page count unknown",
@@ -1029,6 +1019,9 @@ export default function CaptureScreen() {
                       </AppText>
                       <AppText variant="small" muted>
                         {documentEntry.proofSummary}
+                      </AppText>
+                      <AppText variant="small" muted>
+                        {documentEntry.securitySummary}
                       </AppText>
                       <AppText variant="small" muted>
                         {documentEntry.detail}

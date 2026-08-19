@@ -111,7 +111,8 @@ export default async function ProjectDetailPage({
                     media / {section.documentCount} documents (
                     {section.visualDocumentCount} visual /{" "}
                     {section.externalOriginalDocumentCount} original /{" "}
-                    {section.metadataOnlyDocumentCount} metadata) /{" "}
+                    {section.metadataOnlyDocumentCount} metadata /{" "}
+                    {section.blockedDocumentCount} blocked) /{" "}
                     {section.annotationCount} notes
                   </p>
                 </div>
@@ -215,6 +216,7 @@ function EvidenceCard({ evidence }: { evidence: WorkspaceEvidenceItem }) {
                 {evidence.metadataOnlyDocumentCount} metadata-only
               </span>
               <span>{document.proofSummary}</span>
+              <span>{document.securitySummary}</span>
               <span>{document.detail}</span>
               {document.recommendedAction ? (
                 <span>{document.recommendedAction}</span>
@@ -227,6 +229,7 @@ function EvidenceCard({ evidence }: { evidence: WorkspaceEvidenceItem }) {
               <span>
                 {[
                   document.previewKind.replaceAll("_", " "),
+                  document.reviewStatus.replaceAll("_", " "),
                   document.fileProfile.replaceAll("_", " "),
                   document.pageCount
                     ? `${document.pageCount} ${

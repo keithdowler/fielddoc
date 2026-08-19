@@ -31,6 +31,16 @@ type PullApplyResult = {
   conflictCount: number;
 };
 
+export type LocalSyncConflict = {
+  id: string;
+  entityType: PullEntityType;
+  entityId: string;
+  localPayloadJson: string;
+  serverPayloadJson: string;
+  detectedAt: string;
+  resolvedAt: string | null;
+};
+
 const conflictStates = new Set(["PENDING", "FAILED", "CONFLICT"]);
 
 export class SqlitePullSyncRepository {
@@ -88,6 +98,72 @@ export class SqlitePullSyncRepository {
     );
 
     return row?.count ?? 0;
+  }
+
+  async listUnresolvedConflicts(limit = 10): Promise<LocalSyncConflict[]> {
+    const rows = await this.database.getAll<{
+      id: string;
+      entity_type: PullEntityType;
+      entity_id: string;
+      local_payload_json: string;
+      server_payload_json: string;
+      detected_at: string;
+      resolved_at: string | null;
+    }>(
+      `
+        SELECT
+          id,
+          entity_type,
+          entity_id,
+          local_payload_json,
+          server_payload_json,
+          detected_at,
+          resolved_at
+        FROM local_sync_conflicts
+        WHERE resolved_at IS NULL
+        ORDER BY detected_at DESC, id DESC
+        LIMIT ?
+      `,
+      [limit],
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      localPayloadJson: row.local_payload_json,
+      serverPayloadJson: row.server_payload_json,
+      detectedAt: row.detected_at,
+      resolvedAt: row.resolved_at,
+    }));
+  }
+
+  async resolveConflict(id: string): Promise<void> {
+    await this.database.run(
+      `
+        UPDATE local_sync_conflicts
+        SET resolved_at = ?
+        WHERE id = ? AND resolved_at IS NULL
+      `,
+      [new Date().toISOString(), id],
+    );
+  }
+
+  async resolveAllConflicts(): Promise<number> {
+    const count = await this.countUnresolvedConflicts();
+
+    if (count === 0) return 0;
+
+    await this.database.run(
+      `
+        UPDATE local_sync_conflicts
+        SET resolved_at = ?
+        WHERE resolved_at IS NULL
+      `,
+      [new Date().toISOString()],
+    );
+
+    return count;
   }
 }
 

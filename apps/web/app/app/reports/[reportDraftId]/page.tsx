@@ -77,6 +77,10 @@ export default async function ReportDetailPage({
             value={report.totals.metadataOnlyDocumentCount}
           />
           <Metric
+            label="Blocked docs"
+            value={report.totals.blockedDocumentCount}
+          />
+          <Metric
             label="Missing captions"
             value={report.totals.missingCaptionCount}
           />
@@ -295,7 +299,8 @@ export default async function ReportDetailPage({
                           {evidence.documentCount} documents (
                           {evidence.visualDocumentCount} visual /{" "}
                           {evidence.externalOriginalDocumentCount} original /{" "}
-                          {evidence.metadataOnlyDocumentCount} metadata)
+                          {evidence.metadataOnlyDocumentCount} metadata /{" "}
+                          {evidence.blockedDocumentCount} blocked)
                         </span>
                         <span>{evidence.annotationCount} notes</span>
                       </div>
@@ -304,9 +309,11 @@ export default async function ReportDetailPage({
                           {evidence.documents.map((document) => (
                             <li key={document.id}>
                               {document.label}
+                              {` / ${document.reviewStatus.replaceAll("_", " ")}`}
                               {` / ${document.previewKind.replaceAll("_", " ")}`}
                               {` / ${document.fileProfile.replaceAll("_", " ")}`}
                               {` / ${document.proofSummary}`}
+                              {` / ${document.securitySummary}`}
                               {document.notes ? ` / ${document.notes}` : ""}
                               {(document.pageCount ?? document.visualPageCount)
                                 ? ` / ${document.pageCount ?? document.visualPageCount} ${

@@ -85,6 +85,7 @@ describe("workspace detail read models", () => {
         visualDocumentCount: 1,
         externalOriginalDocumentCount: 0,
         metadataOnlyDocumentCount: 0,
+        blockedDocumentCount: 0,
       },
       readiness: {
         ready: false,
@@ -147,9 +148,13 @@ function createWorkspaceData(): WorkspaceData {
       detail: "1 document page will be embedded in the Proof Packet appendix.",
       proofSummary:
         "Visual page previews are embedded in the packet with immutable page hashes.",
+      securitySummary:
+        "Document pages are locally captured images already tracked as immutable originals.",
       recommendedAction: null,
       previewKind: "visual" as const,
       fileProfile: "scanned_pages" as const,
+      reviewStatus: "delivery_ready" as const,
+      deliverySafe: true,
       visualPageCount: 1,
       visualMediaAssetIds: [media[0]?.id ?? ""],
       missingMetadata: [],
@@ -342,6 +347,7 @@ function createEvidenceItem(
     visualDocumentCount: input.documents.length,
     externalOriginalDocumentCount: 0,
     metadataOnlyDocumentCount: 0,
+    blockedDocumentCount: 0,
     missingCaption:
       !input.caption?.trim() &&
       !input.media.some((item) => item.caption?.trim()),

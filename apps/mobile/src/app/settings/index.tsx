@@ -30,6 +30,7 @@ import {
   runMobilePullSync,
   type MobilePullSyncResult,
 } from "@/infrastructure/sync/mobile-pull-sync";
+import type { LocalSyncConflict } from "@/infrastructure/local-store/pull-sync";
 import {
   runMobileMediaUpload,
   type MobileMediaUploadResult,
@@ -85,6 +86,12 @@ export default function SettingsScreen() {
   >(reportBrandingAccentColors[0]);
   const [savingBranding, setSavingBranding] = useState(false);
   const [brandingStatus, setBrandingStatus] = useState<string | null>(null);
+  const [conflictCount, setConflictCount] = useState(0);
+  const [conflictPreview, setConflictPreview] = useState<LocalSyncConflict[]>(
+    [],
+  );
+  const [conflictStatus, setConflictStatus] = useState<string | null>(null);
+  const [resolvingConflicts, setResolvingConflicts] = useState(false);
 
   const authStatusCopy = getMobileAuthStatusCopy(mobileAuth.status);
   const revenueCat = useRevenueCatEntitlements({
@@ -150,6 +157,23 @@ export default function SettingsScreen() {
       mounted = false;
     };
   }, []);
+
+  const loadConflictSummary = useCallback(async () => {
+    const repositories = await getLocalRepositories();
+    const [count, conflicts] = await Promise.all([
+      repositories.pullSync.countUnresolvedConflicts(),
+      repositories.pullSync.listUnresolvedConflicts(5),
+    ]);
+
+    setConflictCount(count);
+    setConflictPreview(conflicts);
+  }, []);
+
+  useEffect(() => {
+    void loadConflictSummary().catch(() => {
+      setConflictStatus("Conflict review could not be loaded.");
+    });
+  }, [loadConflictSummary]);
 
   const signOut = useCallback(async () => {
     setAuthActionRunning(true);
@@ -237,10 +261,29 @@ export default function SettingsScreen() {
       });
 
       setPullSyncResult(result);
+      await loadConflictSummary();
     } finally {
       setPullingChanges(false);
     }
-  }, [mobileAuth]);
+  }, [loadConflictSummary, mobileAuth]);
+
+  const markConflictsReviewed = useCallback(async () => {
+    setResolvingConflicts(true);
+
+    try {
+      const repositories = await getLocalRepositories();
+      const resolvedCount = await repositories.pullSync.resolveAllConflicts();
+
+      setConflictStatus(
+        resolvedCount === 0
+          ? "No unresolved conflicts were waiting for review."
+          : `${resolvedCount} preserved conflicts marked reviewed. Local edits were not overwritten.`,
+      );
+      await loadConflictSummary();
+    } finally {
+      setResolvingConflicts(false);
+    }
+  }, [loadConflictSummary]);
 
   const exportDeviceData = useCallback(async () => {
     setExportingData(true);
@@ -291,6 +334,9 @@ export default function SettingsScreen() {
       setReportUploadResult(null);
       setCloudSyncResult(null);
       setPullSyncResult(null);
+      setConflictCount(0);
+      setConflictPreview([]);
+      setConflictStatus(null);
       setCompanyName("");
       setPreparedBy("");
       setFooterText("");
@@ -609,6 +655,48 @@ export default function SettingsScreen() {
 
       <Card>
         <SectionHeader
+          title="Conflict Review"
+          detail="Local edits are preserved when cloud changes disagree."
+        />
+        <StatusBanner
+          tone={conflictCount > 0 ? "warning" : "success"}
+          title={
+            conflictCount > 0 ? "Review preserved changes" : "No conflicts"
+          }
+          message={
+            conflictStatus ??
+            (conflictCount > 0
+              ? `${conflictCount} cloud ${conflictCount === 1 ? "change" : "changes"} differed from local edits. Nothing was overwritten.`
+              : "Cloud downloads can preserve local edits without silently replacing field work.")
+          }
+        />
+        {conflictPreview.length ? (
+          <View style={styles.metrics}>
+            {conflictPreview.map((conflict) => (
+              <View key={conflict.id} style={styles.conflictRow}>
+                <AppText variant="label">
+                  {conflict.entityType} / {conflict.entityId.slice(0, 8)}
+                </AppText>
+                <AppText variant="small" muted>
+                  Detected {formatConflictDate(conflict.detectedAt)}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        <AppButton
+          label={resolvingConflicts ? "Marking..." : "Mark Reviewed"}
+          icon="checkmark.seal"
+          accessibilityLabel="Mark preserved cloud sync conflicts reviewed"
+          onPress={markConflictsReviewed}
+          disabled={resolvingConflicts || conflictCount === 0}
+          loading={resolvingConflicts}
+          variant="secondary"
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader
           title="Original File Backup"
           detail="Uploads local originals after job details exist in the cloud."
         />
@@ -873,7 +961,14 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 96,
   },
+  conflictRow: {
+    gap: spacing.xs,
+  },
 });
+
+function formatConflictDate(value: string): string {
+  return new Date(value).toLocaleString();
+}
 
 const statusToneBySyncStatus = {
   not_configured: "warning",

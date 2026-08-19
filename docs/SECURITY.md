@@ -85,3 +85,9 @@ Audit events must avoid raw request bodies, bearer tokens, signed URLs, local fi
 RevenueCat webhook secrets, App Store shared secrets, and provider dashboard
 credentials must remain server-only. RevenueCat public mobile API keys are
 publishable configuration, but they do not grant server authorization.
+
+Sprint 35 adds document delivery safety labels and mobile conflict review.
+Unsupported supporting-document MIME types are treated as blocked until replaced
+with a supported business document. Pull-sync conflicts remain preserved local
+records until the user marks them reviewed; review actions must not overwrite
+local evidence or delete server payload history.
