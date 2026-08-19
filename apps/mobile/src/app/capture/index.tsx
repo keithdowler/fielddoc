@@ -86,6 +86,7 @@ export default function CaptureScreen() {
     }),
     { BEFORE: 0, WORK: 0, AFTER: 0, DOCUMENT: 0, OTHER: 0 },
   );
+  const captureGuide = getCaptureGuide(Boolean(selectedProject), captureCounts);
 
   const refresh = useCallback(() => {
     let mounted = true;
@@ -679,6 +680,13 @@ export default function CaptureScreen() {
           message={statusMessage}
         />
       ) : null}
+
+      <StatusBanner
+        tone={captureGuide.tone}
+        title={captureGuide.title}
+        message={captureGuide.message}
+        detail={captureGuide.detail}
+      />
 
       <Card>
         <SectionHeader
@@ -1348,4 +1356,57 @@ function formatBytes(sizeBytes: number): string {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
   if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
   return `${(sizeBytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function getCaptureGuide(
+  hasProject: boolean,
+  counts: Record<EvidenceCategory, number>,
+): {
+  tone: "info" | "success" | "warning" | "error" | "blocked";
+  title: string;
+  message: string;
+  detail?: string;
+} {
+  if (!hasProject) {
+    return {
+      tone: "blocked",
+      title: "Create a job first",
+      message:
+        "Every photo, scan, and file needs a local job before it can be saved.",
+      detail: "Go to Projects, create the job name, then come back to Capture.",
+    };
+  }
+
+  if (counts.BEFORE === 0) {
+    return {
+      tone: "warning",
+      title: "Start with Before",
+      message: "Take one clear photo of the starting condition.",
+      detail: "Before photos help reviewers understand what changed.",
+    };
+  }
+
+  if (counts.WORK === 0) {
+    return {
+      tone: "warning",
+      title: "Add Work evidence",
+      message:
+        "Show the repair, service, installation, cleanup, or inspection in progress.",
+    };
+  }
+
+  if (counts.AFTER === 0) {
+    return {
+      tone: "warning",
+      title: "Finish with After",
+      message: "Take one clear final-condition photo before making the report.",
+    };
+  }
+
+  return {
+    tone: "success",
+    title: "Core evidence is ready",
+    message:
+      "Before, Work, and After evidence are saved. Add captions or open Reports.",
+  };
 }

@@ -18,7 +18,7 @@ FieldDoc must be usable by mixed-age workforces, including people who are not co
 
 ## Primary Workflow
 
-1. Create project.
+1. Create a local job.
 2. Capture before evidence.
 3. Capture work-in-progress evidence.
 4. Capture after evidence.
@@ -27,6 +27,10 @@ FieldDoc must be usable by mixed-age workforces, including people who are not co
 7. Generate a professional chronological PDF Proof Packet.
 8. Share it with a customer or property manager.
 9. Retain project history.
+
+The data model still uses `Project` as the canonical entity name. The mobile UI
+uses "job" for clarity because field users commonly understand a job as the
+unit of work they are documenting.
 
 ## Non-Goals
 

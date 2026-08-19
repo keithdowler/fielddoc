@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { getPrimaryFieldDocNextAction } from "@fielddoc/domain";
 import Link from "next/link";
 import { ProvisionAccountButton } from "./provision-account-button";
 import { getWorkspaceData } from "./workspace-data";
@@ -24,6 +25,27 @@ export default async function AppPage() {
     (count, project) => count + project.missingCaptionCount,
     0,
   );
+  const primaryAction = getPrimaryFieldDocNextAction({
+    projectCount: workspace.projects.length,
+    hasSelectedProject: workspace.projects.length > 0,
+    beforeCount: workspace.evidence.filter((item) => item.category === "BEFORE")
+      .length,
+    workCount: workspace.evidence.filter((item) => item.category === "WORK")
+      .length,
+    afterCount: workspace.evidence.filter((item) => item.category === "AFTER")
+      .length,
+    documentCount: workspace.documents.length,
+    missingCaptionCount: missingCaptions,
+    hasReportDraft: workspace.reports.length > 0,
+    hasGeneratedPdf: workspace.reports.some((report) => report.hasGeneratedPdf),
+    pendingLocalChangeCount: 0,
+    isSignedIn: Boolean(authContext.userId),
+    privateStorageReady: workspace.betaReadiness.blockers.every(
+      (risk) => risk.id !== "private_storage",
+    ),
+    pendingOriginalFileCount: pendingOriginals,
+    pendingReportPdfCount: unarchivedReports,
+  });
 
   return (
     <div className="workspaceStack">
@@ -82,6 +104,23 @@ export default async function AppPage() {
         <Metric label="Missing captions" value={missingCaptions} />
         <Metric label="Share links" value={workspace.reportShareLinkCount} />
         <Metric label="Audit events" value={workspace.auditEventCount} />
+      </section>
+
+      <section className="workspaceSection">
+        <div className="sectionTitleRow">
+          <div>
+            <p className="eyebrow">Recommended next step</p>
+            <h2>{primaryAction.label}</h2>
+            <p>{primaryAction.detail}</p>
+          </div>
+          <span
+            className={`statusPill ${
+              primaryAction.status === "complete" ? "ready" : ""
+            }`}
+          >
+            {primaryAction.actionLabel ?? primaryAction.status}
+          </span>
+        </div>
       </section>
 
       <section className="workspaceSection">

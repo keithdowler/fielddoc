@@ -11,6 +11,7 @@ import { AppScreen } from "@/components/app-screen";
 import { AppText } from "@/components/app-text";
 import { Card } from "@/components/card";
 import { FormField } from "@/components/form-field";
+import { MetricRow } from "@/components/metric-row";
 import { SectionHeader } from "@/components/section-header";
 import { StatusBanner } from "@/components/status-banner";
 import { spacing } from "@/design/tokens";
@@ -338,6 +339,28 @@ export default function SettingsScreen() {
           Account, subscription, cloud backup, privacy, and support tools.
         </AppText>
       </View>
+
+      <Card>
+        <SectionHeader
+          title="Settings Guide"
+          detail="Use this page when you want work to leave the device safely."
+        />
+        <MetricRow
+          label="Cloud account"
+          value={mobileAuth.isSignedIn ? "Connected" : "Sign in"}
+        />
+        <MetricRow label="Subscription" value={revenueCatStatusCopy.title} />
+        <MetricRow
+          label="Backup"
+          value={syncCenterReady ? "Ready" : "Locked"}
+        />
+        <MetricRow label="Report branding" value="Optional" />
+        <MetricRow
+          label="Privacy actions"
+          value="Export or delete local data"
+        />
+        <MetricRow label="Diagnostics" value="Support information only" />
+      </Card>
 
       <Card>
         <SectionHeader

@@ -69,6 +69,295 @@ export type UserActionChecklistItem = {
   actionLabel: string | null;
 };
 
+export type FieldDocNextActionDestination =
+  "home" | "projects" | "capture" | "reports" | "settings";
+
+export type FieldDocNextAction = UserActionChecklistItem & {
+  destination: FieldDocNextActionDestination;
+  priority: number;
+};
+
+export type FieldDocNextActionInput = {
+  projectCount: number;
+  hasSelectedProject: boolean;
+  beforeCount: number;
+  workCount: number;
+  afterCount: number;
+  documentCount: number;
+  missingCaptionCount: number;
+  hasReportDraft: boolean;
+  hasGeneratedPdf: boolean;
+  pendingLocalChangeCount: number;
+  isSignedIn?: boolean;
+  subscriptionActive?: boolean;
+  privateStorageReady?: boolean;
+  pendingOriginalFileCount?: number;
+  pendingReportPdfCount?: number;
+};
+
+export function getFieldDocNextActions(
+  input: FieldDocNextActionInput,
+): FieldDocNextAction[] {
+  const hasEvidence =
+    input.beforeCount +
+      input.workCount +
+      input.afterCount +
+      input.documentCount >
+    0;
+  const hasRequiredEvidence =
+    input.beforeCount > 0 && input.workCount > 0 && input.afterCount > 0;
+  const pendingOriginalFileCount = input.pendingOriginalFileCount ?? 0;
+  const pendingReportPdfCount = input.pendingReportPdfCount ?? 0;
+  const actions: FieldDocNextAction[] = [
+    {
+      id: "create_job",
+      status: input.projectCount > 0 ? "complete" : "action_needed",
+      label: "Create the job",
+      detail:
+        input.projectCount > 0
+          ? `${formatCount(input.projectCount, "job is", "jobs are")} saved locally.`
+          : "Start with the job name. Customer, site, and notes can be added later.",
+      actionLabel: input.projectCount > 0 ? null : "Create job",
+      destination: "projects",
+      priority: 10,
+    },
+    {
+      id: "choose_job",
+      status: input.hasSelectedProject ? "complete" : "blocked",
+      label: "Choose the active job",
+      detail: input.hasSelectedProject
+        ? "New evidence and reports will be tied to this job."
+        : "Open a job before capturing evidence or building a report.",
+      actionLabel: input.hasSelectedProject ? null : "Open jobs",
+      destination: "projects",
+      priority: 20,
+    },
+    {
+      id: "capture_before",
+      status:
+        !input.hasSelectedProject || input.projectCount === 0
+          ? "blocked"
+          : input.beforeCount > 0
+            ? "complete"
+            : "action_needed",
+      label: "Show the starting condition",
+      detail:
+        input.beforeCount > 0
+          ? `${formatCount(input.beforeCount, "Before item", "Before items")} saved.`
+          : "Add at least one Before photo when the original condition matters.",
+      actionLabel: input.beforeCount > 0 ? null : "Add Before",
+      destination: "capture",
+      priority: 30,
+    },
+    {
+      id: "capture_work",
+      status:
+        !input.hasSelectedProject || input.projectCount === 0
+          ? "blocked"
+          : input.workCount > 0
+            ? "complete"
+            : "action_needed",
+      label: "Show the work",
+      detail:
+        input.workCount > 0
+          ? `${formatCount(input.workCount, "Work item", "Work items")} saved.`
+          : "Add Work evidence so the report shows what changed.",
+      actionLabel: input.workCount > 0 ? null : "Add Work",
+      destination: "capture",
+      priority: 40,
+    },
+    {
+      id: "capture_after",
+      status:
+        !input.hasSelectedProject || input.projectCount === 0
+          ? "blocked"
+          : input.afterCount > 0
+            ? "complete"
+            : "action_needed",
+      label: "Show the final condition",
+      detail:
+        input.afterCount > 0
+          ? `${formatCount(input.afterCount, "After item", "After items")} saved.`
+          : "Add After evidence so the final result is easy to verify.",
+      actionLabel: input.afterCount > 0 ? null : "Add After",
+      destination: "capture",
+      priority: 50,
+    },
+    {
+      id: "caption_evidence",
+      status:
+        input.missingCaptionCount === 0 && hasEvidence
+          ? "complete"
+          : hasEvidence
+            ? "action_needed"
+            : "blocked",
+      label: "Add short captions",
+      detail:
+        input.missingCaptionCount > 0
+          ? `${formatCount(input.missingCaptionCount, "item needs", "items need")} a caption anyone can understand.`
+          : hasEvidence
+            ? "Evidence captions are ready for review."
+            : "Capture evidence first, then add captions.",
+      actionLabel:
+        input.missingCaptionCount === 0 && hasEvidence
+          ? null
+          : "Review evidence",
+      destination: "capture",
+      priority: 60,
+    },
+    {
+      id: "make_report",
+      status: input.hasGeneratedPdf
+        ? "complete"
+        : hasRequiredEvidence
+          ? "action_needed"
+          : "blocked",
+      label: "Make the Proof Packet",
+      detail: input.hasGeneratedPdf
+        ? "A report PDF exists on this device."
+        : hasRequiredEvidence
+          ? "The core evidence is ready. Generate the report PDF next."
+          : "Add Before, Work, and After evidence before making the report.",
+      actionLabel: input.hasGeneratedPdf ? null : "Open reports",
+      destination: "reports",
+      priority: 70,
+    },
+    {
+      id: "connect_cloud",
+      status:
+        input.isSignedIn === true
+          ? "complete"
+          : input.pendingLocalChangeCount > 0 || input.hasGeneratedPdf
+            ? "action_needed"
+            : "blocked",
+      label: "Connect cloud account",
+      detail:
+        input.isSignedIn === true
+          ? "This device is signed in for backup."
+          : "Sign in before backing up originals, job details, or report PDFs.",
+      actionLabel: input.isSignedIn === true ? null : "Open settings",
+      destination: "settings",
+      priority: 80,
+    },
+    {
+      id: "confirm_subscription",
+      status:
+        input.subscriptionActive === true
+          ? "complete"
+          : input.isSignedIn === true
+            ? "action_needed"
+            : "blocked",
+      label: "Confirm subscription",
+      detail:
+        input.subscriptionActive === true
+          ? "Cloud backup and report archive are available."
+          : "An active subscription is required before cloud backup can run.",
+      actionLabel:
+        input.subscriptionActive === true ? null : "Check subscription",
+      destination: "settings",
+      priority: 90,
+    },
+    {
+      id: "back_up",
+      status:
+        input.privateStorageReady === false ||
+        input.isSignedIn !== true ||
+        input.subscriptionActive !== true
+          ? "blocked"
+          : input.pendingLocalChangeCount === 0 &&
+              pendingOriginalFileCount === 0 &&
+              pendingReportPdfCount === 0
+            ? "complete"
+            : "action_needed",
+      label: "Back up the job",
+      detail:
+        input.privateStorageReady === false
+          ? "Private storage is not configured yet."
+          : input.isSignedIn !== true || input.subscriptionActive !== true
+            ? "Sign in and confirm subscription before cloud backup."
+            : input.pendingLocalChangeCount === 0 &&
+                pendingOriginalFileCount === 0 &&
+                pendingReportPdfCount === 0
+              ? "Local metadata, originals, and PDFs are backed up."
+              : "Back up local changes, original files, and report PDFs.",
+      actionLabel:
+        input.privateStorageReady !== false &&
+        input.isSignedIn === true &&
+        input.subscriptionActive === true &&
+        (input.pendingLocalChangeCount > 0 ||
+          pendingOriginalFileCount > 0 ||
+          pendingReportPdfCount > 0)
+          ? "Back up now"
+          : null,
+      destination: "settings",
+      priority: 100,
+    },
+  ];
+
+  return actions.sort((left, right) => left.priority - right.priority);
+}
+
+export function getPrimaryFieldDocNextAction(
+  input: FieldDocNextActionInput,
+): FieldDocNextAction {
+  const actions = getFieldDocNextActions(input);
+
+  return (
+    actions.find((action) => action.status === "action_needed") ??
+    actions.find((action) => action.status === "blocked") ??
+    actions[actions.length - 1]!
+  );
+}
+
+export function getFirstRunChecklist(
+  input: Pick<
+    FieldDocNextActionInput,
+    | "projectCount"
+    | "beforeCount"
+    | "workCount"
+    | "afterCount"
+    | "hasGeneratedPdf"
+    | "pendingLocalChangeCount"
+  >,
+): UserActionChecklistItem[] {
+  const evidenceCount = input.beforeCount + input.workCount + input.afterCount;
+
+  return [
+    {
+      id: "first_job",
+      status: input.projectCount > 0 ? "complete" : "action_needed",
+      label: "Create the first job",
+      detail:
+        "A job is the folder for one site visit, claim, repair, or proof packet.",
+      actionLabel: input.projectCount > 0 ? null : "Create job",
+    },
+    {
+      id: "first_evidence",
+      status: evidenceCount > 0 ? "complete" : "action_needed",
+      label: "Add evidence",
+      detail:
+        "Start with one clear photo. Add captions after the photo is saved.",
+      actionLabel: evidenceCount > 0 ? null : "Add photo",
+    },
+    {
+      id: "first_report",
+      status: input.hasGeneratedPdf ? "complete" : "action_needed",
+      label: "Make a report",
+      detail:
+        "Use Reports when the job has enough Before, Work, and After proof.",
+      actionLabel: input.hasGeneratedPdf ? null : "Open reports",
+    },
+    {
+      id: "first_backup",
+      status: input.pendingLocalChangeCount > 0 ? "action_needed" : "complete",
+      label: "Back up when ready",
+      detail:
+        "Offline work stays on this device until you sign in and back it up.",
+      actionLabel: input.pendingLocalChangeCount > 0 ? "Open settings" : null,
+    },
+  ];
+}
+
 export type ReportUsabilityChecklistInput = {
   projectSelected: boolean;
   beforeCount: number;

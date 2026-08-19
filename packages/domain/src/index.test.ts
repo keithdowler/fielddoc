@@ -7,6 +7,9 @@ import {
   getBetaReadinessSummary,
   getIncludedReportSections,
   getCloudFeatureGate,
+  getFieldDocNextActions,
+  getFirstRunChecklist,
+  getPrimaryFieldDocNextAction,
   getProofPacketDocumentEntry,
   getReportDeliveryReadiness,
   getReportDraftReadiness,
@@ -164,6 +167,117 @@ describe("domain constants", () => {
       status: "complete",
       actionLabel: null,
     });
+  });
+
+  it("recommends a first job before capture or report work", () => {
+    const action = getPrimaryFieldDocNextAction({
+      projectCount: 0,
+      hasSelectedProject: false,
+      beforeCount: 0,
+      workCount: 0,
+      afterCount: 0,
+      documentCount: 0,
+      missingCaptionCount: 0,
+      hasReportDraft: false,
+      hasGeneratedPdf: false,
+      pendingLocalChangeCount: 0,
+    });
+
+    expect(action).toMatchObject({
+      id: "create_job",
+      status: "action_needed",
+      destination: "projects",
+      actionLabel: "Create job",
+    });
+  });
+
+  it("guides a partially documented job toward missing evidence", () => {
+    const actions = getFieldDocNextActions({
+      projectCount: 1,
+      hasSelectedProject: true,
+      beforeCount: 1,
+      workCount: 0,
+      afterCount: 0,
+      documentCount: 0,
+      missingCaptionCount: 0,
+      hasReportDraft: false,
+      hasGeneratedPdf: false,
+      pendingLocalChangeCount: 3,
+    });
+
+    expect(
+      actions.find((action) => action.id === "capture_before"),
+    ).toMatchObject({
+      status: "complete",
+    });
+    expect(
+      actions.find((action) => action.id === "capture_work"),
+    ).toMatchObject({
+      status: "action_needed",
+      label: "Show the work",
+    });
+    expect(
+      getPrimaryFieldDocNextAction({
+        projectCount: 1,
+        hasSelectedProject: true,
+        beforeCount: 1,
+        workCount: 0,
+        afterCount: 0,
+        documentCount: 0,
+        missingCaptionCount: 0,
+        hasReportDraft: false,
+        hasGeneratedPdf: false,
+        pendingLocalChangeCount: 3,
+      }).id,
+    ).toBe("capture_work");
+  });
+
+  it("keeps cloud backup blocked until account and subscription are ready", () => {
+    const actions = getFieldDocNextActions({
+      projectCount: 1,
+      hasSelectedProject: true,
+      beforeCount: 1,
+      workCount: 1,
+      afterCount: 1,
+      documentCount: 1,
+      missingCaptionCount: 0,
+      hasReportDraft: true,
+      hasGeneratedPdf: true,
+      pendingLocalChangeCount: 2,
+      pendingOriginalFileCount: 1,
+      pendingReportPdfCount: 1,
+      isSignedIn: true,
+      subscriptionActive: false,
+      privateStorageReady: true,
+    });
+
+    expect(
+      actions.find((action) => action.id === "confirm_subscription"),
+    ).toMatchObject({
+      status: "action_needed",
+    });
+    expect(actions.find((action) => action.id === "back_up")).toMatchObject({
+      status: "blocked",
+      actionLabel: null,
+    });
+  });
+
+  it("produces a simple first-run checklist", () => {
+    const checklist = getFirstRunChecklist({
+      projectCount: 1,
+      beforeCount: 1,
+      workCount: 0,
+      afterCount: 0,
+      hasGeneratedPdf: false,
+      pendingLocalChangeCount: 4,
+    });
+
+    expect(checklist.map((item) => [item.id, item.status])).toEqual([
+      ["first_job", "complete"],
+      ["first_evidence", "complete"],
+      ["first_report", "action_needed"],
+      ["first_backup", "action_needed"],
+    ]);
   });
 
   it("blocks original backup checklist items when private storage is unavailable", () => {

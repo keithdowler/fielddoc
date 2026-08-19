@@ -106,6 +106,10 @@ export default function ReportsScreen() {
       preview?.totals.externalOriginalDocuments ?? 0,
     metadataOnlyDocumentCount: preview?.totals.metadataOnlyDocuments ?? 0,
   });
+  const primaryChecklistItem =
+    usabilityChecklist.find((item) => item.status === "blocked") ??
+    usabilityChecklist.find((item) => item.status === "action_needed") ??
+    null;
   const hasUnsavedDraftChanges =
     !!draft &&
     (title !== draft.title ||
@@ -517,6 +521,27 @@ export default function ReportsScreen() {
             : (deliveryReadiness.blockers[0] ?? deliveryReadiness.detail)
         }
       />
+
+      {primaryChecklistItem ? (
+        <StatusBanner
+          tone={
+            primaryChecklistItem.status === "blocked" ? "blocked" : "warning"
+          }
+          title={`Next: ${primaryChecklistItem.label}`}
+          message={primaryChecklistItem.detail}
+          detail={
+            primaryChecklistItem.actionLabel
+              ? `Recommended action: ${primaryChecklistItem.actionLabel}`
+              : undefined
+          }
+        />
+      ) : (
+        <StatusBanner
+          tone="success"
+          title="Report path is clear"
+          message="The local report, evidence captions, and backup checklist are ready."
+        />
+      )}
 
       <Card>
         <SectionHeader

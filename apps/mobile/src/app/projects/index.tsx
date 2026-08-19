@@ -27,7 +27,7 @@ import { spacing } from "@/design/tokens";
 import { getLocalRepositories } from "@/infrastructure/local-store/repositories";
 
 const formFields = [
-  ["name", "Project name", "Unit 12 turnover"],
+  ["name", "Job name", "Unit 12 turnover"],
   ["customerCompany", "Customer / company", "Rivergate Properties"],
   ["siteAddress", "Site / address", "1200 Grove Ave"],
   ["workOrderReference", "Work order / reference", "WO-1042"],
@@ -36,6 +36,11 @@ const formFields = [
 ] as const satisfies ReadonlyArray<
   readonly [keyof ProjectFormInput, string, string]
 >;
+
+type PendingProjectAction = {
+  type: "archive" | "delete";
+  project: Project;
+} | null;
 
 function formFromProject(project: Project): ProjectFormState {
   return {
@@ -77,6 +82,8 @@ export default function ProjectsScreen() {
   const [summary, setSummary] = useState<ProjectEvidenceSummary>(emptySummary);
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [pendingAction, setPendingAction] =
+    useState<PendingProjectAction>(null);
   const validation = useMemo(() => validateProjectForm(form), [form]);
   const selectedProject = projects.find(
     (project) => project.id === selectedProjectId,
@@ -197,9 +204,7 @@ export default function ProjectsScreen() {
     setSelectedProjectId(project.id);
     setEditingProjectId(undefined);
     setStatusMessage(
-      editingProjectId
-        ? "Project updated locally."
-        : "Project created locally.",
+      editingProjectId ? "Job updated locally." : "Job created locally.",
     );
     setForm({ ...initialProjectFormState, status: "saved" });
     await reload(project.id);
@@ -208,15 +213,19 @@ export default function ProjectsScreen() {
   async function archiveProject(id: string) {
     const repositories = await getLocalRepositories();
     await repositories.projects.archive(id);
-    setStatusMessage("Project archived locally.");
+    setPendingAction(null);
+    setStatusMessage(
+      "Job archived locally. It is hidden unless archived jobs are shown.",
+    );
     await reload();
   }
 
   async function deleteProject(id: string) {
     const repositories = await getLocalRepositories();
     await repositories.projects.delete(id);
+    setPendingAction(null);
     setSelectedProjectId(undefined);
-    setStatusMessage("Project deleted locally.");
+    setStatusMessage("Job deleted locally.");
     await reload(undefined);
   }
 
@@ -225,7 +234,8 @@ export default function ProjectsScreen() {
       <View>
         <AppText variant="hero">Projects</AppText>
         <AppText muted>
-          Create, edit, archive, delete, search, and sort projects offline.
+          Create, find, update, archive, and delete local jobs. Everything works
+          offline.
         </AppText>
       </View>
 
@@ -243,11 +253,39 @@ export default function ProjectsScreen() {
           message={statusMessage}
         />
       ) : null}
+      {pendingAction ? (
+        <StatusBanner
+          tone={pendingAction.type === "delete" ? "blocked" : "warning"}
+          title={
+            pendingAction.type === "delete"
+              ? "Delete this job?"
+              : "Archive this job?"
+          }
+          message={
+            pendingAction.type === "delete"
+              ? `${pendingAction.project.name} will be removed from the active local job list on this device.`
+              : `${pendingAction.project.name} will be hidden from the main local job list but can be shown again with archived jobs.`
+          }
+          detail={
+            pendingAction.type === "delete"
+              ? "Use this only when the local job is no longer needed."
+              : "Archiving is safer than deleting when you may need the job later."
+          }
+          actionLabel={
+            pendingAction.type === "delete" ? "Delete Job" : "Archive Job"
+          }
+          onAction={() =>
+            pendingAction.type === "delete"
+              ? void deleteProject(pendingAction.project.id)
+              : void archiveProject(pendingAction.project.id)
+          }
+        />
+      ) : null}
 
       <Card>
         <SectionHeader
-          title="Find Projects"
-          detail="Search and sort the local SQLite store."
+          title="Find Jobs"
+          detail="Search by name, customer, site, or reference."
         />
         <FormField
           label="Search"
@@ -276,8 +314,8 @@ export default function ProjectsScreen() {
 
       <Card>
         <SectionHeader
-          title={editingProjectId ? "Edit Project" : "Create Local Project"}
-          detail="Only project name is required."
+          title={editingProjectId ? "Edit Job" : "Create Local Job"}
+          detail="Only job name is required. The rest can be added later."
         />
         {formFields.map(([field, label, placeholder]) => (
           <FormField
@@ -292,11 +330,11 @@ export default function ProjectsScreen() {
         ))}
         <View style={styles.inlineActions}>
           <AppButton
-            label={editingProjectId ? "Save Changes" : "Create Local Project"}
+            label={editingProjectId ? "Save Changes" : "Create Local Job"}
             icon="plus.circle.fill"
             onPress={saveProject}
             accessibilityLabel={
-              editingProjectId ? "Save project changes" : "Create local project"
+              editingProjectId ? "Save job changes" : "Create local job"
             }
           />
           {editingProjectId ? (
@@ -313,7 +351,7 @@ export default function ProjectsScreen() {
       </Card>
 
       <Card>
-        <SectionHeader title="Local Projects" />
+        <SectionHeader title="Local Jobs" />
         {projects.length ? (
           projects.map((project) => (
             <View key={project.id} style={styles.projectRow}>
@@ -347,20 +385,20 @@ export default function ProjectsScreen() {
                 <AppButton
                   label="Archive"
                   variant="secondary"
-                  onPress={() => archiveProject(project.id)}
+                  onPress={() => setPendingAction({ type: "archive", project })}
                 />
                 <AppButton
                   label="Delete"
                   variant="danger"
-                  onPress={() => deleteProject(project.id)}
+                  onPress={() => setPendingAction({ type: "delete", project })}
                 />
               </View>
             </View>
           ))
         ) : (
           <EmptyState
-            title="No projects found"
-            message="Create a local project or change your search filters."
+            title="No jobs found"
+            message="Create a local job or change your search filters."
             icon="folder"
           />
         )}

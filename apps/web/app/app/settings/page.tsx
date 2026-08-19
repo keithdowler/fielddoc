@@ -35,6 +35,20 @@ export default async function SettingsPage() {
         </div>
       </section>
 
+      <div className="dataList">
+        <article className="dataRow">
+          <div>
+            <h3>How to use this page</h3>
+            <p className="compactText">
+              Green means the workspace can use that production feature. Brown
+              means the app will keep the feature locked until the missing
+              provider or environment variable is configured.
+            </p>
+          </div>
+          <span className="statusPill ready">Guide</span>
+        </article>
+      </div>
+
       {workspace.betaReadiness.blockers.length ||
       workspace.betaReadiness.warnings.length ? (
         <div className="dataList">

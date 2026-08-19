@@ -268,6 +268,20 @@ one-handed reachability of primary buttons, visible Settings backup/subscription
 states, the Reports "What Needs Attention" checklist, and keyboard focus
 visibility on the deployed web workspace.
 
+## Sprint 34 Guided Workflow Tests
+
+Sprint 34 adds shared domain coverage for the next-best-action workflow engine,
+first-run checklist, and backup gating states. Mobile manual coverage should
+verify Home shows a first-run guide with no jobs, Projects confirms archive and
+delete before changing local data, Capture recommends Before, Work, then After
+evidence in order, Reports highlights the first incomplete checklist item, and
+Settings explains account, subscription, backup, branding, privacy, and
+diagnostics in plain language.
+
+Web manual coverage should sign into `/app`, confirm the recommended next step
+matches synced workspace data, and open `/app/settings` to verify the readiness
+guide explains green and warning states before provider details.
+
 ## Sprint 29 Document Metadata And Canonical Sync Tests
 
 Sprint 29 adds local repository coverage for document metadata, soft delete, and

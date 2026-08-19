@@ -1,5 +1,13 @@
 import { resolvePublicProductName } from "@fielddoc/config";
-import type { Project } from "@fielddoc/domain";
+import {
+  getFieldDocNextActions,
+  getFirstRunChecklist,
+  getPrimaryFieldDocNextAction,
+  type FieldDocNextActionDestination,
+  type Project,
+  type ProjectEvidenceSummary,
+  type ReportDraft,
+} from "@fielddoc/domain";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -21,6 +29,9 @@ export default function HomeScreen() {
   );
   const [projects, setProjects] = useState<Project[]>([]);
   const [pendingMutations, setPendingMutations] = useState(0);
+  const [currentSummary, setCurrentSummary] =
+    useState<ProjectEvidenceSummary | null>(null);
+  const [currentDraft, setCurrentDraft] = useState<ReportDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const currentProject = projects[0];
 
@@ -37,10 +48,19 @@ export default function HomeScreen() {
         }),
         repositories.mutations.countPending(),
       ]);
+      const firstProject = projectRows[0];
+      const [summary, draft] = firstProject
+        ? await Promise.all([
+            repositories.evidence.summarizeProject(firstProject.id),
+            repositories.reportDrafts.getLatestByProject(firstProject.id),
+          ])
+        : [null, null];
 
       if (!mounted) return;
       setProjects(projectRows);
       setPendingMutations(pending);
+      setCurrentSummary(summary);
+      setCurrentDraft(draft);
       setLoading(false);
     }
 
@@ -52,6 +72,24 @@ export default function HomeScreen() {
   }, []);
 
   useFocusEffect(refresh);
+
+  const actionInput = {
+    projectCount: projects.length,
+    hasSelectedProject: Boolean(currentProject),
+    beforeCount: currentSummary?.beforeCount ?? 0,
+    workCount: currentSummary?.workCount ?? 0,
+    afterCount: currentSummary?.afterCount ?? 0,
+    documentCount: currentSummary?.documentCount ?? 0,
+    missingCaptionCount: currentSummary?.missingCaptionCount ?? 0,
+    hasReportDraft: Boolean(currentDraft),
+    hasGeneratedPdf: Boolean(currentDraft?.generatedPdfUri),
+    pendingLocalChangeCount: pendingMutations,
+  };
+  const primaryAction = getPrimaryFieldDocNextAction(actionInput);
+  const nextActions = getFieldDocNextActions(actionInput)
+    .filter((action) => action.status !== "complete")
+    .slice(0, 4);
+  const firstRunChecklist = getFirstRunChecklist(actionInput);
 
   return (
     <AppScreen>
@@ -74,10 +112,42 @@ export default function HomeScreen() {
         />
       ) : null}
 
+      {!loading && projects.length === 0 ? (
+        <Card>
+          <SectionHeader
+            title="Start Here"
+            detail="Four simple steps for the first Proof Packet."
+          />
+          {firstRunChecklist.map((item) => (
+            <MetricRow
+              key={item.id}
+              label={item.label}
+              value={formatActionStatus(item.status)}
+            />
+          ))}
+          <Link href="/projects" asChild>
+            <AppButton
+              label="Create First Job"
+              icon="plus.circle.fill"
+              accessibilityLabel="Create your first job"
+            />
+          </Link>
+        </Card>
+      ) : null}
+
+      {!loading ? (
+        <StatusBanner
+          tone={getActionTone(primaryAction.status)}
+          title={primaryAction.label}
+          message={primaryAction.detail}
+          actionLabel={primaryAction.actionLabel ?? undefined}
+        />
+      ) : null}
+
       <Card>
         <SectionHeader
           title="Continue Job"
-          detail="Your most recently updated local project."
+          detail="Your most recently updated local job."
         />
         {currentProject ? (
           <>
@@ -87,6 +157,22 @@ export default function HomeScreen() {
                 currentProject.customerCompany ??
                 "No site yet"}
             </AppText>
+            {currentSummary ? (
+              <View style={styles.summaryRows}>
+                <MetricRow
+                  label="Before / Work / After"
+                  value={`${currentSummary.beforeCount} / ${currentSummary.workCount} / ${currentSummary.afterCount}`}
+                />
+                <MetricRow
+                  label="Captions needed"
+                  value={
+                    currentSummary.missingCaptionCount > 0
+                      ? currentSummary.missingCaptionCount
+                      : "None"
+                  }
+                />
+              </View>
+            ) : null}
             <View style={styles.actions}>
               <Link href="/projects" asChild>
                 <AppButton
@@ -131,19 +217,17 @@ export default function HomeScreen() {
           title="What Needs Attention"
           detail="Quick guidance for the next best action."
         />
-        {currentProject ? (
-          <MetricRow label="Ready to capture" value={currentProject.name} />
+        {nextActions.length ? (
+          nextActions.map((action) => (
+            <MetricRow
+              key={action.id}
+              label={action.label}
+              value={getDestinationLabel(action.destination)}
+            />
+          ))
         ) : (
-          <MetricRow label="First step" value="Start a job" />
+          <MetricRow label="Status" value="All clear" />
         )}
-        <MetricRow
-          label="Local changes to back up"
-          value={pendingMutations > 0 ? pendingMutations : "None"}
-        />
-        <MetricRow
-          label="Reports to review"
-          value={projects.length ? "Check reports" : "No jobs yet"}
-        />
       </Card>
 
       <Card>
@@ -189,4 +273,44 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing.md,
   },
+  summaryRows: {
+    gap: spacing.sm,
+  },
 });
+
+function getActionTone(status: "complete" | "action_needed" | "blocked") {
+  switch (status) {
+    case "complete":
+      return "success";
+    case "blocked":
+      return "blocked";
+    case "action_needed":
+      return "warning";
+  }
+}
+
+function formatActionStatus(status: "complete" | "action_needed" | "blocked") {
+  switch (status) {
+    case "complete":
+      return "Done";
+    case "blocked":
+      return "Waiting";
+    case "action_needed":
+      return "Next";
+  }
+}
+
+function getDestinationLabel(destination: FieldDocNextActionDestination) {
+  switch (destination) {
+    case "projects":
+      return "Jobs";
+    case "capture":
+      return "Capture";
+    case "reports":
+      return "Reports";
+    case "settings":
+      return "Settings";
+    case "home":
+      return "Home";
+  }
+}
