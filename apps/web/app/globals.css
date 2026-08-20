@@ -41,6 +41,35 @@ button:focus-visible {
   width: 100%;
 }
 
+.legalShell {
+  margin: 0 auto;
+  max-width: 860px;
+  padding: 56px 24px 72px;
+}
+
+.legalDocument {
+  display: grid;
+  gap: 28px;
+}
+
+.legalDocument h1 {
+  margin-bottom: 0;
+}
+
+.legalDocument h2 {
+  font-size: 1.35rem;
+  margin-bottom: 10px;
+}
+
+.legalDocument p {
+  margin-bottom: 0;
+}
+
+.legalUpdated {
+  color: #617077;
+  font-size: 0.95rem;
+}
+
 .eyebrow {
   color: #6b5e4f;
   font-size: 0.78rem;

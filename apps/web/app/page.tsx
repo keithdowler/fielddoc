@@ -23,6 +23,8 @@ export default function Home() {
           <Link href="/app/projects">Projects</Link>
           <Link href="/app/reports">Reports</Link>
           <Link href="/app/settings">Settings</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </nav>
         <p className="small">
           Shared evidence categories are loaded from the domain package:{" "}

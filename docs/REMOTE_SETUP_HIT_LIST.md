@@ -82,6 +82,11 @@ Then store the URLs:
 - Vercel Production: `NEXT_PUBLIC_TERMS_URL`
 - Expo/EAS/mobile env: `EXPO_PUBLIC_PRIVACY_POLICY_URL`
 - Expo/EAS/mobile env: `EXPO_PUBLIC_TERMS_URL`
+- The web app includes first-party pages at `/privacy` and `/terms`; use the
+  deployed absolute URLs, for example
+  `https://fielddoc-web.vercel.app/privacy` and
+  `https://fielddoc-web.vercel.app/terms`, unless a custom domain replaces
+  them.
 
 ## 5. Apple Developer
 

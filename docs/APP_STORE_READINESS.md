@@ -19,7 +19,11 @@ This project now has reproducible EAS build profiles in `apps/mobile/eas.json` a
 - Final public product name.
 - Final icon and splash assets.
 - Privacy Policy URL in `NEXT_PUBLIC_PRIVACY_POLICY_URL` and `EXPO_PUBLIC_PRIVACY_POLICY_URL`.
+  The web app ships a first-party `/privacy` page; point production variables
+  at the deployed absolute URL before App Store submission.
 - Terms URL in `NEXT_PUBLIC_TERMS_URL` and `EXPO_PUBLIC_TERMS_URL`.
+  The web app ships a first-party `/terms` page; point production variables at
+  the deployed absolute URL before App Store submission.
 - Account deletion flow.
 - RevenueCat products, entitlements, production mobile API keys, and webhook
   secret.
