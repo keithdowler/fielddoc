@@ -169,9 +169,25 @@ export default async function SettingsPage() {
                 </ul>
               ) : null}
             </div>
-            <span className={item.ready ? "statusPill ready" : "statusPill"}>
-              {item.ready ? "Ready" : "Not configured"}
-            </span>
+            <div className="actionCluster">
+              {item.ready && item.id === "email" ? (
+                <form action="/api/ops/email/test" method="post">
+                  <button className="primaryButton compactButton" type="submit">
+                    Send test
+                  </button>
+                </form>
+              ) : null}
+              {item.ready && item.id === "error_reporting" ? (
+                <form action="/api/ops/error-reporting/test" method="post">
+                  <button className="primaryButton compactButton" type="submit">
+                    Send test
+                  </button>
+                </form>
+              ) : null}
+              <span className={item.ready ? "statusPill ready" : "statusPill"}>
+                {item.ready ? "Ready" : "Not configured"}
+              </span>
+            </div>
           </article>
         ))}
       </div>

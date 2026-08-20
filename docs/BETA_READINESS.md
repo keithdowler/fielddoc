@@ -45,6 +45,22 @@ Provider dashboards and end-to-end manual checks still decide launch readiness.
 7. Resolve any rejected receipts, missing captions, or pending originals before
    inviting external users.
 
+## Provider Verification
+
+The web Settings page checks production provider configuration by environment
+variable name and exposes private operational tests for providers that can be
+verified without customer data:
+
+- Email delivery requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. When both
+  are configured, the Settings page shows a Send test action that emails the
+  signed-in operator and records `ops_email_delivery_test` in Neon.
+- Error reporting requires `SENTRY_DSN`. When configured, the Settings page
+  shows a Send test action that posts a privacy-safe server event to Sentry and
+  records `ops_error_reporting_test` in Neon.
+
+These checks prove provider reachability. They do not replace App Store,
+RevenueCat sandbox purchase, deliverability, or incident-response validation.
+
 ## Sprint Policy After Final UX Pass
 
 Do not continue broad numbered sprints by default. Future work should be handled

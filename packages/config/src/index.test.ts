@@ -30,6 +30,7 @@ describe("webServerEnvSchema", () => {
       NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: "",
       NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: "",
       DATABASE_URL: "",
+      RESEND_FROM_EMAIL: "",
       SENTRY_DSN: "",
     });
 
@@ -46,6 +47,7 @@ describe("webServerEnvSchema", () => {
       parsed.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL,
     ).toBeUndefined();
     expect(parsed.DATABASE_URL).toBeUndefined();
+    expect(parsed.RESEND_FROM_EMAIL).toBeUndefined();
     expect(parsed.SENTRY_DSN).toBeUndefined();
   });
 });
@@ -76,6 +78,10 @@ describe("getWebProductionReadiness", () => {
     expect(checks.find((check) => check.id === "revenuecat")).toMatchObject({
       ready: false,
       missingVariableNames: ["REVENUECAT_WEBHOOK_SECRET"],
+    });
+    expect(checks.find((check) => check.id === "email")).toMatchObject({
+      ready: false,
+      missingVariableNames: ["RESEND_API_KEY", "RESEND_FROM_EMAIL"],
     });
   });
 });

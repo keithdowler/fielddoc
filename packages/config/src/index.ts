@@ -37,6 +37,7 @@ export const webServerEnvSchema = z.object({
   R2_BUCKET_NAME: optionalSecret,
   REVENUECAT_WEBHOOK_SECRET: optionalSecret,
   RESEND_API_KEY: optionalSecret,
+  RESEND_FROM_EMAIL: optionalSecret,
   SENTRY_DSN: optionalUrl,
 });
 
@@ -119,7 +120,7 @@ export const webProductionReadinessRequirements = [
     label: "Email delivery",
     detail: "Required before sending report links or account email flows.",
     requiredFor: "Customer delivery",
-    variableNames: ["RESEND_API_KEY"],
+    variableNames: ["RESEND_API_KEY", "RESEND_FROM_EMAIL"],
   },
   {
     id: "error_reporting",

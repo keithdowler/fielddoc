@@ -295,6 +295,13 @@ p {
   margin: 0 0 6px;
 }
 
+.actionCluster {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
 .compactText,
 .emptyMessage {
   margin: 0;
@@ -461,6 +468,10 @@ p {
 .primaryButton:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.compactButton {
+  min-height: 44px;
 }
 
 .textButton {

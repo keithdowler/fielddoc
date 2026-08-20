@@ -47,10 +47,11 @@ Create or verify:
 - Resend account.
 - Sending domain verified with DNS records.
 - Production API key stored in Vercel as `RESEND_API_KEY`.
-- A planned from-address such as `reports@yourdomain.com`.
+- A verified from-address stored in Vercel as `RESEND_FROM_EMAIL`, such as
+  `Proof Packet <reports@yourdomain.com>`.
 
-The app does not yet send production email. This setup removes a blocker for the
-next delivery sprint.
+After redeploying, open web Settings and use the Email delivery Send test action
+to send a private operational test email to the signed-in operator.
 
 ## 3. Error Reporting
 
@@ -66,6 +67,9 @@ Create or verify:
 
 Do not add customer names, addresses, captions, notes, local file URIs, signed
 URLs, or object bytes to error context.
+
+After redeploying, open web Settings and use the Error reporting Send test
+action to send a privacy-safe server event.
 
 ## 4. Legal URLs
 
