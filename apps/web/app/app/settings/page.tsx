@@ -3,6 +3,7 @@ import {
   publicWebEnvSchema,
   webServerEnvSchema,
 } from "@fielddoc/config";
+import { internalReadinessNotice } from "../artifact-safety";
 import { getWorkspaceData } from "../workspace-data";
 
 export default async function SettingsPage() {
@@ -14,7 +15,13 @@ export default async function SettingsPage() {
   const readiness = getWebProductionReadiness({ ...env, ...publicEnv });
 
   return (
-    <section className="workspaceSection">
+    <section className="workspaceSection internalAdminPage">
+      <aside className="printOnly printSafetyPage" aria-label="Print warning">
+        <p className="eyebrow">Internal page</p>
+        <h1>{internalReadinessNotice.printTitle}</h1>
+        <p>{internalReadinessNotice.printDetail}</p>
+      </aside>
+
       <p className="eyebrow">Settings</p>
       <h1>Organization readiness</h1>
       <p>
@@ -22,6 +29,14 @@ export default async function SettingsPage() {
         honest: storage, billing, email, and observability must be configured
         before the app claims they are ready.
       </p>
+
+      <aside className="internalNotice noPrint">
+        <div>
+          <h2>{internalReadinessNotice.title}</h2>
+          <p className="compactText">{internalReadinessNotice.detail}</p>
+        </div>
+        <span className="statusPill blocked">Do not send</span>
+      </aside>
 
       <section className="readinessPanel">
         <div>

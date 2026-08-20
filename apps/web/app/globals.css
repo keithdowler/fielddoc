@@ -188,6 +188,29 @@ p {
   margin-bottom: 0;
 }
 
+.internalNotice {
+  align-items: center;
+  border: 1px solid #b58100;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  margin: 24px 0;
+  padding: 18px;
+}
+
+.internalNotice h2 {
+  font-size: 1.15rem;
+  margin: 0 0 6px;
+}
+
+.printOnly {
+  display: none;
+}
+
+.printSafetyPage {
+  padding: 36px 0;
+}
+
 .readinessScore {
   border-left: 4px solid #0f6b85;
   display: grid;
@@ -650,5 +673,43 @@ p {
 
   .mediaGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .noPrint,
+  .workspaceHeader,
+  .workspaceMeta {
+    display: none !important;
+  }
+
+  .workspaceShell {
+    max-width: none;
+    padding: 0.5in;
+  }
+
+  .printOnly {
+    display: block !important;
+  }
+
+  .internalAdminPage > :not(.printOnly) {
+    display: none !important;
+  }
+
+  .printSafetyPage {
+    border: 2px solid #1d2528;
+    padding: 0.35in;
+  }
+
+  .printSafetyPage h1 {
+    font-size: 28pt;
+  }
+
+  .printSafetyPage p {
+    font-size: 14pt;
   }
 }

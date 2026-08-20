@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
+  proofPacketArchiveGuidance,
+  proofPacketDownloadLabel,
+} from "../../artifact-safety";
+import {
   getReportDetailFromWorkspaceData,
   getWorkspaceData,
   type WorkspaceReportDetail,
@@ -59,6 +63,14 @@ export default async function ReportDetailPage({
 
         {report.notes ? <p className="noteText">{report.notes}</p> : null}
 
+        <aside className="internalNotice">
+          <div>
+            <h2>Customer Proof Packet</h2>
+            <p className="compactText">{proofPacketArchiveGuidance}</p>
+          </div>
+          <span className="statusPill ready">Customer artifact</span>
+        </aside>
+
         <div className="metricGrid" aria-label="Report readiness metrics">
           <Metric label="Evidence" value={report.totals.evidenceCount} />
           <Metric label="Documents" value={report.totals.documentCount} />
@@ -108,7 +120,7 @@ export default async function ReportDetailPage({
                   href={`/app/reports/${report.id}/download`}
                   prefetch={false}
                 >
-                  Download private PDF
+                  {proofPacketDownloadLabel}
                 </Link>
               ) : (
                 "Not uploaded yet"
@@ -188,7 +200,7 @@ export default async function ReportDetailPage({
                       href={`/app/reports/${report.id}/download`}
                       prefetch={false}
                     >
-                      Download
+                      {proofPacketDownloadLabel}
                     </Link>
                   </article>
                 ))}

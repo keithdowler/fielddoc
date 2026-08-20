@@ -1,5 +1,9 @@
 import { getWorkspaceData } from "../workspace-data";
 import Link from "next/link";
+import {
+  proofPacketArchiveGuidance,
+  proofPacketDownloadLabel,
+} from "../artifact-safety";
 
 export default async function ReportsPage() {
   const workspace = await getWorkspaceData();
@@ -19,6 +23,14 @@ export default async function ReportsPage() {
         Backed-up report drafts and generated PDFs appear here. Downloads use
         private, short-lived links when the PDF is archived.
       </p>
+
+      <aside className="internalNotice">
+        <div>
+          <h2>Customer artifact source</h2>
+          <p className="compactText">{proofPacketArchiveGuidance}</p>
+        </div>
+        <span className="statusPill ready">Reports only</span>
+      </aside>
 
       {workspace.status !== "ready" ? (
         <p className="emptyMessage">{workspace.message}</p>
@@ -68,7 +80,7 @@ export default async function ReportsPage() {
                     href={`/app/reports/${report.id}/download`}
                     prefetch={false}
                   >
-                    Download PDF
+                    {proofPacketDownloadLabel}
                   </Link>
                 ) : null}
               </div>
