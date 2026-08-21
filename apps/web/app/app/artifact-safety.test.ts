@@ -7,12 +7,12 @@ import {
 } from "./artifact-safety";
 
 describe("artifact safety copy", () => {
-  it("keeps internal readiness distinct from customer Proof Packet exports", () => {
-    expect(internalReadinessNotice.detail).toContain(
-      "not a customer Proof Packet",
+  it("keeps internal readiness distinct from customer FieldDoc reports", () => {
+    expect(internalReadinessNotice.detail).toContain("not a customer report");
+    expect(internalReadinessNotice.printTitle).toContain(
+      "not a customer report",
     );
-    expect(internalReadinessNotice.printTitle).toContain("not a Proof Packet");
-    expect(proofPacketDownloadLabel).toContain("customer Proof Packet PDF");
+    expect(proofPacketDownloadLabel).toContain("customer FieldDoc Report");
     expect(proofPacketArchiveGuidance).toContain("not by printing Settings");
   });
 });

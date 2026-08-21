@@ -43,7 +43,7 @@ export default async function ReportDetailPage({
         <Link href="/app/reports">Back to reports</Link>
         <div className="sectionTitleRow detailHeader">
           <div>
-            <p className="eyebrow">Proof Packet review</p>
+            <p className="eyebrow">FieldDoc report review</p>
             <h1>{report.title}</h1>
             <p>
               <Link href={`/app/projects/${report.project.id}`}>
@@ -65,7 +65,7 @@ export default async function ReportDetailPage({
 
         <aside className="internalNotice">
           <div>
-            <h2>Customer Proof Packet</h2>
+            <h2>Customer FieldDoc Report</h2>
             <p className="compactText">{proofPacketArchiveGuidance}</p>
           </div>
           <span className="statusPill ready">Customer artifact</span>
@@ -75,7 +75,10 @@ export default async function ReportDetailPage({
           <Metric label="Evidence" value={report.totals.evidenceCount} />
           <Metric label="Documents" value={report.totals.documentCount} />
           <Metric label="Media" value={report.totals.mediaCount} />
-          <Metric label="Uploaded" value={report.totals.uploadedMediaCount} />
+          <Metric
+            label="Saved to cloud"
+            value={report.totals.uploadedMediaCount}
+          />
           <Metric
             label="Visual docs"
             value={report.totals.visualDocumentCount}
@@ -85,7 +88,7 @@ export default async function ReportDetailPage({
             value={report.totals.externalOriginalDocumentCount}
           />
           <Metric
-            label="Metadata docs"
+            label="Reference-only docs"
             value={report.totals.metadataOnlyDocumentCount}
           />
           <Metric
@@ -123,7 +126,7 @@ export default async function ReportDetailPage({
                   {proofPacketDownloadLabel}
                 </Link>
               ) : (
-                "Not uploaded yet"
+                "Still saving"
               )}
             </dd>
           </div>
@@ -189,7 +192,7 @@ export default async function ReportDetailPage({
                     <div>
                       <h3>{formatBytes(exportRow.sizeBytes)} PDF</h3>
                       <p className="compactText">
-                        Uploaded {formatDate(exportRow.uploadedAt)}
+                        Saved {formatDate(exportRow.uploadedAt)}
                       </p>
                       <p className="compactText">
                         SHA {exportRow.sha256.slice(0, 16)}
@@ -306,12 +309,12 @@ export default async function ReportDetailPage({
                       </p>
                       <div className="rowMetrics inlineMetrics">
                         <span>{evidence.mediaCount} media</span>
-                        <span>{evidence.uploadedMediaCount} uploaded</span>
+                        <span>{evidence.uploadedMediaCount} saved</span>
                         <span>
                           {evidence.documentCount} documents (
                           {evidence.visualDocumentCount} visual /{" "}
                           {evidence.externalOriginalDocumentCount} original /{" "}
-                          {evidence.metadataOnlyDocumentCount} metadata /{" "}
+                          {evidence.metadataOnlyDocumentCount} reference-only /{" "}
                           {evidence.blockedDocumentCount} blocked)
                         </span>
                         <span>{evidence.annotationCount} notes</span>

@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { useAppTheme } from "@/design/use-app-theme";
@@ -8,9 +8,10 @@ import { spacing } from "@/design/tokens";
 type AppScreenProps = {
   children: ReactNode;
   footer?: ReactNode;
+  scrollViewRef?: RefObject<ScrollView | null>;
 };
 
-export function AppScreen({ children, footer }: AppScreenProps) {
+export function AppScreen({ children, footer, scrollViewRef }: AppScreenProps) {
   const theme = useAppTheme();
 
   return (
@@ -18,6 +19,7 @@ export function AppScreen({ children, footer }: AppScreenProps) {
       style={[styles.safeArea, { backgroundColor: theme.background }]}
     >
       <ScrollView
+        ref={scrollViewRef}
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}

@@ -21,7 +21,7 @@ export type AccountProvisioner = {
 export function normalizeOrganizationName(value: string | null | undefined) {
   const trimmed = value?.trim();
 
-  return trimmed && trimmed.length > 0 ? trimmed : "Proof Packet";
+  return trimmed && trimmed.length > 0 ? trimmed : "FieldDoc";
 }
 
 export function normalizeMembershipRole(value: string | null | undefined) {

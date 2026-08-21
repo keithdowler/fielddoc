@@ -52,7 +52,7 @@ export class ExpoProofPacketPdfRenderer implements ProofPacketRenderer {
 
     const fileInfo = await FileSystem.getInfoAsync(localUri);
     if (!fileInfo.exists) {
-      throw new Error("Generated PDF could not be saved locally.");
+      throw new Error("The report PDF could not be saved.");
     }
 
     return {

@@ -57,7 +57,7 @@ export async function createLocalPrivacyExport(input: {
     schemaVersion: 1,
     exportedAt: input.exportedAt ?? new Date().toISOString(),
     notice:
-      "This archive contains local FieldDoc metadata only. Original media files and generated PDFs stay in app storage unless exported separately.",
+      "This export contains FieldDoc job details. Photos, files, and report PDFs are not included.",
     tables,
   };
 }

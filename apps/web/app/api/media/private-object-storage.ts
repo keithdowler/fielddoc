@@ -9,7 +9,7 @@ export type PrivateObjectStorageConfig = {
 };
 
 export type PresignedObjectUrlInput = {
-  method: "GET" | "HEAD" | "PUT";
+  method: "DELETE" | "GET" | "HEAD" | "PUT";
   objectKey: string;
   expiresInSeconds: number;
   signedHeaders?: Record<string, string>;
@@ -45,6 +45,7 @@ export type StoredObjectVerificationResult =
 
 export type PrivateObjectStorage = {
   createPresignedUrl(input: PresignedObjectUrlInput): string;
+  deleteObject(objectKey: string): Promise<void>;
   verifyObject(
     input: StoredObjectVerificationInput,
   ): Promise<StoredObjectVerificationResult>;
@@ -56,6 +57,18 @@ export function createR2PrivateObjectStorage(
   return {
     createPresignedUrl(input) {
       return createR2PresignedUrl(config, input);
+    },
+    async deleteObject(objectKey) {
+      const url = createR2PresignedUrl(config, {
+        method: "DELETE",
+        objectKey,
+        expiresInSeconds: 60,
+      });
+      const response = await fetch(url, { method: "DELETE" });
+
+      if (!response.ok && response.status !== 404) {
+        throw new Error("A private FieldDoc file could not be deleted.");
+      }
     },
     async verifyObject(input) {
       return verifyR2Object(config, input);

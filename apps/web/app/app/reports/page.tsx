@@ -18,7 +18,7 @@ export default async function ReportsPage() {
   return (
     <section className="workspaceSection">
       <p className="eyebrow">Reports</p>
-      <h1>Proof Packet archive</h1>
+      <h1>FieldDoc report archive</h1>
       <p>
         Backed-up report drafts and generated PDFs appear here. Downloads use
         private, short-lived links when the PDF is archived.

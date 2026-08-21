@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const defaultPublicProductName = "Proof Packet";
+const defaultPublicProductName = "FieldDoc";
 const optionalSecret = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().min(1).optional(),
@@ -90,8 +90,8 @@ export const webProductionReadinessRequirements = [
     id: "database",
     label: "Neon database",
     detail:
-      "Required before synced metadata, tenant provisioning, audit events, and reports can persist.",
-    requiredFor: "Cloud metadata",
+      "Required before saved job details, workspaces, activity history, and reports can persist.",
+    requiredFor: "Saved job details",
     variableNames: ["DATABASE_URL"],
   },
   {

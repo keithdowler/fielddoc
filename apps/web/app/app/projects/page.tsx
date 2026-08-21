@@ -85,7 +85,7 @@ export default async function ProjectsPage() {
                     </td>
                     <td>{project.importantEvidenceCount}</td>
                     <td>
-                      {project.uploadedMediaCount}/{project.mediaCount} uploaded
+                      {project.uploadedMediaCount}/{project.mediaCount} saved
                     </td>
                     <td>
                       {project.reportDraftCount}
@@ -104,7 +104,7 @@ export default async function ProjectsPage() {
             <div className="sectionTitleRow">
               <div>
                 <p className="eyebrow">Private Storage</p>
-                <h2 id="media-title">Uploaded originals</h2>
+                <h2 id="media-title">Protected originals</h2>
               </div>
               <span className="statusPill ready">
                 {
@@ -134,7 +134,7 @@ export default async function ProjectsPage() {
                       </div>
                       <div className="rowMetrics">
                         <span>
-                          Uploaded{" "}
+                          Saved{" "}
                           {media.uploadedAt
                             ? formatDate(media.uploadedAt)
                             : "recently"}
@@ -144,7 +144,7 @@ export default async function ProjectsPage() {
                           href={`/app/media/${media.id}/download`}
                           prefetch={false}
                         >
-                          Download original
+                          Open original
                         </Link>
                       </div>
                     </article>
@@ -160,8 +160,8 @@ export default async function ProjectsPage() {
         </>
       ) : (
         <p className="emptyMessage">
-          No backed-up jobs yet. Use the mobile app to create a local job,
-          capture evidence, then tap Back Up Now after signing in.
+          No jobs yet. Use the mobile app to create a job, capture evidence,
+          then tap Back Up Now after signing in.
         </p>
       )}
     </section>

@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: resolvePublicProductName(process.env.NEXT_PUBLIC_PRODUCT_NAME),
-  description: "Field documentation and proof packet workspace.",
+  description: "Field documentation and customer report workspace.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -26,7 +26,7 @@ export function getLocalPdfActionState(
     return {
       canOpen: false,
       canShare: false,
-      reason: "Generate a local PDF first.",
+      reason: "Generate the report PDF first.",
     };
   }
 
@@ -34,7 +34,7 @@ export function getLocalPdfActionState(
     return {
       canOpen: false,
       canShare: false,
-      reason: "The local PDF file could not be found on this device.",
+      reason: "The report PDF could not be found on this device.",
     };
   }
 

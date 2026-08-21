@@ -7,6 +7,7 @@ import type {
 
 import type { LocalDatabase } from "./database";
 import { createLocalId } from "./id";
+import { requestAutomaticSync } from "@/infrastructure/sync/sync-events";
 
 type LocalMutationRow = {
   mutation_id: string;
@@ -75,6 +76,7 @@ export class SqliteLocalMutationRepository implements LocalMutationRepository {
       throw new Error("Failed to enqueue local mutation.");
     }
 
+    requestAutomaticSync();
     return mapMutation(row);
   }
 

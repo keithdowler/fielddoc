@@ -158,23 +158,23 @@ function createCloudSyncMessage(
     media.status === "idle" &&
     reports.status === "idle"
   ) {
-    return "No metadata, original media, or report PDFs are waiting for cloud upload.";
+    return "Everything is saved.";
   }
 
   if (media.status === "success" && reports.status === "success") {
-    return "Metadata, original media, and report PDFs are uploaded.";
+    return "Your latest changes and files are saved.";
   }
 
   if (media.status === "success" && reports.status === "idle") {
-    return "Metadata and original media are uploaded; no report PDFs are waiting.";
+    return "Your latest changes and photos are saved.";
   }
 
   if (media.status === "idle" && reports.status === "success") {
-    return "Metadata and report PDFs are uploaded; no original media is waiting.";
+    return "Your latest changes and reports are saved.";
   }
 
   if (media.status === "idle" && reports.status === "idle") {
-    return "Metadata is current; no original media or report PDFs are waiting.";
+    return "Everything is saved.";
   }
 
   return media.status === "success" || media.status === "idle"

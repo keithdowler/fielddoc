@@ -75,7 +75,8 @@ export async function runMobileMediaUpload({
   if (!apiBaseUrl) {
     return createResult({
       status: "not_configured",
-      message: "Set EXPO_PUBLIC_FIELDDOC_API_BASE_URL before uploading media.",
+      message:
+        "Cloud saving is unavailable in this version. Please contact support.",
       pendingCount: await countPendingMediaUploads(repositories),
     });
   }
@@ -85,7 +86,7 @@ export async function runMobileMediaUpload({
   if (!accessToken) {
     return createResult({
       status: "auth_required",
-      message: "Cloud sign-in is required before uploading original media.",
+      message: "Sign in to protect your original photos and files.",
       pendingCount: await countPendingMediaUploads(repositories),
     });
   }

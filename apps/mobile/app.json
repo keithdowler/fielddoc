@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "Proof Packet",
+    "name": "FieldDoc",
     "slug": "fielddoc-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/brand/fielddoc-icon.png",
     "scheme": "fielddoc",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.dogwoodenterprises.proofpacket",
       "buildNumber": "1",
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/brand/fielddoc-icon.png",
       "infoPlist": {
-        "NSCameraUsageDescription": "Proof Packet uses the camera to capture job-site evidence photos.",
-        "NSPhotoLibraryUsageDescription": "Proof Packet lets you attach existing photos as job-site evidence.",
+        "NSCameraUsageDescription": "FieldDoc uses the camera to capture job-site photos.",
+        "NSPhotoLibraryUsageDescription": "FieldDoc lets you attach existing job-site photos.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -21,15 +21,11 @@
       "package": "com.dogwoodenterprises.proofpacket",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/brand/fielddoc-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "output": "static",
@@ -48,8 +44,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Proof Packet uses the camera to capture job-site evidence photos.",
-          "photosPermission": "Proof Packet lets you attach existing photos as job-site evidence."
+          "cameraPermission": "FieldDoc uses the camera to capture job-site photos.",
+          "photosPermission": "FieldDoc lets you attach existing job-site photos."
         }
       ],
       "expo-secure-store",

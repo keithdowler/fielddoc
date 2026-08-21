@@ -77,7 +77,7 @@ export async function runMobileReportUpload({
     return createResult({
       status: "not_configured",
       message:
-        "Set EXPO_PUBLIC_FIELDDOC_API_BASE_URL before uploading report PDFs.",
+        "Cloud saving is unavailable in this version. Please contact support.",
       pendingCount: await countPendingReportUploads(repositories),
     });
   }
@@ -87,7 +87,7 @@ export async function runMobileReportUpload({
   if (!accessToken) {
     return createResult({
       status: "auth_required",
-      message: "Cloud sign-in is required before uploading report PDFs.",
+      message: "Sign in to save reports across devices.",
       pendingCount: await countPendingReportUploads(repositories),
     });
   }

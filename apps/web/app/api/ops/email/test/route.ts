@@ -49,8 +49,8 @@ export async function POST(request: Request): Promise<Response> {
       message: {
         from: env.RESEND_FROM_EMAIL,
         to: [context.email],
-        subject: "Proof Packet email delivery test",
-        text: "This is a Proof Packet operational readiness test. No customer data was included.",
+        subject: "FieldDoc email delivery test",
+        text: "This is a FieldDoc operational readiness test. No customer data was included.",
       },
     });
 

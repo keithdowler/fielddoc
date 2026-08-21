@@ -356,6 +356,7 @@ function createStorage(
   } = {},
 ): PrivateObjectStorage {
   return {
+    deleteObject: async () => undefined,
     createPresignedUrl: (input) =>
       input.method === "PUT"
         ? `https://uploads.example.test/${input.objectKey}`

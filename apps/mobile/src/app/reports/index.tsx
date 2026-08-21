@@ -67,7 +67,7 @@ export default function ReportsScreen() {
     useState<GeneratedProofPacket | null>(null);
   const [pdfActionState, setPdfActionState] =
     useState<LocalPdfActionState | null>(null);
-  const [title, setTitle] = useState("Proof Packet Draft");
+  const [title, setTitle] = useState("FieldDoc Report Draft");
   const [notes, setNotes] = useState("");
   const [sections, setSections] = useState<ReportSectionConfig[]>(
     defaultReportSectionConfigs,
@@ -169,11 +169,11 @@ export default function ReportsScreen() {
         setNotes(latestDraft.notes ?? "");
         setSections(parseReportDraftSections(latestDraft.sectionsJson));
       } else if (selectedProject) {
-        setTitle(`${selectedProject.name} Proof Packet`);
+        setTitle(`${selectedProject.name} FieldDoc Report`);
         setNotes("");
         setSections(defaultReportSectionConfigs);
       } else {
-        setTitle("Proof Packet Draft");
+        setTitle("FieldDoc Report Draft");
         setNotes("");
         setSections(defaultReportSectionConfigs);
       }
@@ -223,7 +223,7 @@ export default function ReportsScreen() {
       setNotes(latestDraft.notes ?? "");
       setSections(parseReportDraftSections(latestDraft.sectionsJson));
     } else {
-      setTitle(`${nextProject.name} Proof Packet`);
+      setTitle(`${nextProject.name} FieldDoc Report`);
       setNotes("");
       setSections(defaultReportSectionConfigs);
     }
@@ -264,7 +264,7 @@ export default function ReportsScreen() {
       setPreview(nextPreview);
       setGeneratedPacket(null);
       setPdfActionState(await getLocalPdfState(null, false));
-      setStatusMessage("Report draft saved locally.");
+      setStatusMessage("Report draft saved.");
       setErrorMessage(undefined);
     } catch (error) {
       setErrorMessage(
@@ -275,7 +275,7 @@ export default function ReportsScreen() {
 
   async function generateLocalPdf() {
     if (!draft || !preview) {
-      setErrorMessage("Save a local report draft before generating a PDF.");
+      setErrorMessage("Save the report draft before generating a PDF.");
       return;
     }
 
@@ -314,12 +314,12 @@ export default function ReportsScreen() {
       setReportHistory(history);
       setGeneratedPacket(output);
       setPdfActionState(await getLocalPdfState(output.localUri, false));
-      setStatusMessage(`Local PDF generated: ${output.fileName}`);
+      setStatusMessage(`Report PDF created: ${output.fileName}`);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Local PDF could not be generated.",
+          : "The report PDF could not be created.",
       );
     } finally {
       setGeneratingPdf(false);
@@ -328,7 +328,7 @@ export default function ReportsScreen() {
 
   async function handleOpenLocalPdf() {
     if (!draft?.generatedPdfUri) {
-      setErrorMessage("Generate a local PDF before opening it.");
+      setErrorMessage("Create the report PDF before opening it.");
       return;
     }
 
@@ -344,17 +344,17 @@ export default function ReportsScreen() {
       setPdfActionState(state);
 
       if (!state.canOpen) {
-        setErrorMessage(state.reason ?? "Local PDF cannot be opened.");
+        setErrorMessage(state.reason ?? "The report PDF cannot be opened.");
         return;
       }
 
       await openLocalPdf(draft.generatedPdfUri);
-      setStatusMessage("Opened local PDF.");
+      setStatusMessage("Report PDF opened.");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Local PDF could not be opened.",
+          : "The report PDF could not be opened.",
       );
     } finally {
       setOpeningPdf(false);
@@ -363,7 +363,7 @@ export default function ReportsScreen() {
 
   async function handleShareLocalPdf() {
     if (!draft?.generatedPdfUri) {
-      setErrorMessage("Generate a local PDF before sharing it.");
+      setErrorMessage("Create the report PDF before sharing it.");
       return;
     }
 
@@ -379,17 +379,17 @@ export default function ReportsScreen() {
       setPdfActionState(state);
 
       if (!state.canShare) {
-        setErrorMessage(state.reason ?? "Local PDF cannot be shared.");
+        setErrorMessage(state.reason ?? "The report PDF cannot be shared.");
         return;
       }
 
       await shareLocalPdf(draft.generatedPdfUri);
-      setStatusMessage("Share sheet opened for local PDF.");
+      setStatusMessage("Report PDF is ready to share.");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Local PDF could not be shared.",
+          : "The report PDF could not be shared.",
       );
     } finally {
       setSharingPdf(false);
@@ -409,7 +409,7 @@ export default function ReportsScreen() {
       ]);
 
       if (!nextProject || !nextDraft) {
-        setErrorMessage("That local report is no longer available.");
+        setErrorMessage("That report is no longer available.");
         return;
       }
 
@@ -482,8 +482,7 @@ export default function ReportsScreen() {
       <View>
         <AppText variant="hero">Reports</AppText>
         <AppText muted>
-          Build a customer-ready Proof Packet from evidence saved on this
-          device.
+          Build a customer-ready FieldDoc report from your job evidence.
         </AppText>
       </View>
 
@@ -508,7 +507,7 @@ export default function ReportsScreen() {
         message={
           project
             ? readiness.ready
-              ? `${project.name} has the minimum local evidence for a draft.`
+              ? `${project.name} has the evidence needed for a draft.`
               : `Missing: ${readiness.missing.join(", ")}.`
             : "Create a project before composing a report draft."
         }
@@ -541,14 +540,14 @@ export default function ReportsScreen() {
         <StatusBanner
           tone="success"
           title="Report path is clear"
-          message="The local report, evidence captions, and backup checklist are ready."
+          message="The report, evidence captions, and saving checklist are ready."
         />
       )}
 
       <Card>
         <SectionHeader
           title="Project"
-          detail="Drafts are saved locally per project."
+          detail="Drafts are saved automatically for each project."
         />
         {projects.length ? (
           <View style={styles.inlineActions}>
@@ -567,7 +566,7 @@ export default function ReportsScreen() {
         ) : (
           <EmptyState
             title="No projects"
-            message="Create a local project before composing a report draft."
+            message="Create a project before composing a report draft."
             icon="folder.badge.plus"
           />
         )}
@@ -619,7 +618,7 @@ export default function ReportsScreen() {
       <Card>
         <SectionHeader
           title="Report Branding"
-          detail="Managed in Settings and applied when a local PDF is generated."
+          detail="Managed in Settings and applied when a PDF is generated."
         />
         <MetricRow
           label="Company"
@@ -645,7 +644,7 @@ export default function ReportsScreen() {
           label="Draft title"
           value={title}
           onChangeText={setTitle}
-          placeholder="Unit 12 Proof Packet"
+          placeholder="Unit 12 FieldDoc Report"
         />
         <FormField
           label="Draft notes"
@@ -659,7 +658,7 @@ export default function ReportsScreen() {
       <Card>
         <SectionHeader
           title="Sections"
-          detail="Choose what the future Proof Packet should include."
+          detail="Choose what the FieldDoc report should include."
         />
         {normalizeReportSections(sections).map((section, index, ordered) => (
           <View key={section.category} style={styles.sectionRow}>
@@ -695,8 +694,8 @@ export default function ReportsScreen() {
 
       <Card>
         <SectionHeader
-          title="Packet Assembly Preview"
-          detail="Read-only structure from saved local metadata."
+          title="Report Preview"
+          detail="Preview the saved job details before making the PDF."
         />
         {preview ? (
           <View style={styles.previewStack}>
@@ -716,7 +715,7 @@ export default function ReportsScreen() {
               value={preview.totals.visualDocuments}
             />
             <MetricRow
-              label="Metadata-only documents"
+              label="Reference-only documents"
               value={preview.totals.metadataOnlyDocuments}
             />
             {preview.sections.map((section, sectionIndex) => (
@@ -784,7 +783,7 @@ export default function ReportsScreen() {
         ) : (
           <EmptyState
             title="No saved preview"
-            message="Save a local report draft to assemble a read-only packet preview."
+            message="Save the report draft to assemble a read-only preview."
             icon="doc.text"
           />
         )}
@@ -795,7 +794,7 @@ export default function ReportsScreen() {
         icon="doc.richtext.fill"
         disabled={!project}
         onPress={saveDraft}
-        accessibilityLabel="Save local report draft"
+        accessibilityLabel="Save report draft"
       />
       <AppButton
         label="Make Report PDF"
@@ -803,12 +802,12 @@ export default function ReportsScreen() {
         disabled={!preview || hasUnsavedDraftChanges}
         loading={generatingPdf}
         onPress={generateLocalPdf}
-        accessibilityLabel="Generate local Proof Packet PDF"
+        accessibilityLabel="Generate FieldDoc report PDF"
       />
       <Card>
         <SectionHeader
           title="Report PDF"
-          detail="Saved on this device until you back it up."
+          detail="Saved automatically when cloud access is available."
         />
         {draft?.generatedPdfUri ? (
           <View style={styles.previewStack}>
@@ -853,7 +852,7 @@ export default function ReportsScreen() {
                 loading={openingPdf}
                 disabled={!pdfActionState?.canOpen || hasUnsavedDraftChanges}
                 onPress={handleOpenLocalPdf}
-                accessibilityLabel="Open local PDF"
+                accessibilityLabel="Open report PDF"
               />
               <AppButton
                 label="Share"
@@ -862,17 +861,17 @@ export default function ReportsScreen() {
                 loading={sharingPdf}
                 disabled={!pdfActionState?.canShare || hasUnsavedDraftChanges}
                 onPress={handleShareLocalPdf}
-                accessibilityLabel="Share local PDF"
+                accessibilityLabel="Share report PDF"
               />
             </View>
           </View>
         ) : (
           <EmptyState
-            title="No local PDF"
+            title="No report PDF yet"
             message={
               hasUnsavedDraftChanges
-                ? "Save draft changes before generating a local PDF."
-                : "Generate a PDF after saving a local draft preview."
+                ? "Save your changes before creating the report PDF."
+                : "Create a PDF after saving the report."
             }
             icon="doc"
           />
@@ -881,7 +880,7 @@ export default function ReportsScreen() {
       <Card>
         <SectionHeader
           title="Report Archive"
-          detail="Local drafts and generated PDFs, newest first."
+          detail="Saved reports and PDFs, newest first."
         />
         {reportHistory.length ? (
           <View style={styles.previewStack}>
@@ -912,7 +911,7 @@ export default function ReportsScreen() {
                   />
                   {item.hasGeneratedPdf ? (
                     <AppText variant="small" muted>
-                      PDF available locally
+                      PDF ready
                     </AppText>
                   ) : (
                     <AppText variant="small" muted>
@@ -926,15 +925,15 @@ export default function ReportsScreen() {
         ) : (
           <EmptyState
             title="No report history"
-            message="Save a report draft or generate a local PDF to add it here."
+            message="Save a report or create a PDF to add it here."
             icon="clock"
           />
         )}
       </Card>
       <StatusBanner
         tone="info"
-        title="Safe sharing path"
-        message="Make the PDF locally first. Then use Settings to back up the report and originals before sharing from the web."
+        title="Sharing reports"
+        message="Create the PDF here. FieldDoc saves signed-in work to the cloud automatically so it can be reviewed on the web."
       />
     </AppScreen>
   );

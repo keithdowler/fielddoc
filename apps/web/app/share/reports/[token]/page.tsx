@@ -25,7 +25,7 @@ export default async function SharedReportPage({
       <main className="shareShell">
         <section className="sharePanel">
           <p className="eyebrow">{productName}</p>
-          <h1>Proof Packet unavailable</h1>
+          <h1>FieldDoc report unavailable</h1>
           <p>{share.message}</p>
           <dl className="shareMeta">
             <div>
@@ -48,7 +48,7 @@ export default async function SharedReportPage({
         <p className="eyebrow">{productName}</p>
         <div className="sectionTitleRow detailHeader">
           <div>
-            <h1>Proof Packet ready</h1>
+            <h1>FieldDoc report ready</h1>
             <p>
               This link provides temporary access to a private archived PDF.
               Download it before the link expires.
@@ -96,7 +96,7 @@ export default async function SharedReportPage({
             href={share.downloadPath}
             prefetch={false}
           >
-            Download Proof Packet PDF
+            Download FieldDoc Report
           </Link>
         </div>
       </section>

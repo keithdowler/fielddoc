@@ -14,7 +14,7 @@ describe("resolvePublicProductName", () => {
   });
 
   it("does not expose the internal codename by default", () => {
-    expect(resolvePublicProductName(undefined)).toBe("Proof Packet");
+    expect(resolvePublicProductName(undefined)).toBe("FieldDoc");
   });
 });
 

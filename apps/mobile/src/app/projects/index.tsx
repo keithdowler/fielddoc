@@ -10,9 +10,9 @@ import {
   type ProjectSearchOptions,
   type ReportHistoryItem,
 } from "@fielddoc/domain";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/app-button";
 import { AppScreen } from "@/components/app-screen";
@@ -65,6 +65,9 @@ const emptySummary: ProjectEvidenceSummary = {
 };
 
 export default function ProjectsScreen() {
+  const router = useRouter();
+  const screenRef = useRef<ScrollView>(null);
+  const projectDetailsY = useRef(0);
   const [form, setForm] = useState<ProjectFormState>(initialProjectFormState);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<
@@ -136,7 +139,7 @@ export default function ProjectsScreen() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Failed to load local projects.",
+          : "Projects could not be loaded.",
       );
     });
 
@@ -206,7 +209,7 @@ export default function ProjectsScreen() {
     setSelectedProjectId(project.id);
     setEditingProjectId(undefined);
     setStatusMessage(
-      editingProjectId ? "Job updated locally." : "Job created locally.",
+      editingProjectId ? "Project updated." : "Project created.",
     );
     setForm({ ...initialProjectFormState, status: "saved" });
     setShowOptionalProjectFields(false);
@@ -218,7 +221,7 @@ export default function ProjectsScreen() {
     await repositories.projects.archive(id);
     setPendingAction(null);
     setStatusMessage(
-      "Job archived locally. It is hidden unless archived jobs are shown.",
+      "Project archived. It is hidden unless archived projects are shown.",
     );
     await reload();
   }
@@ -228,33 +231,28 @@ export default function ProjectsScreen() {
     await repositories.projects.delete(id);
     setPendingAction(null);
     setSelectedProjectId(undefined);
-    setStatusMessage("Job deleted locally.");
+    setStatusMessage("Project deleted.");
     await reload(undefined);
   }
 
   return (
-    <AppScreen>
+    <AppScreen scrollViewRef={screenRef}>
       <View>
         <AppText variant="hero">Projects</AppText>
         <AppText muted>
-          Create, find, update, archive, and delete local jobs. Everything works
-          offline.
+          Keep every project, photo, and report organized in one place.
         </AppText>
       </View>
 
       {errorMessage ? (
         <StatusBanner
           tone="error"
-          title="Local project error"
+          title="Projects need attention"
           message={errorMessage}
         />
       ) : null}
       {statusMessage ? (
-        <StatusBanner
-          tone="success"
-          title="Saved on device"
-          message={statusMessage}
-        />
+        <StatusBanner tone="success" title="Saved" message={statusMessage} />
       ) : null}
       {pendingAction ? (
         <StatusBanner
@@ -266,13 +264,13 @@ export default function ProjectsScreen() {
           }
           message={
             pendingAction.type === "delete"
-              ? `${pendingAction.project.name} will be removed from the active local job list on this device.`
-              : `${pendingAction.project.name} will be hidden from the main local job list but can be shown again with archived jobs.`
+              ? `${pendingAction.project.name} and its project information will be deleted.`
+              : `${pendingAction.project.name} will be hidden from the main project list but can be shown again.`
           }
           detail={
             pendingAction.type === "delete"
-              ? "Use this only when the local job is no longer needed."
-              : "Archiving is safer than deleting when you may need the job later."
+              ? "Use this only when the project is no longer needed."
+              : "Archiving is safer when you may need the project later."
           }
           actionLabel={
             pendingAction.type === "delete" ? "Delete Job" : "Archive Job"
@@ -317,8 +315,8 @@ export default function ProjectsScreen() {
 
       <Card>
         <SectionHeader
-          title={editingProjectId ? "Edit Job" : "Create Local Job"}
-          detail="Only job name is required. The rest can be added later."
+          title={editingProjectId ? "Edit Project" : "Create Project"}
+          detail="Only the project name is required. The rest can be added later."
         />
         {formFields
           .filter(
@@ -347,11 +345,11 @@ export default function ProjectsScreen() {
         ) : null}
         <View style={styles.inlineActions}>
           <AppButton
-            label={editingProjectId ? "Save Changes" : "Create Job"}
+            label={editingProjectId ? "Save Changes" : "Create Project"}
             icon="plus.circle.fill"
             onPress={saveProject}
             accessibilityLabel={
-              editingProjectId ? "Save job changes" : "Create local job"
+              editingProjectId ? "Save project changes" : "Create project"
             }
           />
           {editingProjectId ? (
@@ -369,7 +367,7 @@ export default function ProjectsScreen() {
       </Card>
 
       <Card>
-        <SectionHeader title="Local Jobs" />
+        <SectionHeader title="Projects" />
         {projects.length ? (
           projects.map((project) => (
             <View key={project.id} style={styles.projectRow}>
@@ -389,7 +387,15 @@ export default function ProjectsScreen() {
                 <AppButton
                   label="Open"
                   variant="secondary"
-                  onPress={() => setSelectedProjectId(project.id)}
+                  onPress={() => {
+                    setSelectedProjectId(project.id);
+                    setTimeout(() => {
+                      screenRef.current?.scrollTo({
+                        y: Math.max(0, projectDetailsY.current - spacing.lg),
+                        animated: true,
+                      });
+                    }, 50);
+                  }}
                 />
                 <AppButton
                   label="Edit"
@@ -416,71 +422,101 @@ export default function ProjectsScreen() {
           ))
         ) : (
           <EmptyState
-            title="No jobs found"
-            message="Create a local job or change your search filters."
+            title="No projects found"
+            message="Create a project or change your search filters."
             icon="folder"
           />
         )}
       </Card>
 
-      <Card>
-        <SectionHeader
-          title="Project Screen"
-          detail={
-            selectedProject
-              ? selectedProject.name
-              : "Select or create a project."
-          }
-        />
-        <MetricRow label="Overview" value={selectedProject?.status ?? "None"} />
-        {evidenceCategories.map((category) => {
-          const items = evidenceItems.filter(
-            (item) => item.category === category,
-          );
-          const label =
-            category === "BEFORE"
-              ? "Before"
-              : category === "WORK"
-                ? "Work"
-                : category === "AFTER"
-                  ? "After"
-                  : category === "DOCUMENT"
-                    ? "Documents"
-                    : "Other";
-
-          if (!items.length) {
-            return (
-              <EmptyState
-                key={category}
-                title={`${label} empty`}
-                message={getEvidenceEmptyStateMessage(category)}
-                ctaLabel="Add Evidence"
-                icon="tray"
-              />
+      <View
+        onLayout={(event) => {
+          projectDetailsY.current = event.nativeEvent.layout.y;
+        }}
+      >
+        <Card>
+          <SectionHeader
+            title="Project Details"
+            detail={
+              selectedProject
+                ? selectedProject.name
+                : "Select or create a project."
+            }
+          />
+          <MetricRow
+            label="Overview"
+            value={selectedProject?.status ?? "None"}
+          />
+          {evidenceCategories.map((category) => {
+            const items = evidenceItems.filter(
+              (item) => item.category === category,
             );
-          }
+            const label =
+              category === "BEFORE"
+                ? "Before"
+                : category === "WORK"
+                  ? "Work"
+                  : category === "AFTER"
+                    ? "After"
+                    : category === "DOCUMENT"
+                      ? "Documents"
+                      : "Other";
 
-          return (
-            <MetricRow key={category} label={label} value={items.length} />
-          );
-        })}
-        <MetricRow
-          label="Report"
-          value={`${summary.missingCaptionCount} missing captions`}
-        />
-        <MetricRow
-          label="Original media"
-          value={summary.mediaAssetCount ?? 0}
-        />
-      </Card>
+            if (!items.length) {
+              return (
+                <EmptyState
+                  key={category}
+                  title={`${label} empty`}
+                  message={getEvidenceEmptyStateMessage(category)}
+                  ctaLabel="Add Evidence"
+                  icon="tray"
+                  onPress={() => {
+                    if (!selectedProject) return;
+                    router.push({
+                      pathname: "/capture",
+                      params: { projectId: selectedProject.id, category },
+                    });
+                  }}
+                />
+              );
+            }
+
+            return (
+              <MetricRow key={category} label={label} value={items.length} />
+            );
+          })}
+          {summary.missingCaptionCount > 0 && selectedProject ? (
+            <AppButton
+              label={`${summary.missingCaptionCount} photo ${summary.missingCaptionCount === 1 ? "needs" : "need"} a description`}
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: "/capture",
+                  params: {
+                    projectId: selectedProject.id,
+                    missingCaptions: "1",
+                  },
+                })
+              }
+              accessibilityLabel="Open the first photo that needs a description"
+            />
+          ) : (
+            <MetricRow label="Photo descriptions" value="Complete" />
+          )}
+          <MetricRow
+            label="Original media"
+            value={summary.mediaAssetCount ?? 0}
+          />
+        </Card>
+      </View>
 
       <Card>
         <SectionHeader
           title="Report History"
           detail={
             selectedProject
-              ? "Local drafts and generated PDFs for this project."
-              : "Select a project to view local report history."
+              ? "Drafts and generated reports for this project."
+              : "Select a project to view report history."
           }
         />
         {selectedProject && reportHistory.length ? (
@@ -502,7 +538,7 @@ export default function ProjectsScreen() {
         ) : (
           <EmptyState
             title="No report history"
-            message="Save a local report draft to see it here."
+            message="Save a report draft to see it here."
             icon="clock"
           />
         )}

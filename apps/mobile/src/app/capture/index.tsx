@@ -9,8 +9,8 @@ import {
   type Project,
   getProofPacketDocumentEntry,
 } from "@fielddoc/domain";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/app-button";
@@ -60,6 +60,12 @@ const captionSuggestions = [
 ];
 
 export default function CaptureScreen() {
+  const route = useLocalSearchParams<{
+    projectId?: string;
+    category?: string;
+    missingCaptions?: string;
+  }>();
+  const consumedRoute = useRef<string | undefined>(undefined);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string | undefined>();
   const [category, setCategory] = useState<EvidenceCategory>("BEFORE");
@@ -109,7 +115,10 @@ export default function CaptureScreen() {
 
       if (!mounted) return;
       setProjects(rows);
-      const nextProjectId = projectId ?? rows[0]?.id;
+      const requestedProjectId = rows.some((row) => row.id === route.projectId)
+        ? route.projectId
+        : undefined;
+      const nextProjectId = requestedProjectId ?? projectId ?? rows[0]?.id;
       setProjectId(nextProjectId);
 
       if (nextProjectId) {
@@ -121,6 +130,29 @@ export default function CaptureScreen() {
             nextEvidenceItems.map((item) => item.id),
           ),
         );
+        const routeKey = `${route.projectId ?? ""}:${route.category ?? ""}:${route.missingCaptions ?? ""}`;
+        if (routeKey !== consumedRoute.current) {
+          consumedRoute.current = routeKey;
+          if (evidenceCategories.includes(route.category as EvidenceCategory)) {
+            setCategory(route.category as EvidenceCategory);
+          }
+          if (route.missingCaptions === "1") {
+            const missingCaption = nextEvidenceItems.find(
+              (item) => !item.caption?.trim(),
+            );
+            if (missingCaption) {
+              setSelectedEvidenceId(missingCaption.id);
+              setEditingEvidenceId(missingCaption.id);
+              setCategory(missingCaption.category);
+              setTitle(missingCaption.title ?? "");
+              setCaption(missingCaption.caption ?? "");
+              setNotes(missingCaption.notes ?? "");
+              setIsImportant(missingCaption.isImportant);
+              await reloadEvidenceDetail(missingCaption.id);
+              setStatusMessage("Add a caption to finish this item.");
+            }
+          }
+        }
         if (selectedEvidenceId) {
           if (
             nextEvidenceItems.some((item) => item.id === selectedEvidenceId)
@@ -141,20 +173,26 @@ export default function CaptureScreen() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Failed to load local projects.",
+          : "Projects could not be loaded.",
       );
     });
 
     return () => {
       mounted = false;
     };
-  }, [projectId, selectedEvidenceId]);
+  }, [
+    projectId,
+    route.category,
+    route.missingCaptions,
+    route.projectId,
+    selectedEvidenceId,
+  ]);
 
   useFocusEffect(refresh);
 
   async function saveEvidenceMetadata() {
     if (!projectId) {
-      setErrorMessage("Create a project before adding evidence metadata.");
+      setErrorMessage("Create a project before adding evidence.");
       return;
     }
 
@@ -180,15 +218,13 @@ export default function CaptureScreen() {
             captureTimestamp: new Date().toISOString(),
           });
 
-      setStatusMessage(
-        `${categoryLabels[evidence.category]} evidence metadata saved locally.`,
-      );
+      setStatusMessage(`${categoryLabels[evidence.category]} evidence saved.`);
       await reloadEvidence(projectId);
       resetEvidenceForm();
       setErrorMessage(undefined);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Evidence metadata failed.",
+        error instanceof Error ? error.message : "Evidence could not be saved.",
       );
     } finally {
       setBusySource(undefined);
@@ -293,7 +329,7 @@ export default function CaptureScreen() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Evidence media could not be saved locally.",
+          : "The evidence file could not be saved.",
       );
     } finally {
       setBusySource(undefined);
@@ -384,7 +420,7 @@ export default function CaptureScreen() {
     if (selectedEvidenceId === id) {
       clearEvidenceDetail();
     }
-    setStatusMessage("Evidence metadata deleted locally.");
+    setStatusMessage("Evidence deleted.");
   }
 
   async function reloadEvidence(nextProjectId: string) {
@@ -465,7 +501,7 @@ export default function CaptureScreen() {
       });
       await reloadEvidenceDetail(selectedEvidenceId, editingMediaId);
       await reloadEvidence(projectId);
-      setStatusMessage("Media caption saved locally.");
+      setStatusMessage("Photo caption saved.");
       setErrorMessage(undefined);
     } catch (error) {
       setErrorMessage(
@@ -491,7 +527,7 @@ export default function CaptureScreen() {
     await repositories.media.restore(id);
     await reloadEvidenceDetail(selectedEvidenceId, id);
     await reloadEvidence(projectId);
-    setStatusMessage("Media asset restored locally.");
+    setStatusMessage("Photo or file restored.");
   }
 
   async function replaceMediaAsset(
@@ -525,7 +561,7 @@ export default function CaptureScreen() {
       await reloadEvidenceDetail(selectedEvidenceId, result.replacement.id);
       await reloadEvidence(projectId);
       setStatusMessage(
-        "Replacement saved. The previous original was preserved in local history.",
+        "Replacement saved. The previous original is still protected in the history.",
       );
       setErrorMessage(undefined);
     } catch (error) {
@@ -549,7 +585,7 @@ export default function CaptureScreen() {
       });
       await reloadAnnotations(selectedEvidenceId);
       setAnnotationBody("");
-      setStatusMessage("Annotation saved locally.");
+      setStatusMessage("Note saved.");
       setErrorMessage(undefined);
     } catch (error) {
       setErrorMessage(
@@ -564,7 +600,7 @@ export default function CaptureScreen() {
     const repositories = await getLocalRepositories();
     await repositories.annotations.delete(id);
     await reloadAnnotations(selectedEvidenceId);
-    setStatusMessage("Annotation hidden locally.");
+    setStatusMessage("Note hidden.");
   }
 
   async function restoreAnnotation(id: string) {
@@ -573,7 +609,7 @@ export default function CaptureScreen() {
     const repositories = await getLocalRepositories();
     await repositories.annotations.restore(id);
     await reloadAnnotations(selectedEvidenceId);
-    setStatusMessage("Annotation restored locally.");
+    setStatusMessage("Note restored.");
   }
 
   function resetEvidenceForm() {
@@ -667,7 +703,8 @@ export default function CaptureScreen() {
         <AppText variant="hero">Capture Job Proof</AppText>
         <AppText muted>
           Add photos, scanned pages, PDFs, and files to the right job stage.
-          Everything is saved on this device first.
+          FieldDoc saves your work automatically and keeps working without a
+          signal.
         </AppText>
       </View>
 
@@ -696,7 +733,7 @@ export default function CaptureScreen() {
       <Card>
         <SectionHeader
           title="Job"
-          detail="Photos and files must belong to a local job."
+          detail="Choose the project these photos or files belong to."
         />
         {projects.length ? (
           <View style={styles.inlineActions}>
@@ -825,7 +862,7 @@ export default function CaptureScreen() {
           title="Evidence Details"
           detail={
             editingEvidenceId
-              ? "Edit details saved on this device."
+              ? "Edit saved details."
               : "Add a title, caption, notes, or importance mark."
           }
         />
@@ -877,7 +914,7 @@ export default function CaptureScreen() {
             icon="tray.and.arrow.down.fill"
             onPress={saveEvidenceMetadata}
             loading={busySource === "metadata"}
-            accessibilityLabel="Save evidence metadata locally"
+            accessibilityLabel="Save evidence details"
           />
           {editingEvidenceId ? (
             <AppButton
@@ -901,7 +938,7 @@ export default function CaptureScreen() {
             onPress={() => addMediaEvidence("FILE_IMPORT")}
             loading={busySource === "FILE_IMPORT"}
             disabled={Boolean(editingEvidenceId)}
-            accessibilityLabel="Import a local file as evidence"
+            accessibilityLabel="Import a file as evidence"
           />
         </View>
         {editingEvidenceId ? (
@@ -1162,7 +1199,7 @@ export default function CaptureScreen() {
               <View style={styles.mediaEditor}>
                 <SectionHeader
                   title="Media Caption"
-                  detail="Stored as editable metadata; original file bytes remain unchanged."
+                  detail="You can edit these details without changing the original file."
                 />
                 <FormField
                   label="Caption"
@@ -1274,7 +1311,7 @@ export default function CaptureScreen() {
       <StatusBanner
         tone="info"
         title="Local document proof"
-        message="Scanned pages and imported files are stored locally with immutable metadata before cloud upload."
+        message="Scanned pages and imported files are protected as originals and saved automatically."
       />
     </AppScreen>
   );
@@ -1365,7 +1402,7 @@ function getCaptureGuide(
       tone: "blocked",
       title: "Create a job first",
       message:
-        "Every photo, scan, and file needs a local job before it can be saved.",
+        "Every photo, scan, and file needs a project before it can be saved.",
       detail: "Go to Projects, create the job name, then come back to Capture.",
     };
   }

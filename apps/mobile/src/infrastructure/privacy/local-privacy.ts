@@ -9,7 +9,7 @@ import {
 } from "./local-privacy-core";
 
 const evidenceDirectoryName = "evidence-originals";
-const proofPacketDirectoryName = "proof-packets";
+const reportDirectoryName = "proof-packets";
 const privacyExportDirectoryName = "privacy-exports";
 
 export type ExportLocalDataResult = {
@@ -48,14 +48,14 @@ export async function exportLocalData(input: {
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(localUri, {
         mimeType: "application/json",
-        dialogTitle: "Export FieldDoc local metadata",
+        dialogTitle: "Export my FieldDoc data",
       });
     }
 
     return {
       status: "success",
       message:
-        "Local metadata export created. Original media files and PDFs remain in app storage.",
+        "Your FieldDoc data export is ready. Photos and reports remain protected in the app.",
       localUri,
     };
   } catch (error) {
@@ -64,7 +64,7 @@ export async function exportLocalData(input: {
       message:
         error instanceof Error
           ? error.message
-          : "Local metadata export failed.",
+          : "Your FieldDoc data could not be exported.",
       localUri: null,
     };
   }
@@ -78,13 +78,13 @@ export async function deleteLocalDeviceData(input: {
 
     await Promise.all([
       deleteAppDirectoryIfPresent(evidenceDirectoryName),
-      deleteAppDirectoryIfPresent(proofPacketDirectoryName),
+      deleteAppDirectoryIfPresent(reportDirectoryName),
     ]);
 
     return {
       status: "success",
       message:
-        "Local projects, evidence metadata, originals, generated PDFs, sync state, and queued mutations were removed from this device.",
+        "Projects, evidence, photos, reports, and saved changes were removed from this device.",
       deletedRows: countDeletedRows(result),
     };
   } catch (error) {

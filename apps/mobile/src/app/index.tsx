@@ -99,16 +99,16 @@ export default function HomeScreen() {
         </AppText>
         <AppText variant="hero">Proof work faster.</AppText>
         <AppText muted>
-          Save job photos, notes, documents, and reports on this device first.
-          Back them up when you are ready.
+          Keep every job organized. FieldDoc saves changes automatically and
+          catches up when your connection returns.
         </AppText>
       </View>
 
       {loading ? (
         <StatusBanner
           tone="info"
-          title="Loading local workspace"
-          message="Reading offline SQLite data."
+          title="Loading your jobs"
+          message="Getting your saved work ready."
         />
       ) : null}
 
@@ -116,7 +116,7 @@ export default function HomeScreen() {
         <Card>
           <SectionHeader
             title="Start Here"
-            detail="Four simple steps for the first Proof Packet."
+            detail="Four simple steps for your first FieldDoc report."
           />
           {firstRunChecklist.map((item) => (
             <MetricRow
@@ -147,7 +147,7 @@ export default function HomeScreen() {
       <Card>
         <SectionHeader
           title="Continue Job"
-          detail="Your most recently updated local job."
+          detail="Your most recently updated job."
         />
         {currentProject ? (
           <>
@@ -194,7 +194,7 @@ export default function HomeScreen() {
         ) : (
           <EmptyState
             title="No current project"
-            message="Start a local job before adding photos or documents."
+            message="Start a job before adding photos or documents."
             ctaLabel="Start Job"
             icon="folder.badge.plus"
           />
@@ -202,7 +202,10 @@ export default function HomeScreen() {
       </Card>
 
       <Card>
-        <SectionHeader title="Start New Job" detail="Works in airplane mode." />
+        <SectionHeader
+          title="Start New Job"
+          detail="Starts immediately, even without a signal."
+        />
         <Link href="/projects" asChild>
           <AppButton
             label="Create Job"
@@ -243,26 +246,26 @@ export default function HomeScreen() {
               />
             ))
         ) : (
-          <AppText muted>No local jobs yet.</AppText>
+          <AppText muted>No jobs yet.</AppText>
         )}
       </Card>
 
       <Card>
         <SectionHeader title="Reports Ready" />
         <MetricRow
-          label="Jobs with local evidence"
+          label="Jobs with evidence"
           value={projects.length ? "Review" : 0}
         />
-        <MetricRow label="Draft reports on device" value={0} />
+        <MetricRow label="Draft reports" value={0} />
       </Card>
 
       <StatusBanner
         tone={pendingMutations > 0 ? "warning" : "success"}
-        title="Unsynced Items"
+        title="Cloud Saving"
         message={
           pendingMutations > 0
-            ? `${pendingMutations} local changes are waiting for cloud backup.`
-            : "Everything local is caught up."
+            ? `${pendingMutations} changes will save to the cloud automatically.`
+            : "Everything is saved."
         }
       />
     </AppScreen>

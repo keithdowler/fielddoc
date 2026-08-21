@@ -759,7 +759,7 @@ describe("domain constants", () => {
     expect(html).toContain("Keith Dowler");
     expect(html).toContain("Document appendix");
     expect(html).toContain("Imported PDF original");
-    expect(html).toContain("imported originals preserved for external review");
+    expect(html).toContain("imported originals available for review");
     expect(html).toContain("application/pdf");
     expect(html).toContain(
       "11507a0e2f5e69d5c15a8e65b7ef464041602a06120573cd9f8021c3d1f2f4e7",
@@ -950,7 +950,7 @@ describe("domain constants", () => {
       ready: true,
       status: "ready_to_share",
       warnings: [
-        "1 supporting document is metadata-only in the packet.",
+        "1 supporting document is available as a reference in the report.",
         "No customer share link has been issued yet.",
       ],
     });
@@ -970,7 +970,7 @@ describe("domain constants", () => {
       blockers: expect.arrayContaining([
         "Finish required captions and included evidence.",
         "2 captions still need review.",
-        "Generate the Proof Packet PDF.",
+        "Generate the FieldDoc report PDF.",
         "Upload 1 original media file.",
       ]),
     });

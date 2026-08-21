@@ -30,22 +30,24 @@ export function getMobileAuthStatusCopy(status: MobileAuthStatus) {
 const mobileAuthStatusCopy = {
   not_configured: {
     tone: "warning",
-    title: "Cloud auth not configured",
-    message: "Set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY to enable mobile sign-in.",
+    title: "Sign-in is temporarily unavailable",
+    message:
+      "This version of FieldDoc cannot connect to your account. Please update the app or contact support.",
   },
   loading: {
     tone: "info",
-    title: "Checking cloud session",
-    message: "Proof Packet is checking for a saved cloud session.",
+    title: "Checking your account",
+    message: "FieldDoc is reconnecting to your account.",
   },
   signed_out: {
     tone: "warning",
-    title: "Cloud sign-in required",
-    message: "Sign in before uploading metadata or original media.",
+    title: "Sign in to continue",
+    message: "Sign in to keep your work safely saved across devices.",
   },
   signed_in: {
     tone: "success",
-    title: "Cloud account connected",
-    message: "Metadata sync and original media uploads can use your session.",
+    title: "Account connected",
+    message:
+      "Your work saves automatically whenever a connection is available.",
   },
 } as const;

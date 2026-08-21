@@ -39,7 +39,7 @@ export async function openLocalPdf(localUri: string): Promise<void> {
     return;
   }
 
-  throw new Error("No local PDF viewer is available on this device.");
+  throw new Error("No PDF viewer is available on this device.");
 }
 
 export async function shareLocalPdf(localUri: string): Promise<void> {
@@ -49,7 +49,7 @@ export async function shareLocalPdf(localUri: string): Promise<void> {
 
   await Sharing.shareAsync(localUri, {
     UTI: "com.adobe.pdf",
-    dialogTitle: "Share Proof Packet PDF",
+    dialogTitle: "Share FieldDoc Report",
     mimeType: "application/pdf",
   });
 }

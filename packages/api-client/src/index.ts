@@ -50,6 +50,10 @@ export const apiClientConfigSchema = z.object({
 
 export type ApiClientConfig = z.infer<typeof apiClientConfigSchema>;
 
+export type DeleteAccountResponse = {
+  status: "deleted";
+};
+
 export type FieldDocApiClient = {
   uploadLocalMutations(
     input: SyncMutationUploadRequest,
@@ -76,6 +80,7 @@ export type FieldDocApiClient = {
   createReportShareLink(
     input: ReportShareLinkCreateRequest,
   ): Promise<ReportShareLinkCreateResponse>;
+  deleteAccount(): Promise<DeleteAccountResponse>;
 };
 
 export class FieldDocApiError extends Error {
@@ -218,6 +223,17 @@ export function createFieldDocApiClient(
         responseSchema: reportShareLinkCreateResponseSchema,
       });
     },
+
+    async deleteAccount() {
+      return requestJson({
+        baseUrl: config.baseUrl,
+        accessToken: config.accessToken,
+        fetchImpl,
+        method: "DELETE",
+        path: "/api/account",
+        responseSchema: deleteAccountResponseSchema,
+      });
+    },
   };
 }
 
@@ -236,14 +252,42 @@ async function postJson<TResponse>({
   body: unknown;
   responseSchema: z.ZodType<TResponse>;
 }): Promise<TResponse> {
+  return requestJson({
+    baseUrl,
+    accessToken,
+    fetchImpl,
+    method: "POST",
+    path,
+    body,
+    responseSchema,
+  });
+}
+
+async function requestJson<TResponse>({
+  baseUrl,
+  accessToken,
+  fetchImpl,
+  method,
+  path,
+  body,
+  responseSchema,
+}: {
+  baseUrl: string;
+  accessToken: string | undefined;
+  fetchImpl: (request: Request) => Promise<Response>;
+  method: "POST" | "DELETE";
+  path: string;
+  body?: unknown;
+  responseSchema: z.ZodType<TResponse>;
+}): Promise<TResponse> {
   const response = await fetchImpl(
     new Request(new URL(path, baseUrl), {
-      method: "POST",
+      method,
       headers: {
         "Content-Type": "application/json",
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
     }),
   );
 
@@ -262,6 +306,10 @@ async function postJson<TResponse>({
 
   return responseSchema.parse(responseBody);
 }
+
+const deleteAccountResponseSchema = z.object({
+  status: z.literal("deleted"),
+});
 
 const errorResponseSchema = z.object({
   error: z.object({

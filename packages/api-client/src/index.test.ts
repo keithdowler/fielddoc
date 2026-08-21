@@ -24,6 +24,25 @@ const validUpload = {
 const validMutationId = validUpload.mutations[0]?.mutationId ?? "";
 
 describe("createFieldDocApiClient", () => {
+  it("deletes the signed-in FieldDoc account through the account API", async () => {
+    const requests: Request[] = [];
+    const client = createFieldDocApiClient({
+      baseUrl: "https://example.test",
+      accessToken: "token",
+      fetchImpl: async (request) => {
+        requests.push(request);
+        return Response.json({ status: "deleted" });
+      },
+    });
+
+    await expect(client.deleteAccount()).resolves.toEqual({
+      status: "deleted",
+    });
+    expect(requests[0]?.url).toBe("https://example.test/api/account");
+    expect(requests[0]?.method).toBe("DELETE");
+    expect(requests[0]?.headers.get("authorization")).toBe("Bearer token");
+  });
+
   it("posts validated local mutations to the sync route", async () => {
     const requests: Request[] = [];
     const client = createFieldDocApiClient({

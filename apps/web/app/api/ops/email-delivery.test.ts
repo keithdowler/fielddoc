@@ -6,15 +6,15 @@ describe("email delivery operations", () => {
   it("builds a Resend payload without leaking secret values", () => {
     expect(
       buildResendEmailPayload({
-        from: "Proof Packet <reports@example.com>",
+        from: "FieldDoc <reports@example.com>",
         to: ["owner@example.com"],
-        subject: "Proof Packet email delivery test",
+        subject: "FieldDoc email delivery test",
         text: "No customer data.",
       }),
     ).toEqual({
-      from: "Proof Packet <reports@example.com>",
+      from: "FieldDoc <reports@example.com>",
       to: ["owner@example.com"],
-      subject: "Proof Packet email delivery test",
+      subject: "FieldDoc email delivery test",
       text: "No customer data.",
     });
   });
@@ -24,7 +24,7 @@ describe("email delivery operations", () => {
     const result = await sendResendEmail({
       apiKey: "re_secret",
       message: {
-        from: "Proof Packet <reports@example.com>",
+        from: "FieldDoc <reports@example.com>",
         to: ["owner@example.com"],
         subject: "Subject",
         text: "Body",

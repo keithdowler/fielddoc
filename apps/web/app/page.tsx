@@ -13,8 +13,8 @@ export default function Home() {
         <p className="eyebrow">Sprint 0 foundation</p>
         <h1>{productName}</h1>
         <p>
-          Placeholder web surface for a field documentation and proof packet
-          product. Product workflows start in later sprints.
+          FieldDoc keeps field evidence organized and turns it into clear,
+          customer-ready reports.
         </p>
         <nav className="linkRow" aria-label="Primary">
           <Link href="/sign-in">Sign in</Link>

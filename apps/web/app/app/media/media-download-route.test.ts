@@ -135,6 +135,7 @@ function createRepository(
 
 function createStorage(): PrivateObjectStorage {
   return {
+    deleteObject: async () => undefined,
     createPresignedUrl: (input) =>
       `https://downloads.example.test/${input.objectKey}?expires=${input.expiresInSeconds}`,
     verifyObject: async () => ({

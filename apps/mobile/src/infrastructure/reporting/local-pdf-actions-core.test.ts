@@ -14,7 +14,7 @@ describe("local PDF action state", () => {
     ).toEqual({
       canOpen: false,
       canShare: false,
-      reason: "Generate a local PDF first.",
+      reason: "Generate the report PDF first.",
     });
   });
 

@@ -51,7 +51,7 @@ export default async function AppPage() {
     <div className="workspaceStack">
       <section className="workspacePanel">
         <p className="eyebrow">Cloud workspace</p>
-        <h1>Proof Packet workspace</h1>
+        <h1>FieldDoc workspace</h1>
         <p>
           Review backed-up jobs, original files, reports, and account health for
           the active organization.

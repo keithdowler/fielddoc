@@ -115,7 +115,7 @@ export function getFieldDocNextActions(
       label: "Create the job",
       detail:
         input.projectCount > 0
-          ? `${formatCount(input.projectCount, "job is", "jobs are")} saved locally.`
+          ? `${formatCount(input.projectCount, "job is", "jobs are")} ready.`
           : "Start with the job name. Customer, site, and notes can be added later.",
       actionLabel: input.projectCount > 0 ? null : "Create job",
       destination: "projects",
@@ -212,7 +212,7 @@ export function getFieldDocNextActions(
         : hasRequiredEvidence
           ? "action_needed"
           : "blocked",
-      label: "Make the Proof Packet",
+      label: "Make the FieldDoc report",
       detail: input.hasGeneratedPdf
         ? "A report PDF exists on this device."
         : hasRequiredEvidence
@@ -278,8 +278,8 @@ export function getFieldDocNextActions(
             : input.pendingLocalChangeCount === 0 &&
                 pendingOriginalFileCount === 0 &&
                 pendingReportPdfCount === 0
-              ? "Local metadata, originals, and PDFs are backed up."
-              : "Back up local changes, original files, and report PDFs.",
+              ? "Job details, original files, and reports are saved."
+              : "Save job changes, original files, and report PDFs.",
       actionLabel:
         input.privateStorageReady !== false &&
         input.isSignedIn === true &&
@@ -328,7 +328,7 @@ export function getFirstRunChecklist(
       status: input.projectCount > 0 ? "complete" : "action_needed",
       label: "Create the first job",
       detail:
-        "A job is the folder for one site visit, claim, repair, or proof packet.",
+        "A job keeps one site visit, claim, or repair organized in one place.",
       actionLabel: input.projectCount > 0 ? null : "Create job",
     },
     {
@@ -350,9 +350,9 @@ export function getFirstRunChecklist(
     {
       id: "first_backup",
       status: input.pendingLocalChangeCount > 0 ? "action_needed" : "complete",
-      label: "Back up when ready",
+      label: "Save to the cloud",
       detail:
-        "Offline work stays on this device until you sign in and back it up.",
+        "Sign in once and FieldDoc saves changes automatically whenever you have a connection.",
       actionLabel: input.pendingLocalChangeCount > 0 ? "Open settings" : null,
     },
   ];
@@ -401,7 +401,7 @@ export function getReportUsabilityChecklist(
       status: input.projectSelected ? "complete" : "blocked",
       label: "Choose a project",
       detail: input.projectSelected
-        ? "This report is tied to one local job."
+        ? "This report is tied to one job."
         : "Create or select a job before making a report.",
       actionLabel: input.projectSelected ? null : "Choose project",
     },
@@ -470,9 +470,9 @@ export function getReportUsabilityChecklist(
       label: "Document review",
       detail:
         blockedDocuments > 0
-          ? "A blocked file type is quarantined from the Proof Packet."
+          ? "A blocked file type is kept out of the customer report."
           : reviewDocuments > 0
-            ? "Some supporting documents need external review or metadata confirmation."
+            ? "Some supporting documents need review or file-detail confirmation."
             : input.documentCount > 0
               ? "Attached documents are safe for delivery."
               : "Add documents first, then confirm they are delivery-ready.",
@@ -502,7 +502,7 @@ export function getReportUsabilityChecklist(
       status: input.hasGeneratedPdf ? "complete" : "action_needed",
       label: "Make report PDF",
       detail: input.hasGeneratedPdf
-        ? "A local Proof Packet PDF exists on this device."
+        ? "A FieldDoc report PDF is ready."
         : "Generate a PDF after the evidence and captions look right.",
       actionLabel: input.hasGeneratedPdf ? null : "Generate PDF",
     },
@@ -519,7 +519,7 @@ export function getReportUsabilityChecklist(
         input.subscriptionActive === false
           ? "Cloud backup and report archive need an active subscription."
           : input.subscriptionActive === true
-            ? "Cloud backup features are available on this device."
+            ? "Automatic cloud saving is available."
             : "Sign in and refresh subscription before cloud delivery.",
       actionLabel:
         input.subscriptionActive === true ? null : "Check subscription",
@@ -614,7 +614,7 @@ export function getCloudFeatureGate(input: {
     return {
       allowed: false,
       reason:
-        "An active Proof Packet subscription is required for cloud sync and report archive uploads.",
+        "An active FieldDoc subscription is required for cloud saving and report archives.",
     };
   }
 
@@ -718,7 +718,7 @@ export function getBetaReadinessSummary(
       severity: "warning",
       label: "Upload remaining originals",
       detail:
-        "Some media metadata is synced, but the immutable original files are still device-local.",
+        "Some photo details are saved, but the original files have not reached the cloud yet.",
     });
   }
 
@@ -726,7 +726,7 @@ export function getBetaReadinessSummary(
     warnings.push({
       id: "report_archive",
       severity: "warning",
-      label: "Archive a generated Proof Packet",
+      label: "Confirm a FieldDoc report is saved",
       detail:
         "Generated PDF archival should be verified before relying on the web report archive.",
     });
@@ -1663,7 +1663,7 @@ export function getProofPacketDocumentEntry(
       visualMediaAssetId: null,
       visualMediaAssetIds: [],
       visualPageCount: 0,
-      label: "Metadata-only document",
+      label: "Reference-only document",
       detail:
         "This document is tracked with immutable metadata and SHA-256, but its pages are not visually embedded.",
       proofSummary:
@@ -1831,7 +1831,7 @@ export function getReportDeliveryReadiness(
   }
 
   if (!input.hasGeneratedPdf) {
-    blockers.push("Generate the Proof Packet PDF.");
+    blockers.push("Generate the FieldDoc report PDF.");
   }
 
   if (input.subscriptionActive === false) {
@@ -1876,7 +1876,7 @@ export function getReportDeliveryReadiness(
 
   if ((input.metadataOnlyDocumentCount ?? 0) > 0) {
     warnings.push(
-      `${formatCount(input.metadataOnlyDocumentCount ?? 0, "supporting document is", "supporting documents are")} metadata-only in the packet.`,
+      `${formatCount(input.metadataOnlyDocumentCount ?? 0, "supporting document is", "supporting documents are")} available as a reference in the report.`,
     );
   }
 
@@ -2116,7 +2116,7 @@ export function renderProofPacketHtml(
   preview: ProofPacketPreview,
   options: ProofPacketHtmlOptions,
 ): string {
-  const productName = escapeHtml(options.productName ?? "Proof Packet");
+  const productName = escapeHtml(options.productName ?? "FieldDoc");
   const branding = options.branding ?? defaultReportBranding;
   const accentColor = escapeHtml(branding.accentColor);
   const generatedAt = escapeHtml(formatPacketTimestamp(options.generatedAt));
@@ -2341,7 +2341,7 @@ export function renderProofPacketHtml(
     </div>
     ${
       preview.totals.documents
-        ? `<p class="section-meta">Document appendix: ${preview.totals.visualDocuments} visual document pages embedded, ${preview.totals.externalOriginalDocuments} imported originals preserved for external review, ${preview.totals.metadataOnlyDocuments} metadata-only documents preserved with SHA-256 and file metadata, ${preview.totals.blockedDocuments} blocked documents requiring replacement.</p>`
+        ? `<p class="section-meta">Document appendix: ${preview.totals.visualDocuments} visual document pages included, ${preview.totals.externalOriginalDocuments} imported originals available for review, ${preview.totals.metadataOnlyDocuments} reference-only documents preserved with file verification details, ${preview.totals.blockedDocuments} blocked documents requiring replacement.</p>`
         : ""
     }
     ${sectionHtml}

@@ -79,7 +79,7 @@ export function toRevenueCatState(input: {
       status: "not_configured",
       entitlements: [],
       message:
-        "Set EXPO_PUBLIC_REVENUECAT_IOS_API_KEY or EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY to enable paid features.",
+        "Subscriptions are unavailable in this version. Please contact support.",
     };
   }
 
@@ -88,7 +88,7 @@ export function toRevenueCatState(input: {
       isConfigured: true,
       status: "signed_out",
       entitlements: [],
-      message: "Sign in before checking subscription entitlements.",
+      message: "Sign in to check your subscription.",
     };
   }
 

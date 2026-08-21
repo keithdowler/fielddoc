@@ -33,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
     const context = await requireOperationalAuth(env.DATABASE_URL);
     const result = await sendSentryEvent({
       dsn: env.SENTRY_DSN,
-      message: "Proof Packet server-side error reporting readiness test",
+      message: "FieldDoc server-side error reporting readiness test",
       environment: process.env.VERCEL_ENV ?? "development",
       tags: {
         provider: "sentry",

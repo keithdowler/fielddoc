@@ -79,7 +79,7 @@ export default async function ProjectDetailPage({
           <Metric label="Evidence" value={project.evidenceCount} />
           <Metric label="Documents" value={project.documentCount} />
           <Metric label="Original media" value={project.mediaCount} />
-          <Metric label="Uploaded" value={project.uploadedMediaCount} />
+          <Metric label="Saved to cloud" value={project.uploadedMediaCount} />
           <Metric
             label="Missing captions"
             value={project.missingCaptionCount}
@@ -91,7 +91,7 @@ export default async function ProjectDetailPage({
         <div className="sectionTitleRow">
           <div>
             <p className="eyebrow">Evidence sections</p>
-            <h2>Proof Packet readiness</h2>
+            <h2>Report readiness</h2>
           </div>
           {project.readiness.missing.length ? (
             <span className="statusPill">
@@ -111,7 +111,7 @@ export default async function ProjectDetailPage({
                     media / {section.documentCount} documents (
                     {section.visualDocumentCount} visual /{" "}
                     {section.externalOriginalDocumentCount} original /{" "}
-                    {section.metadataOnlyDocumentCount} metadata /{" "}
+                    {section.metadataOnlyDocumentCount} reference-only /{" "}
                     {section.blockedDocumentCount} blocked) /{" "}
                     {section.annotationCount} notes
                   </p>
@@ -166,8 +166,8 @@ export default async function ProjectDetailPage({
                   <span>{report.status}</span>
                   <span>
                     {report.hasGeneratedPdf
-                      ? "Cloud PDF stored"
-                      : "Metadata only"}
+                      ? "PDF ready"
+                      : "Report details saved"}
                   </span>
                 </div>
               </article>
@@ -208,12 +208,12 @@ function EvidenceCard({ evidence }: { evidence: WorkspaceEvidenceItem }) {
             <div className="mediaTile" key={document.id}>
               <strong>{document.title}</strong>
               <span>
-                {document.notes ?? "Document metadata synced from mobile"}
+                {document.notes ?? "Document details saved from mobile"}
               </span>
               <span>
                 {evidence.visualDocumentCount} visual /{" "}
                 {evidence.externalOriginalDocumentCount} imported original /{" "}
-                {evidence.metadataOnlyDocumentCount} metadata-only
+                {evidence.metadataOnlyDocumentCount} reference-only
               </span>
               <span>{document.proofSummary}</span>
               <span>{document.securitySummary}</span>
@@ -299,7 +299,7 @@ function MediaTile({ media }: { media: WorkspaceMediaAsset }) {
           {isDocument ? "Download document" : "Download original"}
         </Link>
       ) : (
-        <span className="warningText">Original not uploaded</span>
+        <span className="warningText">Original is still saving</span>
       )}
     </div>
   );

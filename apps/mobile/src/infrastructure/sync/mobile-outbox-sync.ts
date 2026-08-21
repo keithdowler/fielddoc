@@ -58,7 +58,8 @@ export async function runMobileOutboxSync({
   if (!apiBaseUrl) {
     return createResult({
       status: "not_configured",
-      message: "Set EXPO_PUBLIC_FIELDDOC_API_BASE_URL before syncing.",
+      message:
+        "Cloud saving is unavailable in this version. Please contact support.",
       pendingCount: await repositories.mutations.countPending(),
     });
   }
@@ -68,7 +69,7 @@ export async function runMobileOutboxSync({
   if (!accessToken) {
     return createResult({
       status: "auth_required",
-      message: "Cloud sign-in is required before uploading local changes.",
+      message: "Sign in to save your changes across devices.",
       pendingCount: await repositories.mutations.countPending(),
     });
   }
@@ -79,7 +80,7 @@ export async function runMobileOutboxSync({
   if (mutations.length === 0) {
     return createResult({
       status: "idle",
-      message: "No uploadable local changes are waiting.",
+      message: "All changes are saved.",
       pendingCount: await repositories.mutations.countPending(),
     });
   }
@@ -110,7 +111,7 @@ export async function runMobileOutboxSync({
       message:
         rejectedCount > 0
           ? "Some local changes need attention before they can sync."
-          : "Local metadata changes were received by the cloud.",
+          : "Your latest changes were saved.",
       attemptedCount: mutations.length,
       acceptedCount,
       duplicateCount,

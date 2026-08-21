@@ -99,7 +99,7 @@ export class SqliteReportDraftRepository implements ReportDraftRepository {
     const sectionsJson = JSON.stringify(
       normalizeReportSections(input.sections),
     );
-    const title = input.title?.trim() || "Proof Packet Draft";
+    const title = input.title?.trim() || "FieldDoc Report Draft";
     const reportDraft: ReportDraft = {
       id: existing?.id ?? createLocalId("report"),
       projectId: input.projectId,

@@ -17,9 +17,9 @@ export default function TermsPage() {
           <h2>Use of the Service</h2>
           <p>
             {productName} helps field-service teams organize job evidence,
-            generate Proof Packets, and review synced workspace records. You are
-            responsible for using the service lawfully and for ensuring that job
-            records you capture are accurate and appropriate to share.
+            generate FieldDoc reports, and review saved workspace records. You
+            are responsible for using the service lawfully and for ensuring that
+            job records you capture are accurate and appropriate to share.
           </p>
         </section>
 
@@ -35,7 +35,7 @@ export default function TermsPage() {
         <section>
           <h2>Reports and Evidence</h2>
           <p>
-            Proof Packets are documentation tools. They do not create legal,
+            FieldDoc reports are documentation tools. They do not create legal,
             engineering, insurance, inspection, or compliance conclusions unless
             your own qualified personnel add those conclusions separately.
           </p>

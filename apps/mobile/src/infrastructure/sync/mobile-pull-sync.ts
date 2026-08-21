@@ -54,7 +54,7 @@ export async function runMobilePullSync({
   if (!apiBaseUrl) {
     return createResult({
       status: "not_configured",
-      message: "Set EXPO_PUBLIC_FIELDDOC_API_BASE_URL before downloading.",
+      message: "Cloud saving is unavailable in this version.",
       unresolvedConflictCount:
         await repositories.pullSync.countUnresolvedConflicts(),
     });
@@ -65,7 +65,7 @@ export async function runMobilePullSync({
   if (!accessToken) {
     return createResult({
       status: "auth_required",
-      message: "Cloud sign-in is required before downloading cloud changes.",
+      message: "Sign in to keep your work current across devices.",
       unresolvedConflictCount:
         await repositories.pullSync.countUnresolvedConflicts(),
     });
@@ -100,7 +100,7 @@ export async function runMobilePullSync({
     if (applied.pulledCount === 0) {
       return createResult({
         status: "idle",
-        message: "No cloud changes are waiting.",
+        message: "Everything is up to date.",
         cursor: response.cursor,
         lastPulledAt: pulledAt,
         serverTime: response.serverTime,
@@ -113,8 +113,8 @@ export async function runMobilePullSync({
       status: applied.conflictCount > 0 ? "partial" : "success",
       message:
         applied.conflictCount > 0
-          ? "Cloud changes were downloaded, but some local edits need review."
-          : "Cloud changes were downloaded to this device.",
+          ? "Your work is current, but some edits need review."
+          : "Your work is up to date on this device.",
       pulledCount: applied.pulledCount,
       appliedCount: applied.appliedCount,
       conflictCount: applied.conflictCount,
@@ -130,7 +130,7 @@ export async function runMobilePullSync({
       message:
         error instanceof FieldDocApiError
           ? error.message
-          : "Cloud changes could not be downloaded.",
+          : "FieldDoc could not check for newer changes.",
       unresolvedConflictCount:
         await repositories.pullSync.countUnresolvedConflicts(),
     });

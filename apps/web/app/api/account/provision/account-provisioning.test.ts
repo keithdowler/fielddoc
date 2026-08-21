@@ -7,7 +7,7 @@ import {
 
 describe("account provisioning normalization", () => {
   it("uses a stable organization fallback", () => {
-    expect(normalizeOrganizationName("")).toBe("Proof Packet");
+    expect(normalizeOrganizationName("")).toBe("FieldDoc");
     expect(normalizeOrganizationName("  Acme Maintenance  ")).toBe(
       "Acme Maintenance",
     );

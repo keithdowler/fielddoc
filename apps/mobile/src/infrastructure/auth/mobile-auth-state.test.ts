@@ -42,7 +42,7 @@ describe("mobile auth state", () => {
 
   it("keeps user-facing sync guidance mapped for every state", () => {
     expect(getMobileAuthStatusCopy("signed_in").title).toBe(
-      "Cloud account connected",
+      "Account connected",
     );
     expect(getMobileAuthStatusCopy("signed_out").message).toContain("Sign in");
   });

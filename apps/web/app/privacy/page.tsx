@@ -18,15 +18,15 @@ export default function PrivacyPage() {
           <p>
             {productName} stores job documentation that you choose to create,
             capture, upload, or sync, including project details, evidence
-            captions, notes, media metadata, report drafts, generated reports,
-            and account information needed to operate your workspace.
+            captions, notes, file details, report drafts, generated reports, and
+            account information needed to operate your workspace.
           </p>
         </section>
 
         <section>
           <h2>Photos, Documents, and Reports</h2>
           <p>
-            Original job media and generated Proof Packets are treated as
+            Original job media and generated FieldDoc reports are treated as
             private workspace records. They are used to provide capture, backup,
             report generation, download, and sharing features that you request.
           </p>
@@ -45,9 +45,9 @@ export default function PrivacyPage() {
         <section>
           <h2>Offline Data</h2>
           <p>
-            Mobile work may be saved locally on your device before it is backed
-            up. Deleting the app or clearing local data can remove device-local
-            records that have not yet been synced.
+            Mobile work may remain safely on your device while FieldDoc waits
+            for a connection. Deleting the app or clearing saved data can remove
+            records that have not reached the cloud yet.
           </p>
         </section>
 
