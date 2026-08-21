@@ -8,7 +8,7 @@
     "scheme": "fielddoc",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.fielddoc.mobile",
+      "bundleIdentifier": "com.dogwoodenterprises.proofpacket",
       "buildNumber": "1",
       "icon": "./assets/expo.icon",
       "infoPlist": {
@@ -18,7 +18,7 @@
       }
     },
     "android": {
-      "package": "com.fielddoc.mobile",
+      "package": "com.dogwoodenterprises.proofpacket",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
