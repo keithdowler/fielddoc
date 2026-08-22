@@ -15,10 +15,12 @@ import { getLocalRepositories } from "@/infrastructure/local-store/repositories"
 
 import { runMobileCloudSync } from "./mobile-cloud-sync";
 import { runMobilePullSync } from "./mobile-pull-sync";
+import {
+  createAutomaticSyncExceptionSummary,
+  summarizeAutomaticCloudSyncResults,
+  type AutomaticSyncStatus,
+} from "./automatic-cloud-sync-state";
 import { subscribeToAutomaticSync } from "./sync-events";
-
-export type AutomaticSyncStatus =
-  "waiting" | "saving" | "saved" | "offline" | "error";
 
 type AutomaticSyncContextValue = {
   status: AutomaticSyncStatus;
@@ -69,30 +71,19 @@ export function AutomaticCloudSyncProvider({ children }: PropsWithChildren) {
       const upload = await runMobileCloudSync({ repositories, tokenProvider });
       const pull = await runMobilePullSync({ repositories, tokenProvider });
 
-      if (upload.status === "failed" || pull.status === "failed") {
-        setStatus("offline");
-        setMessage(
-          "Saved on this device. FieldDoc will try the cloud again automatically.",
-        );
-      } else if (
-        upload.status === "not_configured" ||
-        pull.status === "not_configured"
-      ) {
-        setStatus("error");
-        setMessage(
-          "Cloud saving is unavailable in this version. Please contact support.",
-        );
-      } else {
+      const result = summarizeAutomaticCloudSyncResults(upload, pull);
+      setStatus(result.status);
+      setMessage(result.message);
+
+      if (result.status === "saved") {
         const savedAt = new Date().toISOString();
-        setStatus("saved");
-        setMessage("All changes saved.");
         setLastSavedAt(savedAt);
       }
-    } catch {
-      setStatus("offline");
-      setMessage(
-        "Saved on this device. FieldDoc will try the cloud again automatically.",
-      );
+    } catch (error) {
+      console.warn("[FieldDoc] automatic cloud save failed", error);
+      const result = createAutomaticSyncExceptionSummary();
+      setStatus(result.status);
+      setMessage(result.message);
     } finally {
       running.current = false;
       if (queued.current) {

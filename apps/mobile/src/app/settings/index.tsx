@@ -17,6 +17,7 @@ import { StatusBanner } from "@/components/status-banner";
 import { spacing } from "@/design/tokens";
 import { useMobileAuth } from "@/infrastructure/auth/mobile-auth";
 import { getMobileAuthStatusCopy } from "@/infrastructure/auth/mobile-auth-state";
+import { getPublicMobileEnv } from "@/infrastructure/config/public-mobile-env";
 import { getLocalRepositories } from "@/infrastructure/local-store/repositories";
 import {
   deleteLocalDeviceData,
@@ -33,7 +34,7 @@ type ActionResult = {
   message: string;
 };
 
-const apiBaseUrl = process.env.EXPO_PUBLIC_FIELDDOC_API_BASE_URL;
+const apiBaseUrl = getPublicMobileEnv().EXPO_PUBLIC_FIELDDOC_API_BASE_URL;
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -307,7 +308,7 @@ export default function SettingsScreen() {
       <Card>
         <SectionHeader
           title="Automatic Saving"
-          detail="FieldDoc saves changes in the background whenever a connection is available."
+          detail="FieldDoc saves your work to the cloud after you sign in."
         />
         <StatusBanner
           tone={syncTone(automaticSync.status)}
@@ -445,7 +446,7 @@ function syncTone(status: ReturnType<typeof useAutomaticCloudSync>["status"]) {
 function syncTitle(status: ReturnType<typeof useAutomaticCloudSync>["status"]) {
   if (status === "saved") return "Everything is saved";
   if (status === "saving") return "Saving changes";
-  if (status === "offline") return "Waiting for a connection";
+  if (status === "offline") return "Saved on this device";
   if (status === "error") return "Cloud saving needs attention";
   return "Ready to save";
 }
