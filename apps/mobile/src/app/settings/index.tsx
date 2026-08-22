@@ -1,4 +1,3 @@
-import { AuthView } from "@clerk/expo/native";
 import { createFieldDocApiClient } from "@fielddoc/api-client";
 import {
   getCloudFeatureGate,
@@ -6,6 +5,7 @@ import {
 } from "@fielddoc/domain";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
+import { type Href, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/app-button";
 import { AppScreen } from "@/components/app-screen";
@@ -25,6 +25,7 @@ import {
 import { useRevenueCatEntitlements } from "@/infrastructure/revenuecat/revenuecat";
 import { getRevenueCatStatusCopy } from "@/infrastructure/revenuecat/revenuecat-state";
 import { useAutomaticCloudSync } from "@/infrastructure/sync/automatic-cloud-sync";
+import { accountSignInRoute } from "@/navigation/app-navigation";
 
 type ActionResult = {
   tone: "success" | "error" | "warning";
@@ -35,6 +36,7 @@ type ActionResult = {
 const apiBaseUrl = process.env.EXPO_PUBLIC_FIELDDOC_API_BASE_URL;
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const auth = useMobileAuth();
   const automaticSync = useAutomaticCloudSync();
   const subscription = useRevenueCatEntitlements({
@@ -280,7 +282,11 @@ export default function SettingsScreen() {
           message={authCopy.message}
         />
         {auth.isConfigured && auth.isLoaded && !auth.isSignedIn ? (
-          <AuthView mode="signInOrUp" isDismissible={false} />
+          <AppButton
+            label="Sign In"
+            icon="person.crop.circle"
+            onPress={() => router.push(accountSignInRoute as Href)}
+          />
         ) : null}
         {auth.isSignedIn ? (
           <>

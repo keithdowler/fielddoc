@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  accountSignInRoute,
   getPrimaryNavigationTitles,
   primaryNavigation,
 } from "./app-navigation";
@@ -20,5 +21,12 @@ describe("primaryNavigation", () => {
     expect(
       primaryNavigation.every((item) => item.accessibilityLabel && item.icon),
     ).toBe(true);
+  });
+
+  it("keeps account sign-in on a dedicated route", () => {
+    expect(accountSignInRoute).toBe("/settings/sign-in");
+    expect(primaryNavigation.map((item) => item.routeName)).not.toContain(
+      "settings/sign-in",
+    );
   });
 });

@@ -49,6 +49,14 @@ export default function RootLayout() {
               }}
             />
           ))}
+          <Tabs.Screen
+            name="settings/sign-in"
+            options={{
+              href: null,
+              headerShown: false,
+              tabBarStyle: { display: "none" },
+            }}
+          />
         </Tabs>
         <StatusBar style="dark" />
       </AutomaticCloudSyncProvider>

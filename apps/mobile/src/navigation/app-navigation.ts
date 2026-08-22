@@ -38,6 +38,8 @@ export const primaryNavigation = [
   },
 ] as const;
 
+export const accountSignInRoute = "/settings/sign-in" as const;
+
 export function getPrimaryNavigationTitles(): string[] {
   return primaryNavigation.map((item) => item.title);
 }
