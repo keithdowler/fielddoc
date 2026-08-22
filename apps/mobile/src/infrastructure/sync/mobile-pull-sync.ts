@@ -3,7 +3,7 @@ import {
   FieldDocApiError,
   type FieldDocApiClient,
 } from "@fielddoc/api-client";
-import { publicMobileEnvSchema } from "@fielddoc/config";
+import { getPublicMobileEnv } from "@/infrastructure/config/public-mobile-env";
 
 import type { LocalRepositories } from "@/infrastructure/local-store/repositories";
 
@@ -46,8 +46,7 @@ export type RunMobilePullSyncInput = {
 export async function runMobilePullSync({
   repositories,
   tokenProvider,
-  apiBaseUrl = publicMobileEnvSchema.parse(process.env)
-    .EXPO_PUBLIC_FIELDDOC_API_BASE_URL,
+  apiBaseUrl = getPublicMobileEnv().EXPO_PUBLIC_FIELDDOC_API_BASE_URL,
   apiClient,
   now = () => new Date(),
 }: RunMobilePullSyncInput): Promise<MobilePullSyncResult> {

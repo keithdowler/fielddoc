@@ -2,7 +2,7 @@ import {
   createFieldDocApiClient,
   FieldDocApiError,
 } from "@fielddoc/api-client";
-import { publicMobileEnvSchema } from "@fielddoc/config";
+import { getPublicMobileEnv } from "@/infrastructure/config/public-mobile-env";
 import type { ReportDraft } from "@fielddoc/domain";
 
 import type { LocalRepositories } from "@/infrastructure/local-store/repositories";
@@ -65,8 +65,7 @@ export type RunMobileReportUploadInput = {
 export async function runMobileReportUpload({
   repositories,
   tokenProvider,
-  apiBaseUrl = publicMobileEnvSchema.parse(process.env)
-    .EXPO_PUBLIC_FIELDDOC_API_BASE_URL,
+  apiBaseUrl = getPublicMobileEnv().EXPO_PUBLIC_FIELDDOC_API_BASE_URL,
   apiClient,
   uploadBinary = uploadBinaryWithExpoFileSystem,
   metadataProvider = getLocalPdfUploadMetadata,

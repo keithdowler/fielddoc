@@ -1,0 +1,17 @@
+import { publicMobileEnvSchema } from "@fielddoc/config";
+
+export function getPublicMobileEnv() {
+  return publicMobileEnvSchema.parse({
+    EXPO_PUBLIC_PRODUCT_NAME: process.env.EXPO_PUBLIC_PRODUCT_NAME,
+    EXPO_PUBLIC_FIELDDOC_API_BASE_URL:
+      process.env.EXPO_PUBLIC_FIELDDOC_API_BASE_URL,
+    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
+      process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    EXPO_PUBLIC_PRIVACY_POLICY_URL: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
+    EXPO_PUBLIC_TERMS_URL: process.env.EXPO_PUBLIC_TERMS_URL,
+    EXPO_PUBLIC_REVENUECAT_IOS_API_KEY:
+      process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY,
+    EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY:
+      process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY,
+  });
+}

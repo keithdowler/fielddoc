@@ -4,7 +4,7 @@ import {
 } from "@fielddoc/api-client";
 import type { LocalMutation } from "@fielddoc/domain";
 import type { SyncMutationUploadResponse } from "@fielddoc/validation";
-import { publicMobileEnvSchema } from "@fielddoc/config";
+import { getPublicMobileEnv } from "@/infrastructure/config/public-mobile-env";
 
 import type { LocalRepositories } from "@/infrastructure/local-store/repositories";
 
@@ -50,8 +50,7 @@ export type RunMobileOutboxSyncInput = {
 export async function runMobileOutboxSync({
   repositories,
   tokenProvider,
-  apiBaseUrl = publicMobileEnvSchema.parse(process.env)
-    .EXPO_PUBLIC_FIELDDOC_API_BASE_URL,
+  apiBaseUrl = getPublicMobileEnv().EXPO_PUBLIC_FIELDDOC_API_BASE_URL,
   apiClient,
   now = () => new Date(),
 }: RunMobileOutboxSyncInput): Promise<MobileSyncResult> {
