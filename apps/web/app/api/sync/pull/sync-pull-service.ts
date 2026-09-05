@@ -14,7 +14,9 @@ import {
   type SyncApiErrorCode,
   type SyncAuthPrincipal,
   type SyncMembership,
+  type SyncMembershipResolution,
   type SyncMutationAuthVerifier,
+  resolveSyncMembershipResult,
 } from "../mutations/sync-service";
 
 type SyncErrorStatus = 400 | 401 | 403 | 501 | 503;
@@ -34,7 +36,7 @@ export type PullChangesResult = {
 export type SyncPullPersistence = {
   resolveMembership(
     principal: SyncAuthPrincipal,
-  ): Promise<SyncMembership | null>;
+  ): Promise<SyncMembershipResolution>;
   pullChanges(input: PullChangesInput): Promise<PullChangesResult>;
 };
 
@@ -109,17 +111,20 @@ export function createSyncPullPostHandler(
       );
     }
 
-    const membership = await persistence.resolveMembership(
+    const membershipResult = resolveSyncMembershipResult(
+      await persistence.resolveMembership(authResult.principal),
       authResult.principal,
     );
 
-    if (!membership) {
+    if (!membershipResult.ok) {
       return errorResponse(
-        "ORGANIZATION_MEMBERSHIP_REQUIRED",
-        "Authenticated user is not a member of the active organization.",
-        403,
+        membershipResult.code,
+        membershipResult.message,
+        membershipResult.status,
       );
     }
+
+    const { membership } = membershipResult;
 
     const result = await persistence.pullChanges({
       membership,

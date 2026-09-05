@@ -17,6 +17,7 @@ import {
   SyncConfigurationError,
   type SyncMembership,
   type SyncMutationAuthVerifier,
+  resolveSyncMembershipResult,
 } from "../sync/mutations/sync-service";
 import {
   createEvidenceObjectKey,
@@ -351,17 +352,20 @@ async function authenticateMediaRequest(
     );
   }
 
-  const membership = await repository.resolveMembership(authResult.principal);
+  const membershipResult = resolveSyncMembershipResult(
+    await repository.resolveMembership(authResult.principal),
+    authResult.principal,
+  );
 
-  if (!membership) {
+  if (!membershipResult.ok) {
     return errorResponse(
-      "ORGANIZATION_MEMBERSHIP_REQUIRED",
-      "Authenticated user is not a member of the active organization.",
-      403,
+      membershipResult.code,
+      membershipResult.message,
+      membershipResult.status,
     );
   }
 
-  return { membership, repository };
+  return { membership: membershipResult.membership, repository };
 }
 
 async function parseJsonBody<T>(

@@ -16,6 +16,8 @@ export type SyncApiErrorCode =
   | "INVALID_SYNC_MUTATION_UPLOAD"
   | "ORGANIZATION_REQUIRED"
   | "ORGANIZATION_MEMBERSHIP_REQUIRED"
+  | "WORKSPACE_CHOICE_REQUIRED"
+  | "WORKSPACE_NOT_FOUND"
   | "SYNC_AUTH_NOT_CONFIGURED"
   | "SYNC_PERSISTENCE_NOT_CONFIGURED"
   | "SYNC_PERSISTENCE_WRITE_FAILED";
@@ -38,7 +40,7 @@ export class SyncConfigurationError extends Error {
 
 export type SyncAuthPrincipal = {
   externalAuthId: string;
-  organizationId: string;
+  organizationId: string | null;
   organizationRole: string | null;
 };
 
@@ -52,9 +54,9 @@ export type SyncAuthResult =
   | { ok: true; principal: SyncAuthPrincipal }
   | {
       ok: false;
-      code: Extract<SyncApiErrorCode, "UNAUTHORIZED" | "ORGANIZATION_REQUIRED">;
+      code: Extract<SyncApiErrorCode, "UNAUTHORIZED">;
       message: string;
-      status: 401 | 403;
+      status: 401;
     };
 
 export type SyncMutationAuthVerifier = {
@@ -75,11 +77,72 @@ export type RecordReceivedMutationResult =
 export type SyncMutationPersistence = {
   resolveMembership(
     principal: SyncAuthPrincipal,
-  ): Promise<SyncMembership | null>;
+  ): Promise<SyncMembershipResolution>;
   recordReceivedMutation(
     input: RecordReceivedMutationInput,
   ): Promise<RecordReceivedMutationResult>;
 };
+
+export type SyncMembershipResolution =
+  | SyncMembership
+  | null
+  | { status: "workspace_not_found" }
+  | { status: "workspace_choice_required" };
+
+export type SyncMembershipResolutionResult =
+  | { ok: true; membership: SyncMembership }
+  | {
+      ok: false;
+      code: Extract<
+        SyncApiErrorCode,
+        | "ORGANIZATION_MEMBERSHIP_REQUIRED"
+        | "WORKSPACE_CHOICE_REQUIRED"
+        | "WORKSPACE_NOT_FOUND"
+      >;
+      message: string;
+      status: 403;
+    };
+
+export function resolveSyncMembershipResult(
+  resolution: SyncMembershipResolution,
+  principal: SyncAuthPrincipal,
+): SyncMembershipResolutionResult {
+  if (resolution && "organizationId" in resolution) {
+    return { ok: true, membership: resolution };
+  }
+
+  if (
+    resolution &&
+    "status" in resolution &&
+    resolution.status === "workspace_choice_required"
+  ) {
+    return {
+      ok: false,
+      code: "WORKSPACE_CHOICE_REQUIRED",
+      message:
+        "This account has more than one FieldDoc workspace. Choose a workspace, then try again.",
+      status: 403,
+    };
+  }
+
+  if (principal.organizationId) {
+    return {
+      ok: false,
+      code: "ORGANIZATION_MEMBERSHIP_REQUIRED",
+      message:
+        "This account is not set up for the selected FieldDoc workspace.",
+      status: 403,
+    };
+  }
+
+  return {
+    ok: false,
+    code: "WORKSPACE_NOT_FOUND",
+    message:
+      "We could not find your FieldDoc workspace. Sign out and sign in again, then try saving.",
+    status: 403,
+  };
+}
 
 export type SyncMutationPostHandlerDependencies = {
   createAuthVerifier: () => SyncMutationAuthVerifier;
@@ -154,17 +217,20 @@ export function createSyncMutationPostHandler(
       );
     }
 
-    const membership = await persistence.resolveMembership(
+    const membershipResult = resolveSyncMembershipResult(
+      await persistence.resolveMembership(authResult.principal),
       authResult.principal,
     );
 
-    if (!membership) {
+    if (!membershipResult.ok) {
       return errorResponse(
-        "ORGANIZATION_MEMBERSHIP_REQUIRED",
-        "Authenticated user is not a member of the active organization.",
-        403,
+        membershipResult.code,
+        membershipResult.message,
+        membershipResult.status,
       );
     }
+
+    const { membership } = membershipResult;
 
     const acceptedMutationIds: string[] = [];
     const duplicateMutationIds: string[] = [];

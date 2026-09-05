@@ -51,20 +51,11 @@ export function createClerkSyncAuthVerifier(
 
       const auth = requestState.toAuth();
 
-      if (!auth.orgId) {
-        return {
-          ok: false,
-          code: "ORGANIZATION_REQUIRED",
-          message: "An active organization is required to upload mutations.",
-          status: 403,
-        };
-      }
-
       return {
         ok: true,
         principal: {
           externalAuthId: auth.userId,
-          organizationId: auth.orgId,
+          organizationId: auth.orgId ?? null,
           organizationRole: auth.orgRole ?? null,
         },
       };

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createSyncMutationPostHandler,
+  resolveSyncMembershipResult,
   type RecordReceivedMutationInput,
   type SyncAuthPrincipal,
   type SyncAuthResult,
@@ -16,9 +17,15 @@ const principal: SyncAuthPrincipal = {
 };
 
 const membership = {
-  organizationId: principal.organizationId,
+  organizationId: "9b48b114-8efc-4c69-8dcc-e0c1a1d2ad8c",
   userId: "ba2ac61a-68df-4b46-9191-55ef29e27fd2",
   role: "admin",
+};
+
+const mobilePrincipalWithoutWorkspace: SyncAuthPrincipal = {
+  externalAuthId: "user_123",
+  organizationId: null,
+  organizationRole: null,
 };
 
 const validMutation = {
@@ -166,13 +173,33 @@ describe("createSyncMutationPostHandler", () => {
     ]);
   });
 
-  it("requires active organization context from auth", async () => {
+  it("uses the resolved membership when mobile auth has no active workspace", async () => {
+    const writes: RecordReceivedMutationInput[] = [];
     const handler = createTestHandler({
-      auth: {
-        ok: false,
-        code: "ORGANIZATION_REQUIRED",
-        message: "An active organization is required to upload mutations.",
-        status: 403,
+      auth: { ok: true, principal: mobilePrincipalWithoutWorkspace },
+      persistence: {
+        resolveMembership: async () => membership,
+        recordReceivedMutation: async (input) => {
+          writes.push(input);
+          return { status: "accepted" };
+        },
+      },
+    });
+
+    const response = await handler(createRequest(validUpload));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.acceptedMutationIds).toEqual([validMutation.mutationId]);
+    expect(writes[0]?.membership).toEqual(membership);
+  });
+
+  it("explains when mobile auth has no workspace membership", async () => {
+    const handler = createTestHandler({
+      auth: { ok: true, principal: mobilePrincipalWithoutWorkspace },
+      persistence: {
+        resolveMembership: async () => ({ status: "workspace_not_found" }),
+        recordReceivedMutation: async () => ({ status: "accepted" }),
       },
     });
 
@@ -180,7 +207,33 @@ describe("createSyncMutationPostHandler", () => {
     const body = await response.json();
 
     expect(response.status).toBe(403);
-    expect(body.error.code).toBe("ORGANIZATION_REQUIRED");
+    expect(body.error).toEqual({
+      code: "WORKSPACE_NOT_FOUND",
+      message:
+        "We could not find your FieldDoc workspace. Sign out and sign in again, then try saving.",
+    });
+  });
+
+  it("asks mobile users with multiple memberships to choose a workspace", async () => {
+    const handler = createTestHandler({
+      auth: { ok: true, principal: mobilePrincipalWithoutWorkspace },
+      persistence: {
+        resolveMembership: async () => ({
+          status: "workspace_choice_required",
+        }),
+        recordReceivedMutation: async () => ({ status: "accepted" }),
+      },
+    });
+
+    const response = await handler(createRequest(validUpload));
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toEqual({
+      code: "WORKSPACE_CHOICE_REQUIRED",
+      message:
+        "This account has more than one FieldDoc workspace. Choose a workspace, then try again.",
+    });
   });
 
   it("requires server-side organization membership", async () => {
@@ -196,6 +249,38 @@ describe("createSyncMutationPostHandler", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.code).toBe("ORGANIZATION_MEMBERSHIP_REQUIRED");
+    expect(body.error.message).toBe(
+      "This account is not set up for the selected FieldDoc workspace.",
+    );
+  });
+});
+
+describe("resolveSyncMembershipResult", () => {
+  it("accepts a single resolved workspace when mobile auth has no active workspace", () => {
+    expect(
+      resolveSyncMembershipResult(membership, mobilePrincipalWithoutWorkspace),
+    ).toEqual({ ok: true, membership });
+  });
+
+  it("distinguishes missing and multiple workspaces for mobile auth", () => {
+    expect(
+      resolveSyncMembershipResult(
+        { status: "workspace_not_found" },
+        mobilePrincipalWithoutWorkspace,
+      ),
+    ).toMatchObject({
+      ok: false,
+      code: "WORKSPACE_NOT_FOUND",
+    });
+    expect(
+      resolveSyncMembershipResult(
+        { status: "workspace_choice_required" },
+        mobilePrincipalWithoutWorkspace,
+      ),
+    ).toMatchObject({
+      ok: false,
+      code: "WORKSPACE_CHOICE_REQUIRED",
+    });
   });
 });
 

@@ -46,6 +46,56 @@ describe("summarizeAutomaticCloudSyncResults", () => {
     });
   });
 
+  it("explains when the signed-in account has no FieldDoc workspace", () => {
+    expect(
+      summarizeAutomaticCloudSyncResults(
+        {
+          status: "failed",
+          message:
+            "We could not find your FieldDoc workspace. Sign out and sign in again, then try saving.",
+        },
+        saved,
+      ),
+    ).toEqual({
+      status: "error",
+      message:
+        "We could not find your FieldDoc workspace. Sign out and sign in again, then try saving.",
+    });
+  });
+
+  it("explains when the user needs to choose between workspaces", () => {
+    expect(
+      summarizeAutomaticCloudSyncResults(
+        {
+          status: "failed",
+          message:
+            "This account has more than one FieldDoc workspace. Choose a workspace, then try again.",
+        },
+        saved,
+      ),
+    ).toEqual({
+      status: "error",
+      message:
+        "This account has more than one FieldDoc workspace. Choose a workspace on the web, then try saving again.",
+    });
+  });
+
+  it("keeps forbidden errors actionable without a support dead end", () => {
+    expect(
+      summarizeAutomaticCloudSyncResults(
+        {
+          status: "failed",
+          message: "Forbidden",
+        },
+        saved,
+      ),
+    ).toEqual({
+      status: "error",
+      message:
+        "Your account is connected, but FieldDoc could not save yet. Sign out and sign in again, then try saving.",
+    });
+  });
+
   it("tells TestFlight users to update when cloud config is missing", () => {
     expect(
       summarizeAutomaticCloudSyncResults(

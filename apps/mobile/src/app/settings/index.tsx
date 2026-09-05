@@ -312,7 +312,7 @@ export default function SettingsScreen() {
         />
         <StatusBanner
           tone={syncTone(automaticSync.status)}
-          title={syncTitle(automaticSync.status)}
+          title={syncTitle(automaticSync.status, automaticSync.message)}
           message={automaticSync.message}
           actionLabel={
             automaticSync.status === "offline" ||
@@ -443,11 +443,26 @@ function syncTone(status: ReturnType<typeof useAutomaticCloudSync>["status"]) {
   return "info" as const;
 }
 
-function syncTitle(status: ReturnType<typeof useAutomaticCloudSync>["status"]) {
+function syncTitle(
+  status: ReturnType<typeof useAutomaticCloudSync>["status"],
+  message = "",
+) {
   if (status === "saved") return "Everything is saved";
   if (status === "saving") return "Saving changes";
   if (status === "offline") return "Saved on this device";
-  if (status === "error") return "Cloud saving needs attention";
+  if (status === "error") {
+    const normalized = message.toLowerCase();
+    if (normalized.includes("more than one fielddoc workspace")) {
+      return "Choose a workspace";
+    }
+    if (
+      normalized.includes("fielddoc workspace") ||
+      normalized.includes("workspace")
+    ) {
+      return "Workspace setup needed";
+    }
+    return "Saving needs attention";
+  }
   return "Ready to save";
 }
 

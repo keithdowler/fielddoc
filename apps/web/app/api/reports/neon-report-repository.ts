@@ -6,20 +6,18 @@ import {
   desc,
   eq,
   isNull,
-  organizations,
-  organizationMembers,
   reportDrafts,
   reportExports,
   reportShareLinks,
   sql,
-  users,
 } from "@fielddoc/database";
 
 import {
   SyncConfigurationError,
   type SyncAuthPrincipal,
-  type SyncMembership,
+  type SyncMembershipResolution,
 } from "../sync/mutations/sync-service";
+import { resolveNeonSyncMembership } from "../sync/mutations/neon-membership";
 
 export type StoredReportDraft = {
   id: string;
@@ -49,7 +47,7 @@ export type StoredReportShareLink = {
 export type ReportArchiveRepository = {
   resolveMembership(
     principal: SyncAuthPrincipal,
-  ): Promise<SyncMembership | null>;
+  ): Promise<SyncMembershipResolution>;
   getReportDraft(input: {
     organizationId: string;
     reportDraftId: string;
@@ -96,32 +94,7 @@ export function createNeonReportArchiveRepository(
 
   return {
     async resolveMembership(principal) {
-      const rows = await db
-        .select({
-          organizationId: organizationMembers.organizationId,
-          role: organizationMembers.role,
-          userId: users.id,
-        })
-        .from(users)
-        .innerJoin(
-          organizationMembers,
-          eq(users.id, organizationMembers.userId),
-        )
-        .innerJoin(
-          organizations,
-          eq(organizationMembers.organizationId, organizations.id),
-        )
-        .where(
-          and(
-            eq(users.externalAuthId, principal.externalAuthId),
-            eq(organizations.externalAuthId, principal.organizationId),
-            isNull(organizations.deletedAt),
-            isNull(users.deletedAt),
-          ),
-        )
-        .limit(1);
-
-      return rows[0] ?? null;
+      return resolveNeonSyncMembership(db, principal);
     },
 
     async getReportDraft(input) {

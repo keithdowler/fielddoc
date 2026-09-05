@@ -5,16 +5,14 @@ import {
   evidenceItems,
   isNull,
   mediaAssets,
-  organizations,
-  organizationMembers,
-  users,
 } from "@fielddoc/database";
 
 import {
   SyncConfigurationError,
   type SyncAuthPrincipal,
-  type SyncMembership,
+  type SyncMembershipResolution,
 } from "../sync/mutations/sync-service";
+import { resolveNeonSyncMembership } from "../sync/mutations/neon-membership";
 
 export type StoredMediaAsset = {
   id: string;
@@ -28,7 +26,7 @@ export type StoredMediaAsset = {
 export type MediaUploadRepository = {
   resolveMembership(
     principal: SyncAuthPrincipal,
-  ): Promise<SyncMembership | null>;
+  ): Promise<SyncMembershipResolution>;
   evidenceBelongsToOrganization(input: {
     organizationId: string;
     evidenceItemId: string;
@@ -60,32 +58,7 @@ export function createNeonMediaUploadRepository(
 
   return {
     async resolveMembership(principal) {
-      const rows = await db
-        .select({
-          organizationId: organizationMembers.organizationId,
-          role: organizationMembers.role,
-          userId: users.id,
-        })
-        .from(users)
-        .innerJoin(
-          organizationMembers,
-          eq(users.id, organizationMembers.userId),
-        )
-        .innerJoin(
-          organizations,
-          eq(organizationMembers.organizationId, organizations.id),
-        )
-        .where(
-          and(
-            eq(users.externalAuthId, principal.externalAuthId),
-            eq(organizations.externalAuthId, principal.organizationId),
-            isNull(organizations.deletedAt),
-            isNull(users.deletedAt),
-          ),
-        )
-        .limit(1);
-
-      return rows[0] ?? null;
+      return resolveNeonSyncMembership(db, principal);
     },
 
     async evidenceBelongsToOrganization(input) {

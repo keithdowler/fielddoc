@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { SyncAuthResult } from "../mutations/sync-service";
+import type {
+  SyncAuthPrincipal,
+  SyncAuthResult,
+} from "../mutations/sync-service";
 import {
   createSyncPullPostHandler,
   type PullChangesInput,
@@ -8,16 +11,22 @@ import {
 } from "./sync-pull-service";
 import type { AuditEventInput } from "../../audit/audit-log";
 
-const principal = {
+const principal: SyncAuthPrincipal = {
   externalAuthId: "user_123",
   organizationId: "9b48b114-8efc-4c69-8dcc-e0c1a1d2ad8c",
   organizationRole: "org:admin",
 };
 
 const membership = {
-  organizationId: principal.organizationId,
+  organizationId: "9b48b114-8efc-4c69-8dcc-e0c1a1d2ad8c",
   userId: "ba2ac61a-68df-4b46-9191-55ef29e27fd2",
   role: "admin",
+};
+
+const mobilePrincipalWithoutWorkspace: SyncAuthPrincipal = {
+  externalAuthId: "user_123",
+  organizationId: null,
+  organizationRole: null,
 };
 
 const validPull = {
@@ -103,13 +112,41 @@ describe("createSyncPullPostHandler", () => {
     );
   });
 
-  it("requires active organization context from auth", async () => {
+  it("uses the resolved membership when mobile auth has no active workspace", async () => {
+    const pulls: PullChangesInput[] = [];
     const handler = createTestHandler({
-      auth: {
-        ok: false,
-        code: "ORGANIZATION_REQUIRED",
-        message: "An active organization is required to pull changes.",
-        status: 403,
+      auth: { ok: true, principal: mobilePrincipalWithoutWorkspace },
+      persistence: {
+        resolveMembership: async () => membership,
+        pullChanges: async (input) => {
+          pulls.push(input);
+          return {
+            cursor: null,
+            hasMore: false,
+            changes: emptyChanges(),
+          };
+        },
+      },
+    });
+
+    const response = await handler(createRequest(validPull));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.changes).toEqual(emptyChanges());
+    expect(pulls[0]?.membership).toEqual(membership);
+  });
+
+  it("explains when mobile auth has no workspace membership", async () => {
+    const handler = createTestHandler({
+      auth: { ok: true, principal: mobilePrincipalWithoutWorkspace },
+      persistence: {
+        resolveMembership: async () => ({ status: "workspace_not_found" }),
+        pullChanges: async () => ({
+          cursor: null,
+          hasMore: false,
+          changes: emptyChanges(),
+        }),
       },
     });
 
@@ -117,7 +154,37 @@ describe("createSyncPullPostHandler", () => {
     const body = await response.json();
 
     expect(response.status).toBe(403);
-    expect(body.error.code).toBe("ORGANIZATION_REQUIRED");
+    expect(body.error).toEqual({
+      code: "WORKSPACE_NOT_FOUND",
+      message:
+        "We could not find your FieldDoc workspace. Sign out and sign in again, then try saving.",
+    });
+  });
+
+  it("asks mobile users with multiple memberships to choose a workspace", async () => {
+    const handler = createTestHandler({
+      auth: { ok: true, principal: mobilePrincipalWithoutWorkspace },
+      persistence: {
+        resolveMembership: async () => ({
+          status: "workspace_choice_required",
+        }),
+        pullChanges: async () => ({
+          cursor: null,
+          hasMore: false,
+          changes: emptyChanges(),
+        }),
+      },
+    });
+
+    const response = await handler(createRequest(validPull));
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toEqual({
+      code: "WORKSPACE_CHOICE_REQUIRED",
+      message:
+        "This account has more than one FieldDoc workspace. Choose a workspace, then try again.",
+    });
   });
 
   it("requires server-side organization membership", async () => {
@@ -137,6 +204,9 @@ describe("createSyncPullPostHandler", () => {
 
     expect(response.status).toBe(403);
     expect(body.error.code).toBe("ORGANIZATION_MEMBERSHIP_REQUIRED");
+    expect(body.error.message).toBe(
+      "This account is not set up for the selected FieldDoc workspace.",
+    );
   });
 });
 

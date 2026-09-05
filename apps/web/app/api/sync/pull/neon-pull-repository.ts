@@ -8,11 +8,8 @@ import {
   evidenceItems,
   gt,
   mediaAssets,
-  organizations,
-  organizationMembers,
   projects,
   reportDrafts,
-  users,
 } from "@fielddoc/database";
 import { mediaSourceTypes, type MediaSourceType } from "@fielddoc/domain";
 import type {
@@ -28,8 +25,9 @@ import type {
 import {
   SyncConfigurationError,
   type SyncAuthPrincipal,
-  type SyncMembership,
+  type SyncMembershipResolution,
 } from "../mutations/sync-service";
+import { resolveNeonSyncMembership } from "../mutations/neon-membership";
 import type {
   PullChangesInput,
   PullChangesResult,
@@ -58,31 +56,8 @@ export function createNeonSyncPullRepository(
   return {
     async resolveMembership(
       principal: SyncAuthPrincipal,
-    ): Promise<SyncMembership | null> {
-      const rows = await db
-        .select({
-          organizationId: organizationMembers.organizationId,
-          role: organizationMembers.role,
-          userId: users.id,
-        })
-        .from(users)
-        .innerJoin(
-          organizationMembers,
-          eq(users.id, organizationMembers.userId),
-        )
-        .innerJoin(
-          organizations,
-          eq(organizationMembers.organizationId, organizations.id),
-        )
-        .where(
-          and(
-            eq(users.externalAuthId, principal.externalAuthId),
-            eq(organizations.externalAuthId, principal.organizationId),
-          ),
-        )
-        .limit(1);
-
-      return rows[0] ?? null;
+    ): Promise<SyncMembershipResolution> {
+      return resolveNeonSyncMembership(db, principal);
     },
 
     async pullChanges(input: PullChangesInput): Promise<PullChangesResult> {

@@ -60,6 +60,14 @@ export async function deleteFieldDocAccount(request: Request) {
     throw new AccountDeletionError(auth.code, auth.message, auth.status);
   }
 
+  if (!auth.principal.organizationId) {
+    throw new AccountDeletionError(
+      "ORGANIZATION_REQUIRED",
+      "Choose a workspace before deleting your account.",
+      403,
+    );
+  }
+
   if (!auth.principal.organizationRole?.includes("admin")) {
     throw new AccountDeletionError(
       "ADMIN_REQUIRED",

@@ -80,8 +80,24 @@ function createUserSafeSyncFailureMessage(message: string) {
     return "Please sign out and sign back in, then try saving again.";
   }
 
+  if (
+    normalized.includes("workspace_not_found") ||
+    normalized.includes("could not find your fielddoc workspace") ||
+    normalized.includes("not set up for the selected fielddoc workspace")
+  ) {
+    return "We could not find your FieldDoc workspace. Sign out and sign in again, then try saving.";
+  }
+
+  if (
+    normalized.includes("workspace_choice_required") ||
+    normalized.includes("more than one fielddoc workspace") ||
+    normalized.includes("choose a workspace")
+  ) {
+    return "This account has more than one FieldDoc workspace. Choose a workspace on the web, then try saving again.";
+  }
+
   if (normalized.includes("forbidden") || normalized.includes("403")) {
-    return "Your account is connected, but FieldDoc could not save to this workspace. Contact support.";
+    return "Your account is connected, but FieldDoc could not save yet. Sign out and sign in again, then try saving.";
   }
 
   if (normalized.includes("subscription")) {

@@ -1,12 +1,7 @@
 import {
-  and,
   createNeonDatabase,
   eq,
-  isNull,
-  organizations,
-  organizationMembers,
   receivedLocalMutations,
-  users,
 } from "@fielddoc/database";
 
 import {
@@ -14,10 +9,11 @@ import {
   type RecordReceivedMutationInput,
   type RecordReceivedMutationResult,
   type SyncAuthPrincipal,
-  type SyncMembership,
+  type SyncMembershipResolution,
   type SyncMutationPersistence,
 } from "./sync-service";
 import { createNeonCanonicalMutationRepository } from "./neon-canonical-repository";
+import { resolveNeonSyncMembership } from "./neon-membership";
 import { applyCanonicalMutation } from "./sync-application";
 
 export function createNeonSyncMutationPersistence(
@@ -37,33 +33,8 @@ export function createNeonSyncMutationPersistence(
   return {
     async resolveMembership(
       principal: SyncAuthPrincipal,
-    ): Promise<SyncMembership | null> {
-      const rows = await db
-        .select({
-          organizationId: organizationMembers.organizationId,
-          role: organizationMembers.role,
-          userId: users.id,
-        })
-        .from(users)
-        .innerJoin(
-          organizationMembers,
-          eq(users.id, organizationMembers.userId),
-        )
-        .innerJoin(
-          organizations,
-          eq(organizationMembers.organizationId, organizations.id),
-        )
-        .where(
-          and(
-            eq(users.externalAuthId, principal.externalAuthId),
-            eq(organizations.externalAuthId, principal.organizationId),
-            isNull(organizations.deletedAt),
-            isNull(users.deletedAt),
-          ),
-        )
-        .limit(1);
-
-      return rows[0] ?? null;
+    ): Promise<SyncMembershipResolution> {
+      return resolveNeonSyncMembership(db, principal);
     },
 
     async recordReceivedMutation(
