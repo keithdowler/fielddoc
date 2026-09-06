@@ -80,7 +80,7 @@ export function createWebReportDownloadRedirectHandler(
       organizationRole: "org:member",
     });
 
-    if (!membership) {
+    if (!membership || !("organizationId" in membership)) {
       return errorResponse(
         "ORGANIZATION_MEMBERSHIP_REQUIRED",
         "Authenticated user is not a member of the active organization.",

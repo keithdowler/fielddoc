@@ -44,7 +44,8 @@ export async function resolveNeonSyncMembership(
     )
     .limit(2);
 
-  if (rows.length === 1) return rows[0];
+  const membership = rows[0];
+  if (membership && rows.length === 1) return membership;
   if (rows.length > 1) return { status: "workspace_choice_required" };
 
   return { status: "workspace_not_found" };
