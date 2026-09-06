@@ -257,8 +257,8 @@ export function getFieldDocNextActions(
       label: "Confirm subscription",
       detail:
         input.subscriptionActive === true
-          ? "Cloud backup and report archive are available."
-          : "An active subscription is required before cloud backup can run.",
+          ? "Report sharing and archive features are available."
+          : "An active subscription is required for report sharing and archives.",
       actionLabel:
         input.subscriptionActive === true ? null : "Check subscription",
       destination: "settings",
@@ -267,9 +267,7 @@ export function getFieldDocNextActions(
     {
       id: "back_up",
       status:
-        input.privateStorageReady === false ||
-        input.isSignedIn !== true ||
-        input.subscriptionActive !== true
+        input.privateStorageReady === false || input.isSignedIn !== true
           ? "blocked"
           : input.pendingLocalChangeCount === 0 &&
               pendingOriginalFileCount === 0 &&
@@ -280,8 +278,8 @@ export function getFieldDocNextActions(
       detail:
         input.privateStorageReady === false
           ? "Private storage is not configured yet."
-          : input.isSignedIn !== true || input.subscriptionActive !== true
-            ? "Sign in and confirm subscription before cloud backup."
+          : input.isSignedIn !== true
+            ? "Sign in before cloud backup."
             : input.pendingLocalChangeCount === 0 &&
                 pendingOriginalFileCount === 0 &&
                 pendingReportPdfCount === 0
@@ -290,7 +288,6 @@ export function getFieldDocNextActions(
       actionLabel:
         input.privateStorageReady !== false &&
         input.isSignedIn === true &&
-        input.subscriptionActive === true &&
         (input.pendingLocalChangeCount > 0 ||
           pendingOriginalFileCount > 0 ||
           pendingReportPdfCount > 0)
@@ -524,10 +521,10 @@ export function getReportUsabilityChecklist(
       label: "Subscription",
       detail:
         input.subscriptionActive === false
-          ? "Cloud backup and report archive need an active subscription."
+          ? "Report sharing and archives need an active subscription."
           : input.subscriptionActive === true
-            ? "Automatic cloud saving is available."
-            : "Sign in and refresh subscription before cloud delivery.",
+            ? "Report sharing and archives are available."
+            : "Sign in and refresh subscription before report sharing.",
       actionLabel:
         input.subscriptionActive === true ? null : "Check subscription",
     },
@@ -600,7 +597,7 @@ export function getCloudFeatureGate(input: {
   if (!input.isSignedIn) {
     return {
       allowed: false,
-      reason: "Sign in before using cloud subscription features.",
+      reason: "Sign in before checking report sharing features.",
     };
   }
 
@@ -608,7 +605,7 @@ export function getCloudFeatureGate(input: {
     return {
       allowed: false,
       reason:
-        "RevenueCat is not configured on this build, so paid cloud features are disabled.",
+        "RevenueCat is not configured on this build, so paid report features are disabled.",
     };
   }
 
@@ -621,7 +618,7 @@ export function getCloudFeatureGate(input: {
     return {
       allowed: false,
       reason:
-        "An active FieldDoc subscription is required for cloud saving and report archives.",
+        "An active FieldDoc subscription is required for report sharing and archives. Automatic saving uses your signed-in workspace.",
     };
   }
 

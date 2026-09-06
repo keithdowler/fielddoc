@@ -84,7 +84,11 @@ describe("domain constants", () => {
         entitlementConfigured: true,
         entitlements: [],
       }),
-    ).toMatchObject({ allowed: false });
+    ).toMatchObject({
+      allowed: false,
+      reason:
+        "An active FieldDoc subscription is required for report sharing and archives. Automatic saving uses your signed-in workspace.",
+    });
   });
 
   it("accepts current RevenueCat entitlement aliases for fielddoc_pro", () => {
@@ -242,7 +246,7 @@ describe("domain constants", () => {
     ).toBe("capture_work");
   });
 
-  it("keeps cloud backup blocked until account and subscription are ready", () => {
+  it("allows cloud backup when the account and storage are ready", () => {
     const actions = getFieldDocNextActions({
       projectCount: 1,
       hasSelectedProject: true,
@@ -267,8 +271,8 @@ describe("domain constants", () => {
       status: "action_needed",
     });
     expect(actions.find((action) => action.id === "back_up")).toMatchObject({
-      status: "blocked",
-      actionLabel: null,
+      status: "action_needed",
+      actionLabel: "Back up now",
     });
   });
 

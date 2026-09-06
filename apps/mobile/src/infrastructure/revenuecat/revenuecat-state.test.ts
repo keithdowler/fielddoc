@@ -14,6 +14,18 @@ describe("toRevenueCatState", () => {
     expect(getRevenueCatStatusCopy(state).tone).toBe("warning");
   });
 
+  it("does not describe automatic saving as subscription gated", () => {
+    const state = toRevenueCatState({
+      isConfigured: true,
+      isSignedIn: true,
+      entitlements: [],
+    });
+    const copy = getRevenueCatStatusCopy(state);
+
+    expect(copy.title).toBe("Report sharing locked");
+    expect(copy.message).toContain("Automatic saving uses");
+  });
+
   it("detects active fielddoc_pro entitlements", () => {
     expect(
       toRevenueCatState({

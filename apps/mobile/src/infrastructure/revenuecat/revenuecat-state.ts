@@ -35,7 +35,7 @@ export function getRevenueCatStatusCopy(state: RevenueCatState): {
   if (state.status === "inactive") {
     return {
       tone: "warning",
-      title: "Subscription required",
+      title: "Report sharing locked",
       message: state.message,
     };
   }
@@ -120,6 +120,6 @@ export function toRevenueCatState(input: {
     status: "inactive",
     entitlements: input.entitlements,
     message:
-      "Cloud sync, private media archive, and report PDF archive require an active subscription.",
+      "Report sharing and archives require an active subscription. Automatic saving uses your signed-in workspace.",
   };
 }

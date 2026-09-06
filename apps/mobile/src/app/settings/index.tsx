@@ -326,7 +326,7 @@ export default function SettingsScreen() {
       <Card>
         <SectionHeader
           title="Subscription"
-          detail="A FieldDoc Pro subscription enables cloud saving and report sharing."
+          detail="A FieldDoc Pro subscription enables report sharing and archives."
         />
         <StatusBanner
           tone={cloudGate.allowed ? "success" : subscriptionCopy.tone}
