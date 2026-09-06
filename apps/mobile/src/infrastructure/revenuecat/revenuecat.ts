@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
-import Purchases, {
-  LOG_LEVEL,
-  type CustomerInfo,
-} from "react-native-purchases";
-import {
-  isFieldDocProEntitlementId,
-  type SubscriptionEntitlement,
-} from "@fielddoc/domain";
+import Purchases, { LOG_LEVEL } from "react-native-purchases";
+import { type SubscriptionEntitlement } from "@fielddoc/domain";
 
+import {
+  createInactiveFieldDocProMessage,
+  hasRevenueCatFieldDocPro,
+  mapCustomerInfoToEntitlements,
+} from "./revenuecat-entitlements";
 import { toRevenueCatState, type RevenueCatState } from "./revenuecat-state";
 
 type RevenueCatActionResult = {
-  status: "success" | "failed" | "canceled";
+  status: "success" | "inactive" | "failed" | "canceled";
   message: string;
 };
 
@@ -88,11 +87,19 @@ export function useRevenueCatEntitlements({
       }
 
       const customerInfo = await Purchases.getCustomerInfo();
-      setEntitlements(mapCustomerInfoToEntitlements(customerInfo));
+      const nextEntitlements = mapCustomerInfoToEntitlements(customerInfo);
+      setEntitlements(nextEntitlements);
+
+      if (!hasRevenueCatFieldDocPro(nextEntitlements)) {
+        return {
+          status: "inactive",
+          message: createInactiveFieldDocProMessage(nextEntitlements),
+        };
+      }
 
       return {
         status: "success",
-        message: "Subscription entitlements refreshed.",
+        message: "FieldDoc Pro is active on this account.",
       };
     } catch (error) {
       const message =
@@ -137,11 +144,19 @@ export function useRevenueCatEntitlements({
       }
 
       const customerInfo = await Purchases.restorePurchases();
-      setEntitlements(mapCustomerInfoToEntitlements(customerInfo));
+      const nextEntitlements = mapCustomerInfoToEntitlements(customerInfo);
+      setEntitlements(nextEntitlements);
+
+      if (!hasRevenueCatFieldDocPro(nextEntitlements)) {
+        return {
+          status: "inactive",
+          message: createInactiveFieldDocProMessage(nextEntitlements),
+        };
+      }
 
       return {
         status: "success",
-        message: "Purchases restored from the app store account.",
+        message: "FieldDoc Pro was restored from the app store account.",
       };
     } catch (error) {
       const message =
@@ -231,24 +246,4 @@ function getRevenueCatApiKey(): string | undefined {
   return undefined;
 }
 
-function mapCustomerInfoToEntitlements(
-  customerInfo: CustomerInfo,
-): SubscriptionEntitlement[] {
-  return Object.values(customerInfo.entitlements.all).map((entitlement) => ({
-    entitlementId: entitlement.identifier,
-    status: entitlement.isActive ? "active" : "inactive",
-    productId: entitlement.productIdentifier,
-    expiresAt: entitlement.expirationDate,
-    lastCheckedAt: customerInfo.requestDate,
-  }));
-}
-
-export function hasRevenueCatFieldDocPro(
-  entitlements: readonly SubscriptionEntitlement[],
-): boolean {
-  return entitlements.some(
-    (entitlement) =>
-      isFieldDocProEntitlementId(entitlement.entitlementId) &&
-      entitlement.status === "active",
-  );
-}
+export { hasRevenueCatFieldDocPro, mapCustomerInfoToEntitlements };

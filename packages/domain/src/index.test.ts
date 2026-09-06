@@ -16,6 +16,7 @@ import {
   getReportReadiness,
   getReportUsabilityChecklist,
   hasActiveFieldDocProEntitlement,
+  isFieldDocProProductId,
   normalizeReportBranding,
   normalizeReportSections,
   reportBrandingAccentColors,
@@ -48,15 +49,18 @@ describe("domain constants", () => {
 
   it("gates paid cloud features on a current RevenueCat entitlement", () => {
     expect(
-      hasActiveFieldDocProEntitlement([
-        {
-          entitlementId: "fielddoc_pro",
-          status: "active",
-          productId: "fielddoc_pro_monthly",
-          expiresAt: "2026-09-01T00:00:00.000Z",
-          lastCheckedAt: "2026-08-17T00:00:00.000Z",
-        },
-      ]),
+      hasActiveFieldDocProEntitlement(
+        [
+          {
+            entitlementId: "fielddoc_pro",
+            status: "active",
+            productId: "fielddoc_pro_monthly",
+            expiresAt: "2026-09-01T00:00:00.000Z",
+            lastCheckedAt: "2026-08-17T00:00:00.000Z",
+          },
+        ],
+        "2026-08-17T00:00:00.000Z",
+      ),
     ).toBe(true);
 
     expect(
@@ -100,6 +104,11 @@ describe("domain constants", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("identifies FieldDoc Pro subscription product ids", () => {
+    expect(isFieldDocProProductId("fielddoc_pro_monthly")).toBe(true);
+    expect(isFieldDocProProductId("other_product")).toBe(false);
   });
 
   it("builds a plain-language report checklist for broad usability", () => {

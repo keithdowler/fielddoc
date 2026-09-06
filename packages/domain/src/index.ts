@@ -46,9 +46,16 @@ export const fieldDocProEntitlementAliases = [
   "FieldDocPro",
   "FieldDoc Pro",
 ] as const;
+export const fieldDocProProductIds = ["fielddoc_pro_monthly"] as const;
 
 export function isFieldDocProEntitlementId(entitlementId: string): boolean {
   return fieldDocProEntitlementAliases.some((alias) => alias === entitlementId);
+}
+
+export function isFieldDocProProductId(productId: string): boolean {
+  return fieldDocProProductIds.some(
+    (fieldDocProductId) => fieldDocProductId === productId,
+  );
 }
 
 export type SubscriptionEntitlement = {

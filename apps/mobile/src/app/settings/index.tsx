@@ -129,11 +129,8 @@ export default function SettingsScreen() {
     setWorking(true);
     const refreshResult = await subscription.refresh();
     setResult({
-      tone: refreshResult.status === "success" ? "success" : "warning",
-      title:
-        refreshResult.status === "success"
-          ? "Subscription updated"
-          : "Subscription not updated",
+      tone: subscriptionActionTone(refreshResult.status),
+      title: subscriptionActionTitle(refreshResult.status, "refresh"),
       message: simplifySubscriptionMessage(refreshResult.message),
     });
     setWorking(false);
@@ -143,11 +140,8 @@ export default function SettingsScreen() {
     setWorking(true);
     const restoreResult = await subscription.restore();
     setResult({
-      tone: restoreResult.status === "success" ? "success" : "warning",
-      title:
-        restoreResult.status === "success"
-          ? "Purchases restored"
-          : "Nothing was restored",
+      tone: subscriptionActionTone(restoreResult.status),
+      title: subscriptionActionTitle(restoreResult.status, "restore"),
       message: simplifySubscriptionMessage(restoreResult.message),
     });
     setWorking(false);
@@ -471,6 +465,25 @@ function simplifySubscriptionMessage(message: string) {
     .replaceAll("subscription entitlements", "subscription")
     .replaceAll("Subscription entitlements", "Subscription")
     .replaceAll("RevenueCat", "Subscriptions");
+}
+
+function subscriptionActionTone(status: string) {
+  if (status === "success") return "success" as const;
+  if (status === "failed") return "error" as const;
+  return "warning" as const;
+}
+
+function subscriptionActionTitle(
+  status: string,
+  action: "refresh" | "restore",
+) {
+  if (status === "success") {
+    return action === "restore" ? "Purchases restored" : "Subscription active";
+  }
+
+  if (status === "inactive") return "No active FieldDoc Pro purchase";
+  if (status === "canceled") return "Subscription not checked";
+  return action === "restore" ? "Restore failed" : "Subscription check failed";
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
